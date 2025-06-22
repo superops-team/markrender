@@ -22,3 +22,7 @@ dmg: onefile
 # 格式化代码
 fmt:
 	autopep8 --in-place --recursive --aggressive --aggressive .
+
+# 清理
+clean:
+	rm -rf app.log config.db build dist

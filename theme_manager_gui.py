@@ -1,31 +1,13 @@
-import markdown
-from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QColor
-from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import (
-    QApplication,
     QColorDialog,
-    QComboBox,
     QDialog,
-    QFileDialog,
-    QHBoxLayout,
-    QHeaderView,
-    QInputDialog,
-    QLabel,
-    QLineEdit,
-    QMainWindow,
     QMessageBox,
     QPushButton,
-    QSplitter,
     QTableWidget,
     QTableWidgetItem,
-    QTextEdit,
-    QToolBar,
     QVBoxLayout,
-    QWidget,
 )
-
-from db_manager import ThemeManager
 
 
 class ThemeManagerGUI:

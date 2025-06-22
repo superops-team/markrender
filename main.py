@@ -1,9 +1,12 @@
 import sys
 import logging
-import os
+from logging import StreamHandler
+
 
 # 主窗口必要的导入
 from PySide6.QtWidgets import QApplication, QMainWindow
+from db_manager import ThemeManager
+import init_db
 
 # 其他包懒加载
 markdown = None
@@ -21,40 +24,41 @@ QTextEdit = None
 QToolBar = None
 QVBoxLayout = None
 QWidget = None
-ThemeManager = None
 ThemeManagerGUI = None
-init_db = None
 
-# 配置日志
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    filename='app.log'
-)
+# 创建日志器
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+# 创建文件处理器
+file_handler = logging.FileHandler('app.log')
+file_handler.setFormatter(logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+
+# 创建控制台处理器
+console_handler = StreamHandler()
+console_handler.setFormatter(logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+
+# 将处理器添加到日志器
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
 
 logger = logging.getLogger(__name__)
 
 
-def init_resources():
+def init_themes():
     # 检测 markrender.db 文件是否存在
-    db_path = 'markrender.db'
-    try:
-        home_dir = os.path.expanduser('~')
-        markrender_dir = os.path.join(home_dir, '.markrender')
-        os.makedirs(markrender_dir, exist_ok=True)
-        db_path = os.path.join(markrender_dir, db_path)
-        init_db.run(db_path)  # 假设 init_db.py 中有 main 函数用于初始化
-    except Exception as e:
-        logger.critical(f"Fatal error: {str(e)}", exc_info=True)
-        raise
-    return db_path
+    db_path = init_db.get_db_path('markrender.db')
+    theme_manager = ThemeManager(db_path=db_path)
+    init_db.init_themes(theme_manager)  # 假设 init_db.py 中有 main 函数用于初始化
+    return theme_manager
 
 
 class MainWindow(QMainWindow):
-
     def __init__(self):
         super().__init__()
-        global markdown, Qt, QTimer, QWebEngineView, QComboBox, QFileDialog, QHBoxLayout, QInputDialog, QLabel, QMessageBox, QSplitter, QTextEdit, QToolBar, QVBoxLayout, QWidget, ThemeManager, ThemeManagerGUI, init_db, logging
+        global markdown, Qt, QTimer, QWebEngineView, QComboBox, QFileDialog, QHBoxLayout, QInputDialog, QLabel, QMessageBox, QSplitter, QTextEdit, QToolBar, QVBoxLayout, QWidget, ThemeManagerGUI
         if markdown is None:
             import markdown
         if Qt is None:
@@ -63,14 +67,9 @@ class MainWindow(QMainWindow):
             from PySide6.QtWebEngineWidgets import QWebEngineView
         if QComboBox is None:
             from PySide6.QtWidgets import QComboBox, QFileDialog, QHBoxLayout, QInputDialog, QLabel, QMessageBox, QSplitter, QTextEdit, QToolBar, QVBoxLayout, QWidget
-        if ThemeManager is None:
-            from db_manager import ThemeManager
         if ThemeManagerGUI is None:
             from theme_manager_gui import ThemeManagerGUI
-        if init_db is None:
-            import init_db
-        db_path = init_resources()
-        self.theme_manager = ThemeManager(db_path)
+        self.theme_manager = init_themes()
         self.theme_manager_gui = ThemeManagerGUI(self, self.theme_manager)
         self.setWindowTitle("MarkRender")
         self.setGeometry(100, 100, 800, 600)

@@ -4,7 +4,27 @@ from sqlalchemy.sql import func
 
 # 创建基础类
 Base = declarative_base()
-engine = None
+
+
+class SingletonEngine:
+    _instance = None
+    _db_path = None
+
+    @classmethod
+    def get_instance(cls, db_path):
+        if cls._instance is None:
+            cls._db_path = db_path
+            from sqlalchemy import create_engine
+            cls._instance = create_engine("sqlite:///{}".format(db_path))
+        elif cls._db_path != db_path:
+            import logging
+            logging.warning(
+                '尝试使用不同的数据库路径，当前路径: %s, 尝试路径: %s',
+                cls._db_path,
+                db_path)
+            raise ValueError(
+                'Database path cannot be changed once the engine is initialized.')
+        return cls._instance
 
 
 class Theme(Base):
@@ -18,10 +38,10 @@ class Theme(Base):
 
 
 class ThemeManager:
-    def __init__(self, db_path='markrender.db'):
-        global engine
-        if engine is None:
-            engine = create_engine(f"sqlite:///{db_path}")
+    def __init__(self, db_path=None):
+        if db_path is None:
+            db_path = SingletonEngine._db_path
+        engine = SingletonEngine.get_instance(db_path)
         Base.metadata.create_all(engine)
         self.Session = sessionmaker(bind=engine)
 
@@ -100,13 +120,3 @@ class ThemeManager:
             raise e
         finally:
             session.close()
-
-
-if __name__ == "__main__":
-    manager = ThemeManager()
-    # 示例用法
-    # new_theme = manager.create_theme('new_theme', 'body { color: red; }')
-    # print(manager.get_theme('new_theme'))
-    # print(manager.get_all_themes())
-    # print(manager.update_theme('new_theme', 'body { color: blue; }'))
-    # print(manager.delete_theme('new_theme'))

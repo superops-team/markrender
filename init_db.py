@@ -1,4 +1,5 @@
 import os
+import logging
 from db_manager import ThemeManager
 
 # 基础样式：代码高亮和一级标题样式
@@ -112,20 +113,24 @@ themes = {
     </style>""",
 }
 
+_db_path = ""
 
-def run(db_path='markrender.db'):
-    if not db_path:
-        home_dir = os.path.expanduser('~')
-        markrender_dir = os.path.join(home_dir, '.markrender')
-        os.makedirs(markrender_dir, exist_ok=True)
-        db_path = os.path.join(markrender_dir, db_path)
-    manager = ThemeManager(db_path)
+
+def get_db_path(db_name):
+    global _db_path
+    if _db_path:
+        return _db_path
+    home_dir = os.path.expanduser('~')
+    markrender_dir = os.path.join(home_dir, '.markrender')
+    os.makedirs(markrender_dir, exist_ok=True)
+    _db_path = os.path.join(markrender_dir, db_name)
+    logging.info("use db_path=%s as config", _db_path)
+    return _db_path
+
+
+def init_themes(manager):
     for name, theme_style in themes.items():
         if manager.theme_exists(name):
             continue
         full_style = base_style + theme_style
         manager.create_theme(name, full_style)
-
-
-if __name__ == "__main__":
-    run()
