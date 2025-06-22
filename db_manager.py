@@ -88,6 +88,15 @@ class ThemeManager:
         finally:
             session.close()
 
+    def theme_exists(self, name):
+        session = self.Session()
+        try:
+            return session.query(Theme).filter_by(name=name).first() is not None
+        except Exception as e:
+            raise e
+        finally:
+            session.close()
+
 
 if __name__ == "__main__":
     manager = ThemeManager()

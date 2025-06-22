@@ -111,8 +111,13 @@ themes = {
     </style>""",
 }
 
-if __name__ == "__main__":
+def main():
     manager = ThemeManager()
     for name, theme_style in themes.items():
+        if manager.theme_exists(name):
+            continue
         full_style = base_style + theme_style
         manager.create_theme(name, full_style)
+
+if __name__ == "__main__":
+    main()

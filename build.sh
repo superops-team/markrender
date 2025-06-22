@@ -2,7 +2,7 @@
 # 生成各种图标
 # icon-gen -i ./shen_1179.png -o icons
 # 创建安装包
-# pyinstaller --onefile --windowed --name "markrender" --icon "./icons/app.icns" main.py
+# pyinstaller --onefile --windowed --name "markrender" --icon "./icons/app.icns" *.py
 mkdir -p dist/dmg
 cp -r "dist/markrender.app" dist/dmg
 

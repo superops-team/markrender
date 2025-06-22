@@ -1,13 +1,11 @@
-import sqlite3
 import sys
+import os
 
 import markdown
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QColor
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import (
     QApplication,
-    QColorDialog,
     QComboBox,
     QFileDialog,
     QHBoxLayout,
@@ -24,6 +22,7 @@ from PySide6.QtWidgets import (
 
 from db_manager import ThemeManager
 from theme_manager_gui import ThemeManagerGUI
+import init_db
 
 
 class MainWindow(QMainWindow):
@@ -107,6 +106,21 @@ class MainWindow(QMainWindow):
 
         # 初始化预览
         self.update_preview()
+        self.precheck()
+    
+    def precheck(self):
+         # 检测 config.db 文件是否存在
+        try:
+            debug = os.getenv('DEBUG_MR') == '1'
+            if debug:
+                script_dir = os.path.dirname(os.path.abspath(__file__))
+            else:
+                script_dir = '/Applications/markrender.app/Contents/MacOS'
+            config_db_path = os.path.join(script_dir, 'config.db')
+            if not os.path.isfile(config_db_path):
+                init_db.main()  # 假设 init_db.py 中有 main 函数用于初始化
+        except Exception as e:
+            print(f"Error creating directory: {e}")
 
     def get_current_style(self):
         return self.theme_manager_gui.get_current_style()
