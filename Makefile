@@ -1,10 +1,10 @@
 # 生成单文件
 onefile:
 	rm -rf build dist
-	pyinstaller --onefile --windowed --add-data=./:config.db --hidden-import="PySide6.QtXml" --hidden-import="PySide6.QtSvg" --hidden-import="PySide6.QtNetwork" --name "markrender" --icon "./icons/app.icns" *.py
+	pyinstaller --onedir --windowed  --hidden-import="PySide6.QtXml" --hidden-import="PySide6.QtSvg" --hidden-import="PySide6.QtNetwork" --name "markrender" --icon "./icons/app.icns" *.py
 
 # 创建 dmg
-create_dmg: onefile
+dmg: onefile
 	mkdir -p dist/dmg
 	mv dist/markrender.app dist/dmg
 	create-dmg \
@@ -18,3 +18,7 @@ create_dmg: onefile
 	  --app-drop-link 425 120 \
 	  "dist/markrender.dmg" \
 	  "dist/dmg/"
+ 	  
+# 格式化代码
+fmt:
+	autopep8 --in-place --recursive --aggressive --aggressive .

@@ -4,6 +4,7 @@ from sqlalchemy.sql import func
 
 # 创建基础类
 Base = declarative_base()
+engine = None
 
 
 class Theme(Base):
@@ -17,10 +18,12 @@ class Theme(Base):
 
 
 class ThemeManager:
-    def __init__(self):
-        self.engine = create_engine("sqlite:///config.db")
-        Base.metadata.create_all(self.engine)
-        self.Session = sessionmaker(bind=self.engine)
+    def __init__(self, db_path='markrender.db'):
+        global engine
+        if engine is None:
+            engine = create_engine(f"sqlite:///{db_path}")
+        Base.metadata.create_all(engine)
+        self.Session = sessionmaker(bind=engine)
 
     def create_theme(self, name, css_config):
         session = self.Session()
@@ -91,7 +94,8 @@ class ThemeManager:
     def theme_exists(self, name):
         session = self.Session()
         try:
-            return session.query(Theme).filter_by(name=name).first() is not None
+            return session.query(Theme).filter_by(
+                name=name).first() is not None
         except Exception as e:
             raise e
         finally:

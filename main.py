@@ -1,12 +1,6 @@
 import sys
-import threading
-import os
-
-import sys
-import threading
-import os
 import logging
-
+import os
 
 # 主窗口必要的导入
 from PySide6.QtWidgets import QApplication, QMainWindow
@@ -40,22 +34,24 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+
 def init_resources():
-    # 检测 config.db 文件是否存在
+    # 检测 markrender.db 文件是否存在
+    db_path = 'markrender.db'
     try:
-        debug = os.getenv('DEBUG_MR') == '1'
-        if debug:
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-        else:
-            script_dir = '/Applications/markrender.app/Contents/MacOS'
-        config_db_path = os.path.join(script_dir, 'config.db')
-        if not os.path.isfile(config_db_path):
-            init_db.main()  # 假设 init_db.py 中有 main 函数用于初始化
+        home_dir = os.path.expanduser('~')
+        markrender_dir = os.path.join(home_dir, '.markrender')
+        os.makedirs(markrender_dir, exist_ok=True)
+        db_path = os.path.join(markrender_dir, db_path)
+        init_db.run(db_path)  # 假设 init_db.py 中有 main 函数用于初始化
     except Exception as e:
         logger.critical(f"Fatal error: {str(e)}", exc_info=True)
         raise
+    return db_path
+
 
 class MainWindow(QMainWindow):
+
     def __init__(self):
         super().__init__()
         global markdown, Qt, QTimer, QWebEngineView, QComboBox, QFileDialog, QHBoxLayout, QInputDialog, QLabel, QMessageBox, QSplitter, QTextEdit, QToolBar, QVBoxLayout, QWidget, ThemeManager, ThemeManagerGUI, init_db, logging
@@ -73,8 +69,8 @@ class MainWindow(QMainWindow):
             from theme_manager_gui import ThemeManagerGUI
         if init_db is None:
             import init_db
-
-        self.theme_manager = ThemeManager()
+        db_path = init_resources()
+        self.theme_manager = ThemeManager(db_path)
         self.theme_manager_gui = ThemeManagerGUI(self, self.theme_manager)
         self.setWindowTitle("MarkRender")
         self.setGeometry(100, 100, 800, 600)
@@ -152,11 +148,6 @@ class MainWindow(QMainWindow):
 
         # 初始化预览
         self.update_preview()
-        # 确保 init_db 在使用前已导入
-        if init_db is None:
-            import init_db
-        threading.Thread(target=init_resources).start() 
-    
 
     def get_current_style(self):
         return self.theme_manager_gui.get_current_style()
@@ -245,7 +236,8 @@ class MainWindow(QMainWindow):
             )
             if reply == QMessageBox.Yes:
                 self.theme_manager.delete_theme(theme_name)
-                self.style_combobox.removeItem(self.style_combobox.findText(theme_name))
+                self.style_combobox.removeItem(
+                    self.style_combobox.findText(theme_name))
                 # 重新加载主题管理对话框
                 if hasattr(self, "show_theme_management_dialog"):
                     self.show_theme_management_dialog()
@@ -283,9 +275,10 @@ class MainWindow(QMainWindow):
             save_button = QPushButton("保存")
             save_button.clicked.connect(
                 lambda: self.update_existing_theme(
-                    title_input.text(), config_input.toPlainText(), theme_name, dialog
-                )
-            )
+                    title_input.text(),
+                    config_input.toPlainText(),
+                    theme_name,
+                    dialog))
             cancel_button = QPushButton("取消")
             cancel_button.clicked.connect(dialog.close)
             button_layout.addWidget(save_button)
@@ -368,25 +361,30 @@ class MainWindow(QMainWindow):
 
             # 创建时间
             item_create_time = QTableWidgetItem(str(theme.created_at))
-            self.theme_management_dialog.table.setItem(row, 1, item_create_time)
+            self.theme_management_dialog.table.setItem(
+                row, 1, item_create_time)
 
             # 修改时间
             item_update_time = QTableWidgetItem(str(theme.updated_at))
-            self.theme_management_dialog.table.setItem(row, 2, item_update_time)
+            self.theme_management_dialog.table.setItem(
+                row, 2, item_update_time)
 
             # 编辑按钮，解决闭包问题
             edit_button = QPushButton("编辑")
-            edit_button.clicked.connect(lambda _, t=theme.name: self.edit_theme(t))
-            self.theme_management_dialog.table.setCellWidget(row, 3, edit_button)
+            edit_button.clicked.connect(
+                lambda _, t=theme.name: self.edit_theme(t))
+            self.theme_management_dialog.table.setCellWidget(
+                row, 3, edit_button)
 
             # 删除按钮，解决闭包问题
             delete_button = QPushButton("删除")
-            delete_button.clicked.connect(lambda _, t=theme.name: self.delete_theme(t))
-            self.theme_management_dialog.table.setCellWidget(row, 4, delete_button)
+            delete_button.clicked.connect(
+                lambda _, t=theme.name: self.delete_theme(t))
+            self.theme_management_dialog.table.setCellWidget(
+                row, 4, delete_button)
 
-        self.theme_management_dialog.table.horizontalHeader().setSectionResizeMode(
-            QHeaderView.Stretch
-        )
+        self.theme_management_dialog.table.horizontalHeader(
+        ).setSectionResizeMode(QHeaderView.Stretch)
         layout.addWidget(self.theme_management_dialog.table)
 
         # 新增主题按钮
@@ -406,7 +404,8 @@ class MainWindow(QMainWindow):
                 current_style = self.get_current_style()
                 self.theme_manager.delete_theme(current_theme_name)
                 self.theme_manager.create_theme(new_name, current_style)
-                self.style_combobox.removeItem(self.style_combobox.currentIndex())
+                self.style_combobox.removeItem(
+                    self.style_combobox.currentIndex())
                 self.style_combobox.addItem(new_name)
                 self.style_combobox.setCurrentText(new_name)
 
@@ -449,7 +448,9 @@ class MainWindow(QMainWindow):
 
             # 编辑按钮
             edit_button = QPushButton("编辑")
-            edit_button.clicked.connect(lambda _, r=row: self.edit_theme(theme.name))
+            edit_button.clicked.connect(
+                lambda _, r=row: self.edit_theme(
+                    theme.name))
             table.setCellWidget(row, 3, edit_button)
 
             # 删除按钮
@@ -469,6 +470,20 @@ class MainWindow(QMainWindow):
 
         dialog.setLayout(layout)
         dialog.exec()
+
+    def get_base_style(self):
+        return """<style>
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h2 { font-family: Arial, sans-serif; font-size: 22px; }
+        blockquote { font-style: italic; }
+        table { border-collapse: collapse; }
+        th, td { border: 1px solid #ccc; padding: 6px 13px; }
+        </style>"""
 
 
 if __name__ == "__main__":
