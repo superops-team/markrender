@@ -1,33 +1,79 @@
 import sys
+import threading
 import os
 
-import markdown
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6.QtWidgets import (
-    QApplication,
-    QComboBox,
-    QFileDialog,
-    QHBoxLayout,
-    QInputDialog,
-    QLabel,
-    QMainWindow,
-    QMessageBox,
-    QSplitter,
-    QTextEdit,
-    QToolBar,
-    QVBoxLayout,
-    QWidget,
+import sys
+import threading
+import os
+import logging
+
+
+# 主窗口必要的导入
+from PySide6.QtWidgets import QApplication, QMainWindow
+
+# 其他包懒加载
+markdown = None
+Qt = None
+QTimer = None
+QWebEngineView = None
+QComboBox = None
+QFileDialog = None
+QHBoxLayout = None
+QInputDialog = None
+QLabel = None
+QMessageBox = None
+QSplitter = None
+QTextEdit = None
+QToolBar = None
+QVBoxLayout = None
+QWidget = None
+ThemeManager = None
+ThemeManagerGUI = None
+init_db = None
+
+# 配置日志
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    filename='app.log'
 )
 
-from db_manager import ThemeManager
-from theme_manager_gui import ThemeManagerGUI
-import init_db
+logger = logging.getLogger(__name__)
 
+def init_resources():
+    # 检测 config.db 文件是否存在
+    try:
+        debug = os.getenv('DEBUG_MR') == '1'
+        if debug:
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+        else:
+            script_dir = '/Applications/markrender.app/Contents/MacOS'
+        config_db_path = os.path.join(script_dir, 'config.db')
+        if not os.path.isfile(config_db_path):
+            init_db.main()  # 假设 init_db.py 中有 main 函数用于初始化
+    except Exception as e:
+        logger.critical(f"Fatal error: {str(e)}", exc_info=True)
+        raise
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        global markdown, Qt, QTimer, QWebEngineView, QComboBox, QFileDialog, QHBoxLayout, QInputDialog, QLabel, QMessageBox, QSplitter, QTextEdit, QToolBar, QVBoxLayout, QWidget, ThemeManager, ThemeManagerGUI, init_db, logging
+        if markdown is None:
+            import markdown
+        if Qt is None:
+            from PySide6.QtCore import Qt, QTimer
+        if QWebEngineView is None:
+            from PySide6.QtWebEngineWidgets import QWebEngineView
+        if QComboBox is None:
+            from PySide6.QtWidgets import QComboBox, QFileDialog, QHBoxLayout, QInputDialog, QLabel, QMessageBox, QSplitter, QTextEdit, QToolBar, QVBoxLayout, QWidget
+        if ThemeManager is None:
+            from db_manager import ThemeManager
+        if ThemeManagerGUI is None:
+            from theme_manager_gui import ThemeManagerGUI
+        if init_db is None:
+            import init_db
+
         self.theme_manager = ThemeManager()
         self.theme_manager_gui = ThemeManagerGUI(self, self.theme_manager)
         self.setWindowTitle("MarkRender")
@@ -106,21 +152,11 @@ class MainWindow(QMainWindow):
 
         # 初始化预览
         self.update_preview()
-        self.precheck()
+        # 确保 init_db 在使用前已导入
+        if init_db is None:
+            import init_db
+        threading.Thread(target=init_resources).start() 
     
-    def precheck(self):
-         # 检测 config.db 文件是否存在
-        try:
-            debug = os.getenv('DEBUG_MR') == '1'
-            if debug:
-                script_dir = os.path.dirname(os.path.abspath(__file__))
-            else:
-                script_dir = '/Applications/markrender.app/Contents/MacOS'
-            config_db_path = os.path.join(script_dir, 'config.db')
-            if not os.path.isfile(config_db_path):
-                init_db.main()  # 假设 init_db.py 中有 main 函数用于初始化
-        except Exception as e:
-            print(f"Error creating directory: {e}")
 
     def get_current_style(self):
         return self.theme_manager_gui.get_current_style()
