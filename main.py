@@ -1,5 +1,8 @@
 import sys
 import logging
+import os
+import sys
+import traceback
 from logging import StreamHandler
 
 
@@ -26,25 +29,28 @@ QVBoxLayout = None
 QWidget = None
 ThemeManagerGUI = None
 
-# 创建日志器
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
 
-# 创建文件处理器
-file_handler = logging.FileHandler('app.log')
-file_handler.setFormatter(logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+def setup_logging():
+    # 创建日志器
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
 
-# 创建控制台处理器
-console_handler = StreamHandler()
-console_handler.setFormatter(logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    # 创建文件处理器
+    file_handler = logging.FileHandler('app.log')
+    file_handler.setFormatter(logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
 
-# 将处理器添加到日志器
-logger.addHandler(file_handler)
-logger.addHandler(console_handler)
+    # 创建控制台处理器
+    console_handler = StreamHandler()
+    console_handler.setFormatter(logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
 
-logger = logging.getLogger(__name__)
+    # 将处理器添加到日志器
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+
+    logger = logging.getLogger(__name__)
+    return logger
 
 
 def init_themes():
@@ -486,7 +492,25 @@ class MainWindow(QMainWindow):
 
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = MainWindow()
-    window.show()
-    sys.exit(app.exec())
+    logger = setup_logging()
+    logger.info("应用启动")
+    try:
+        logger.info(f"工作目录: {os.getcwd()}")
+        logger.info(f"应用路径: {init_db.get_app_path()}")
+        logger.info(f"数据库路径: {init_db.get_db_path('markrender.db')}")
+        app = QApplication(sys.argv)
+        window = MainWindow()
+        window.show()
+        sys.exit(app.exec())
+    except Exception as e:
+        error_msg = traceback.format_exc()
+        logger.critical(f"致命错误: {e}\n{error_msg}")
+        # 可以显示一个错误对话框
+        from PySide6.QtWidgets import QMessageBox
+        msg_box = QMessageBox()
+        msg_box.setIcon(QMessageBox.Critical)
+        msg_box.setText(f"应用遇到致命错误: {str(e)}")
+        msg_box.setDetailedText(error_msg)
+        msg_box.setWindowTitle("错误")
+        msg_box.exec()
+        sys.exit(1)

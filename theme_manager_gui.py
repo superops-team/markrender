@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QColorDialog,
