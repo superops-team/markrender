@@ -1,45 +1,48 @@
 import sys
+from db_manager import ThemeManager
+import sqlite3
 from PySide6.QtWidgets import (QApplication, QMainWindow, QTextEdit, QVBoxLayout,
                              QWidget, QSplitter, QToolBar, QFileDialog,
-                             QComboBox, QLabel, QHBoxLayout, QColorDialog)
+                             QComboBox, QLabel, QHBoxLayout, QColorDialog, QInputDialog, QMessageBox)
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QColor
 import markdown
+from theme_manager_gui import ThemeManagerGUI
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Markdown 编辑器与预览器")
+        self.theme_manager = ThemeManager()
+        self.theme_manager_gui = ThemeManagerGUI(self, self.theme_manager)
+        self.setWindowTitle("MarkRender")
         self.setGeometry(100, 100, 800, 600)
 
-        # 初始化标题颜色
-        self.title_color = "#333333"
-
         # 创建工具栏
-        toolbar = QToolBar()
-        self.addToolBar(toolbar)
+        self.toolbar = QToolBar()
+        self.addToolBar(self.toolbar)
+
+        # 初始化 text_edit
+        self.text_edit = QTextEdit()
+        self.text_edit.setPlaceholderText("在此输入 Markdown 文本...")
+        self.text_edit.textChanged.connect(self.update_preview)
+
+        # 初始化 webview
+        self.webview = QWebEngineView()
 
         # 添加样式选择器
         style_layout = QHBoxLayout()
         style_label = QLabel("Markdown样式:")
         self.style_combobox = QComboBox()
-        self.style_combobox.addItems([
-            "默认样式",
-            "GitHub风格",
-            "浅色主题",
-            "深色主题",
-            "文档风格"
-        ])
+        self.style_combobox.addItems(self.theme_manager_gui.get_theme_names())
         self.style_combobox.currentIndexChanged.connect(self.update_preview)
 
         # 添加标题颜色选择器
         color_layout = QHBoxLayout()
         color_label = QLabel("标题颜色:")
         self.color_button = QLabel("■")
-        self.color_button.setStyleSheet(f"color: {self.title_color}; font-size: 18px;")
         self.color_button.setToolTip("点击选择标题颜色")
-        self.color_button.mousePressEvent = self.select_title_color
+        self.color_button.mousePressEvent = self.theme_manager_gui.select_title_color
 
         style_widget = QWidget()
         style_layout.addWidget(style_label)
@@ -49,15 +52,21 @@ class MainWindow(QMainWindow):
         style_layout.addWidget(self.color_button)
         style_widget.setLayout(style_layout)
 
-        toolbar.addWidget(style_widget)
-        toolbar.addSeparator()
+        self.toolbar.addWidget(style_widget)
+        self.toolbar.addSeparator()
 
         # 导出按钮
-        export_image_button = toolbar.addAction("导出图片")
+        export_image_button = self.toolbar.addAction("导出图片")
         export_image_button.triggered.connect(self.export_image)
-        
-        export_pdf_button = toolbar.addAction("导出PDF")
+        self.text_edit.setPlaceholderText("在此输入 Markdown 文本...")
+        self.text_edit.textChanged.connect(self.update_preview)
+        export_pdf_button = self.toolbar.addAction("导出PDF")
         export_pdf_button.triggered.connect(self.export_pdf)
+
+        # 添加新的主题管理按钮
+        theme_management_button = self.toolbar.addAction("主题管理")
+        theme_management_button.triggered.connect(self.theme_manager_gui.show_theme_management_dialog)
+
 
         # 创建左右布局
         splitter = QSplitter(Qt.Horizontal)
@@ -82,138 +91,8 @@ class MainWindow(QMainWindow):
         # 初始化预览
         self.update_preview()
 
-    def select_title_color(self, event):
-        """打开颜色选择对话框"""
-        color = QColorDialog.getColor(QColor(self.title_color), self, "选择标题颜色")
-        if color.isValid():
-            self.title_color = color.name()
-            self.color_button.setStyleSheet(f"color: {self.title_color}; font-size: 18px;")
-            self.update_preview()
-
     def get_current_style(self):
-        """根据当前选择返回对应的CSS样式"""
-        # 基础样式：代码高亮和一级标题样式
-        base_style = f"""
-            <style>
-                /* 一级标题居中并设置颜色 */
-                h1 {{
-                    text-align: center;
-                    color: {self.title_color};
-                }}
-
-                /* 代码高亮样式 */
-                pre {{
-                    background-color: #f6f8fa;
-                    border-radius: 3px;
-                    font-size: 85%;
-                    line-height: 1.45;
-                    overflow: auto;
-                    padding: 16px;
-                }}
-
-                code {{
-                    background-color: rgba(27,31,35,.05);
-                    border-radius: 3px;
-                    font-family: SFMono-Regular,Consolas,Liberation Mono,Menlo,monospace;
-                    font-size: 85%;
-                    margin: 0;
-                    padding: 0.2em 0.4em;
-                }}
-
-                /* 代码块高亮 */
-                .hljs {{
-                    display: block;
-                    overflow-x: auto;
-                    padding: 0.5em;
-                    color: #333;
-                    background: #f8f8f8;
-                }}
-
-                /* 不同语言高亮样式 */
-                .language-python .hljs-keyword {{ color: #0000FF; }}
-                .language-python .hljs-string {{ color: #008000; }}
-                .language-python .hljs-number {{ color: #0000CD; }}
-                .language-python .hljs-comment {{ color: #808080; }}
-
-                .language-javascript .hljs-keyword {{ color: #0000FF; }}
-                .language-javascript .hljs-string {{ color: #008000; }}
-                .language-javascript .hljs-number {{ color: #0000CD; }}
-                .language-javascript .hljs-comment {{ color: #808080; }}
-
-                .language-html .hljs-tag {{ color: #000080; }}
-                .language-html .hljs-attr {{ color: #FF0000; }}
-                .language-html .hljs-string {{ color: #008000; }}
-
-                .language-css .hljs-selector-tag {{ color: #000080; }}
-                .language-css .hljs-property {{ color: #FF0000; }}
-                .language-css .hljs-value {{ color: #008000; }}
-            </style>
-        """
-
-        # 主题样式
-        themes = {
-            "默认样式": """
-                <style>
-                    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; }
-                    h2 { border-bottom: 1px solid #eaecef; }
-                    blockquote { border-left: 0.25em solid #dfe2e5; padding: 0 1em; color: #6a737d; }
-                    table { border-collapse: collapse; }
-                    th, td { border: 1px solid #dfe2e5; padding: 6px 13px; }
-                </style>
-            """,
-            "GitHub风格": """
-                <style>
-                    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; }
-                    h2 { font-size: 1.5em; border-bottom: 1px solid #eaecef; }
-                    blockquote { border-left: 0.25em solid #dfe2e5; padding: 0 1em; color: #6a737d; }
-                    table { border-collapse: collapse; }
-                    th, td { border: 1px solid #dfe2e5; padding: 6px 13px; }
-                </style>
-            """,
-            "浅色主题": """
-                <style>
-                    body {
-                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                        background-color: #f9f9f9;
-                        color: #333;
-                    }
-                    h2 { color: #1a1a1a; border-bottom: 1px solid #ddd; }
-                    blockquote { border-left: 3px solid #666; color: #555; }
-                    table { border-collapse: collapse; }
-                    th, td { border: 1px solid #ddd; padding: 6px 13px; }
-                </style>
-            """,
-            "深色主题": """
-                <style>
-                    body {
-                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                        background-color: #2d2d2d;
-                        color: #e9e9e9;
-                    }
-                    h2 { color: #fff; border-bottom: 1px solid #444; }
-                    blockquote { border-left: 3px solid #777; color: #bbb; }
-                    a { color: #61afef; }
-                    table { border-collapse: collapse; }
-                    th, td { border: 1px solid #444; padding: 6px 13px; }
-                </style>
-            """,
-            "文档风格": """
-                <style>
-                    body {
-                        font-family: 'Times New Roman', Times, serif;
-                        max-width: 800px;
-                        margin: 0 auto;
-                        padding: 20px;
-                    }
-                    h2 { font-family: Arial, sans-serif; font-size: 22px; }
-                    blockquote { font-style: italic; }
-                    table { border-collapse: collapse; }
-                    th, td { border: 1px solid #ccc; padding: 6px 13px; }
-                </style>
-            """
-        }
-
-        return base_style + themes[self.style_combobox.currentText()]
+        return self.theme_manager_gui.get_current_style()
 
     def update_preview(self):
         """将 Markdown 转换为 HTML 并更新预览区"""
@@ -282,6 +161,195 @@ class MainWindow(QMainWindow):
     def save_pdf(self, file_name):
         """保存PDF"""
         self.webview.page().printToPdf(file_name)
+
+    def delete_theme(self, theme_name=None):
+        if not theme_name:
+            theme_name = self.style_combobox.currentText()
+        if theme_name:
+            reply = QMessageBox.question(self, "确认删除", f"确定要删除主题 '{theme_name}' 吗？", QMessageBox.Yes | QMessageBox.No)
+            if reply == QMessageBox.Yes:
+                self.theme_manager.delete_theme(theme_name)
+                self.style_combobox.removeItem(self.style_combobox.findText(theme_name))
+                # 重新加载主题管理对话框
+                if hasattr(self, 'show_theme_management_dialog'):
+                    self.show_theme_management_dialog()
+
+    def edit_theme(self, theme_name):
+        from PySide6.QtWidgets import QLineEdit, QTextEdit, QDialog, QVBoxLayout, QPushButton, QHBoxLayout
+        theme = self.theme_manager.get_theme(theme_name)
+        if theme:
+            dialog = QDialog(self)
+            dialog.setWindowTitle('编辑主题')
+            layout = QVBoxLayout()
+
+            # 主题标题输入框，使用单个输入框
+            title_input = QLineEdit(theme_name)
+            title_input.setPlaceholderText('请输入新主题名称')
+            title_input.setReadOnly(True)  # 设置为只读
+            layout.addWidget(title_input)
+
+            # 主题配置输入框
+            config_input = QTextEdit()
+            config_input.setPlainText(theme.css_config)
+            config_input.setPlaceholderText('输入主题配置')
+            layout.addWidget(config_input)
+
+            # 保存和取消按钮
+            button_layout = QHBoxLayout()
+            save_button = QPushButton('保存')
+            save_button.clicked.connect(lambda: self.update_existing_theme(title_input.text(), config_input.toPlainText(), theme_name, dialog))
+            cancel_button = QPushButton('取消')
+            cancel_button.clicked.connect(dialog.close)
+            button_layout.addWidget(save_button)
+            button_layout.addWidget(cancel_button)
+            layout.addLayout(button_layout)
+
+            dialog.setLayout(layout)
+            dialog.exec()
+
+    def update_existing_theme(self, new_title, new_config, old_name, dialog):
+        if new_config:
+            self.theme_manager.update_theme(old_name, new_config)
+            dialog.close()
+            if hasattr(self, 'theme_management_dialog') and hasattr(self.theme_management_dialog, 'table'):
+                table = self.theme_management_dialog.table
+                themes = self.theme_manager.get_all_themes()
+                table.setRowCount(len(themes))
+                for row in range(table.rowCount()):
+                    if table.cellWidget(row, 3):
+                        table.cellWidget(row, 3).disconnect()
+                    if table.cellWidget(row, 4):
+                        table.cellWidget(row, 4).disconnect()
+                for row, theme in enumerate(themes):
+                    # 主题名称
+                    item_name = QTableWidgetItem(theme.name)
+                    table.setItem(row, 0, item_name)
+
+                    # 创建时间
+                    item_create_time = QTableWidgetItem(str(theme.created_at))
+                    table.setItem(row, 1, item_create_time)
+
+                    # 修改时间
+                    item_update_time = QTableWidgetItem(str(theme.updated_at))
+                    table.setItem(row, 2, item_update_time)
+
+                    # 编辑按钮，解决闭包问题
+                    edit_button = QPushButton('编辑')
+                    edit_button.clicked.connect(lambda _, t=theme.name: self.edit_theme(t))
+                    table.setCellWidget(row, 3, edit_button)
+
+                    # 删除按钮，解决闭包问题
+                    delete_button = QPushButton('删除')
+                    delete_button.clicked.connect(lambda _, t=theme.name: self.delete_theme(t))
+                    table.setCellWidget(row, 4, delete_button)
+
+    def show_theme_management_dialog(self):
+        from PySide6.QtWidgets import QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QHeaderView
+        self.theme_management_dialog = QDialog(self)
+        self.theme_management_dialog.setWindowTitle('主题管理')
+        self.theme_management_dialog.resize(800, 600)  # 放大对话框
+        layout = QVBoxLayout()
+
+        # 创建表格
+        self.theme_management_dialog.table = QTableWidget()
+        themes = self.theme_manager.get_all_themes()
+        self.theme_management_dialog.table.setRowCount(len(themes))
+        self.theme_management_dialog.table.setColumnCount(5)
+        self.theme_management_dialog.table.setHorizontalHeaderLabels(['主题名称', '创建时间', '修改时间', '编辑', '删除'])
+
+        for row, theme in enumerate(themes):
+            # 主题名称
+            item_name = QTableWidgetItem(theme.name)
+            self.theme_management_dialog.table.setItem(row, 0, item_name)
+
+            # 创建时间
+            item_create_time = QTableWidgetItem(str(theme.created_at))
+            self.theme_management_dialog.table.setItem(row, 1, item_create_time)
+
+            # 修改时间
+            item_update_time = QTableWidgetItem(str(theme.updated_at))
+            self.theme_management_dialog.table.setItem(row, 2, item_update_time)
+
+            # 编辑按钮，解决闭包问题
+            edit_button = QPushButton('编辑')
+            edit_button.clicked.connect(lambda _, t=theme.name: self.edit_theme(t))
+            self.theme_management_dialog.table.setCellWidget(row, 3, edit_button)
+
+            # 删除按钮，解决闭包问题
+            delete_button = QPushButton('删除')
+            delete_button.clicked.connect(lambda _, t=theme.name: self.delete_theme(t))
+            self.theme_management_dialog.table.setCellWidget(row, 4, delete_button)
+
+        self.theme_management_dialog.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        layout.addWidget(self.theme_management_dialog.table)
+
+        # 新增主题按钮
+        add_button = QPushButton('新增主题')
+        add_button.clicked.connect(self.show_add_theme_dialog)
+
+        self.theme_management_dialog.setLayout(layout)
+        self.theme_management_dialog.exec()
+
+    def rename_theme(self):
+        current_theme_name = self.style_combobox.currentText()
+        if current_theme_name:
+            new_name, ok = QInputDialog.getText(self, "重命名主题", "请输入新主题名称:", text=current_theme_name)
+            if ok and new_name:
+                current_style = self.get_current_style()
+                self.theme_manager.delete_theme(current_theme_name)
+                self.theme_manager.create_theme(new_name, current_style)
+                self.style_combobox.removeItem(self.style_combobox.currentIndex())
+                self.style_combobox.addItem(new_name)
+                self.style_combobox.setCurrentText(new_name)
+
+    def show_theme_management_dialog(self):
+        from PySide6.QtWidgets import QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QHeaderView
+        dialog = QDialog(self)
+        dialog.setWindowTitle('主题管理')
+        dialog.resize(800, 600)  # 放大对话框
+        layout = QVBoxLayout()
+
+        # 创建表格
+        table = QTableWidget()
+        themes = self.theme_manager.get_all_themes()
+        table.setRowCount(len(themes))
+        table.setColumnCount(5)
+        table.setHorizontalHeaderLabels(['主题名称', '创建时间', '修改时间', '编辑', '删除'])
+
+        for row, theme in enumerate(themes):
+            # 主题名称
+            item_name = QTableWidgetItem(theme.name)
+            table.setItem(row, 0, item_name)
+
+            # 创建时间
+            item_create_time = QTableWidgetItem(str(theme.created_at))
+            table.setItem(row, 1, item_create_time)
+
+            # 修改时间
+            item_update_time = QTableWidgetItem(str(theme.updated_at))
+            table.setItem(row, 2, item_update_time)
+
+            # 编辑按钮
+            edit_button = QPushButton('编辑')
+            edit_button.clicked.connect(lambda _, r=row: self.edit_theme(theme.name))
+            table.setCellWidget(row, 3, edit_button)
+
+            # 删除按钮
+            delete_button = QPushButton('删除')
+            delete_button.clicked.connect(lambda _, r=row: self.delete_theme(theme.name))
+            table.setCellWidget(row, 4, delete_button)
+
+        table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        layout.addWidget(table)
+
+        # 新增主题按钮
+        add_button = QPushButton('新增主题')
+        add_button.clicked.connect(self.show_add_theme_dialog)
+        layout.addWidget(add_button)
+
+        dialog.setLayout(layout)
+        dialog.exec()
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
