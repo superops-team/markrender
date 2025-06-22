@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import sys
 import logging
 import os
@@ -36,7 +37,8 @@ def setup_logging():
     logger.setLevel(logging.INFO)
 
     # 创建文件处理器
-    file_handler = logging.FileHandler('app.log')
+    log_file = os.path.join(init_db.get_user_data_dir(), 'app.log')
+    file_handler = logging.FileHandler(log_file)
     file_handler.setFormatter(logging.Formatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
 
