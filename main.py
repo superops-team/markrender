@@ -1,14 +1,30 @@
-import sys
-from db_manager import ThemeManager
 import sqlite3
-from PySide6.QtWidgets import (QApplication, QMainWindow, QTextEdit, QVBoxLayout,
-                             QWidget, QSplitter, QToolBar, QFileDialog,
-                             QComboBox, QLabel, QHBoxLayout, QColorDialog, QInputDialog, QMessageBox)
-from PySide6.QtWebEngineWidgets import QWebEngineView
+import sys
+
+import markdown
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QColor
-import markdown
+from PySide6.QtWebEngineWidgets import QWebEngineView
+from PySide6.QtWidgets import (
+    QApplication,
+    QColorDialog,
+    QComboBox,
+    QFileDialog,
+    QHBoxLayout,
+    QInputDialog,
+    QLabel,
+    QMainWindow,
+    QMessageBox,
+    QSplitter,
+    QTextEdit,
+    QToolBar,
+    QVBoxLayout,
+    QWidget,
+)
+
+from db_manager import ThemeManager
 from theme_manager_gui import ThemeManagerGUI
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -65,8 +81,9 @@ class MainWindow(QMainWindow):
 
         # 添加新的主题管理按钮
         theme_management_button = self.toolbar.addAction("主题管理")
-        theme_management_button.triggered.connect(self.theme_manager_gui.show_theme_management_dialog)
-
+        theme_management_button.triggered.connect(
+            self.theme_manager_gui.show_theme_management_dialog
+        )
 
         # 创建左右布局
         splitter = QSplitter(Qt.Horizontal)
@@ -101,15 +118,15 @@ class MainWindow(QMainWindow):
         # 使用fenced_code和codehilite扩展
         html = markdown.markdown(
             markdown_text,
-            extensions=['tables', 'fenced_code', 'codehilite'],
+            extensions=["tables", "fenced_code", "codehilite"],
             extension_configs={
-                'codehilite': {
-                    'linenums': False,
-                    'guess_lang': True,
-                    'css_class': 'hljs',
-                    'pygments_style': 'default',
+                "codehilite": {
+                    "linenums": False,
+                    "guess_lang": True,
+                    "css_class": "hljs",
+                    "pygments_style": "default",
                 }
-            }
+            },
         )
 
         # 添加选中的样式和代码高亮库
@@ -138,7 +155,9 @@ class MainWindow(QMainWindow):
 
     def export_image(self):
         """导出图片"""
-        file_name, _ = QFileDialog.getSaveFileName(self, "保存图片", "", "PNG 文件 (*.png);;JPEG 文件 (*.jpg)")
+        file_name, _ = QFileDialog.getSaveFileName(
+            self, "保存图片", "", "PNG 文件 (*.png);;JPEG 文件 (*.jpg)"
+        )
         if file_name:
             # 等待页面加载
             QTimer.singleShot(500, lambda: self.save_image(file_name))
@@ -151,10 +170,12 @@ class MainWindow(QMainWindow):
 
     def export_pdf(self):
         """导出PDF"""
-        file_name, _ = QFileDialog.getSaveFileName(self, "保存PDF", "", "PDF 文件 (*.pdf)")
+        file_name, _ = QFileDialog.getSaveFileName(
+            self, "保存PDF", "", "PDF 文件 (*.pdf)"
+        )
         if file_name:
-            if not file_name.endswith('.pdf'):
-                file_name += '.pdf'
+            if not file_name.endswith(".pdf"):
+                file_name += ".pdf"
             # 等待页面加载
             QTimer.singleShot(500, lambda: self.save_pdf(file_name))
 
@@ -166,39 +187,56 @@ class MainWindow(QMainWindow):
         if not theme_name:
             theme_name = self.style_combobox.currentText()
         if theme_name:
-            reply = QMessageBox.question(self, "确认删除", f"确定要删除主题 '{theme_name}' 吗？", QMessageBox.Yes | QMessageBox.No)
+            reply = QMessageBox.question(
+                self,
+                "确认删除",
+                f"确定要删除主题 '{theme_name}' 吗？",
+                QMessageBox.Yes | QMessageBox.No,
+            )
             if reply == QMessageBox.Yes:
                 self.theme_manager.delete_theme(theme_name)
                 self.style_combobox.removeItem(self.style_combobox.findText(theme_name))
                 # 重新加载主题管理对话框
-                if hasattr(self, 'show_theme_management_dialog'):
+                if hasattr(self, "show_theme_management_dialog"):
                     self.show_theme_management_dialog()
 
     def edit_theme(self, theme_name):
-        from PySide6.QtWidgets import QLineEdit, QTextEdit, QDialog, QVBoxLayout, QPushButton, QHBoxLayout
+        from PySide6.QtWidgets import (
+            QDialog,
+            QHBoxLayout,
+            QLineEdit,
+            QPushButton,
+            QTextEdit,
+            QVBoxLayout,
+        )
+
         theme = self.theme_manager.get_theme(theme_name)
         if theme:
             dialog = QDialog(self)
-            dialog.setWindowTitle('编辑主题')
+            dialog.setWindowTitle("编辑主题")
             layout = QVBoxLayout()
 
             # 主题标题输入框，使用单个输入框
             title_input = QLineEdit(theme_name)
-            title_input.setPlaceholderText('请输入新主题名称')
+            title_input.setPlaceholderText("请输入新主题名称")
             title_input.setReadOnly(True)  # 设置为只读
             layout.addWidget(title_input)
 
             # 主题配置输入框
             config_input = QTextEdit()
             config_input.setPlainText(theme.css_config)
-            config_input.setPlaceholderText('输入主题配置')
+            config_input.setPlaceholderText("输入主题配置")
             layout.addWidget(config_input)
 
             # 保存和取消按钮
             button_layout = QHBoxLayout()
-            save_button = QPushButton('保存')
-            save_button.clicked.connect(lambda: self.update_existing_theme(title_input.text(), config_input.toPlainText(), theme_name, dialog))
-            cancel_button = QPushButton('取消')
+            save_button = QPushButton("保存")
+            save_button.clicked.connect(
+                lambda: self.update_existing_theme(
+                    title_input.text(), config_input.toPlainText(), theme_name, dialog
+                )
+            )
+            cancel_button = QPushButton("取消")
             cancel_button.clicked.connect(dialog.close)
             button_layout.addWidget(save_button)
             button_layout.addWidget(cancel_button)
@@ -211,7 +249,9 @@ class MainWindow(QMainWindow):
         if new_config:
             self.theme_manager.update_theme(old_name, new_config)
             dialog.close()
-            if hasattr(self, 'theme_management_dialog') and hasattr(self.theme_management_dialog, 'table'):
+            if hasattr(self, "theme_management_dialog") and hasattr(
+                self.theme_management_dialog, "table"
+            ):
                 table = self.theme_management_dialog.table
                 themes = self.theme_manager.get_all_themes()
                 table.setRowCount(len(themes))
@@ -234,19 +274,31 @@ class MainWindow(QMainWindow):
                     table.setItem(row, 2, item_update_time)
 
                     # 编辑按钮，解决闭包问题
-                    edit_button = QPushButton('编辑')
-                    edit_button.clicked.connect(lambda _, t=theme.name: self.edit_theme(t))
+                    edit_button = QPushButton("编辑")
+                    edit_button.clicked.connect(
+                        lambda _, t=theme.name: self.edit_theme(t)
+                    )
                     table.setCellWidget(row, 3, edit_button)
 
                     # 删除按钮，解决闭包问题
-                    delete_button = QPushButton('删除')
-                    delete_button.clicked.connect(lambda _, t=theme.name: self.delete_theme(t))
+                    delete_button = QPushButton("删除")
+                    delete_button.clicked.connect(
+                        lambda _, t=theme.name: self.delete_theme(t)
+                    )
                     table.setCellWidget(row, 4, delete_button)
 
     def show_theme_management_dialog(self):
-        from PySide6.QtWidgets import QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QHeaderView
+        from PySide6.QtWidgets import (
+            QDialog,
+            QHeaderView,
+            QPushButton,
+            QTableWidget,
+            QTableWidgetItem,
+            QVBoxLayout,
+        )
+
         self.theme_management_dialog = QDialog(self)
-        self.theme_management_dialog.setWindowTitle('主题管理')
+        self.theme_management_dialog.setWindowTitle("主题管理")
         self.theme_management_dialog.resize(800, 600)  # 放大对话框
         layout = QVBoxLayout()
 
@@ -255,7 +307,9 @@ class MainWindow(QMainWindow):
         themes = self.theme_manager.get_all_themes()
         self.theme_management_dialog.table.setRowCount(len(themes))
         self.theme_management_dialog.table.setColumnCount(5)
-        self.theme_management_dialog.table.setHorizontalHeaderLabels(['主题名称', '创建时间', '修改时间', '编辑', '删除'])
+        self.theme_management_dialog.table.setHorizontalHeaderLabels(
+            ["主题名称", "创建时间", "修改时间", "编辑", "删除"]
+        )
 
         for row, theme in enumerate(themes):
             # 主题名称
@@ -271,20 +325,22 @@ class MainWindow(QMainWindow):
             self.theme_management_dialog.table.setItem(row, 2, item_update_time)
 
             # 编辑按钮，解决闭包问题
-            edit_button = QPushButton('编辑')
+            edit_button = QPushButton("编辑")
             edit_button.clicked.connect(lambda _, t=theme.name: self.edit_theme(t))
             self.theme_management_dialog.table.setCellWidget(row, 3, edit_button)
 
             # 删除按钮，解决闭包问题
-            delete_button = QPushButton('删除')
+            delete_button = QPushButton("删除")
             delete_button.clicked.connect(lambda _, t=theme.name: self.delete_theme(t))
             self.theme_management_dialog.table.setCellWidget(row, 4, delete_button)
 
-        self.theme_management_dialog.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.theme_management_dialog.table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.Stretch
+        )
         layout.addWidget(self.theme_management_dialog.table)
 
         # 新增主题按钮
-        add_button = QPushButton('新增主题')
+        add_button = QPushButton("新增主题")
         add_button.clicked.connect(self.show_add_theme_dialog)
 
         self.theme_management_dialog.setLayout(layout)
@@ -293,7 +349,9 @@ class MainWindow(QMainWindow):
     def rename_theme(self):
         current_theme_name = self.style_combobox.currentText()
         if current_theme_name:
-            new_name, ok = QInputDialog.getText(self, "重命名主题", "请输入新主题名称:", text=current_theme_name)
+            new_name, ok = QInputDialog.getText(
+                self, "重命名主题", "请输入新主题名称:", text=current_theme_name
+            )
             if ok and new_name:
                 current_style = self.get_current_style()
                 self.theme_manager.delete_theme(current_theme_name)
@@ -303,9 +361,17 @@ class MainWindow(QMainWindow):
                 self.style_combobox.setCurrentText(new_name)
 
     def show_theme_management_dialog(self):
-        from PySide6.QtWidgets import QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QHeaderView
+        from PySide6.QtWidgets import (
+            QDialog,
+            QHeaderView,
+            QPushButton,
+            QTableWidget,
+            QTableWidgetItem,
+            QVBoxLayout,
+        )
+
         dialog = QDialog(self)
-        dialog.setWindowTitle('主题管理')
+        dialog.setWindowTitle("主题管理")
         dialog.resize(800, 600)  # 放大对话框
         layout = QVBoxLayout()
 
@@ -314,7 +380,9 @@ class MainWindow(QMainWindow):
         themes = self.theme_manager.get_all_themes()
         table.setRowCount(len(themes))
         table.setColumnCount(5)
-        table.setHorizontalHeaderLabels(['主题名称', '创建时间', '修改时间', '编辑', '删除'])
+        table.setHorizontalHeaderLabels(
+            ["主题名称", "创建时间", "修改时间", "编辑", "删除"]
+        )
 
         for row, theme in enumerate(themes):
             # 主题名称
@@ -330,20 +398,22 @@ class MainWindow(QMainWindow):
             table.setItem(row, 2, item_update_time)
 
             # 编辑按钮
-            edit_button = QPushButton('编辑')
+            edit_button = QPushButton("编辑")
             edit_button.clicked.connect(lambda _, r=row: self.edit_theme(theme.name))
             table.setCellWidget(row, 3, edit_button)
 
             # 删除按钮
-            delete_button = QPushButton('删除')
-            delete_button.clicked.connect(lambda _, r=row: self.delete_theme(theme.name))
+            delete_button = QPushButton("删除")
+            delete_button.clicked.connect(
+                lambda _, r=row: self.delete_theme(theme.name)
+            )
             table.setCellWidget(row, 4, delete_button)
 
         table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         layout.addWidget(table)
 
         # 新增主题按钮
-        add_button = QPushButton('新增主题')
+        add_button = QPushButton("新增主题")
         add_button.clicked.connect(self.show_add_theme_dialog)
         layout.addWidget(add_button)
 

@@ -1,13 +1,13 @@
-from sqlalchemy import create_engine, Column, Integer, String, DateTime
+from sqlalchemy import Column, DateTime, Integer, String, create_engine
+from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.sql import func
-from sqlalchemy.orm import sessionmaker, declarative_base
 
 # 创建基础类
 Base = declarative_base()
 
 
 class Theme(Base):
-    __tablename__ = 'themes'
+    __tablename__ = "themes"
 
     id = Column(Integer, primary_key=True)
     name = Column(String, unique=True, nullable=False)
@@ -18,14 +18,19 @@ class Theme(Base):
 
 class ThemeManager:
     def __init__(self):
-        self.engine = create_engine('sqlite:///config.db')
+        self.engine = create_engine("sqlite:///config.db")
         Base.metadata.create_all(self.engine)
         self.Session = sessionmaker(bind=self.engine)
 
     def create_theme(self, name, css_config):
         session = self.Session()
         try:
-            new_theme = Theme(name=name, css_config=css_config, created_at=func.now(), updated_at=func.now())
+            new_theme = Theme(
+                name=name,
+                css_config=css_config,
+                created_at=func.now(),
+                updated_at=func.now(),
+            )
             session.add(new_theme)
             session.commit()
             return new_theme
@@ -84,7 +89,7 @@ class ThemeManager:
             session.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     manager = ThemeManager()
     # 示例用法
     # new_theme = manager.create_theme('new_theme', 'body { color: red; }')

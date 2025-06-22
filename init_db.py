@@ -1,7 +1,7 @@
 from db_manager import ThemeManager
 
 # 基础样式：代码高亮和一级标题样式
-base_style = '''
+base_style = """
 <style>
     /* 一级标题居中并设置颜色 */
     h1 {
@@ -56,7 +56,7 @@ base_style = '''
     .language-css .hljs-property { color: #FF0000; }
     .language-css .hljs-value { color: #008000; }
 </style>
-'''
+"""
 
 # 主题样式
 themes = {
@@ -108,10 +108,10 @@ themes = {
         blockquote { font-style: italic; }
         table { border-collapse: collapse; }
         th, td { border: 1px solid #ccc; padding: 6px 13px; }
-    </style>"""
+    </style>""",
 }
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     manager = ThemeManager()
     for name, theme_style in themes.items():
         full_style = base_style + theme_style
