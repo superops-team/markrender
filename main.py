@@ -38,6 +38,7 @@ def setup_logging():
 
     # 创建文件处理器
     log_file = os.path.join(init_db.get_user_data_dir(), 'app.log')
+
     file_handler = logging.FileHandler(log_file)
     file_handler.setFormatter(logging.Formatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
