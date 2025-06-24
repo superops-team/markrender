@@ -1,11 +1,12 @@
 #!/bin/bash
 # 生成各种图标
 # icon-gen -i ./shen_1179.png -o icons
+
 rm -rf build dist
 # 创建安装包
-pyinstaller --onefile --windowed --add-data ./config.db --hidden-import="PySide6.QtXml" --hidden-import="PySide6.QtSvg" --hidden-import="PySide6.QtNetwork" --name "markrender" --icon "./icons/app.icns" *.py
+pyinstaller --onedir --windowed --add-data=./:config.db --hidden-import="PySide6.QtXml" --hidden-import="PySide6.QtSvg" --hidden-import="PySide6.QtNetwork" --name "markrender" --icon "./icons/app.icns" *.py
 mkdir -p dist/dmg
-cp -r "dist/markrender.app" dist/dmg
+mv dist/markrender.app dist/dmg
 
 create-dmg \
   --volname "markrender" \

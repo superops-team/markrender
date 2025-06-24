@@ -97,7 +97,7 @@ class MainWindow(QMainWindow):
 
         # 添加样式选择器
         style_layout = QHBoxLayout()
-        style_label = QLabel("Markdown样式:")
+        style_label = QLabel("样式:")
         self.style_combobox = QComboBox()
         self.style_combobox.addItems(self.theme_manager_gui.get_theme_names())
         self.style_combobox.currentIndexChanged.connect(self.update_preview)
@@ -130,9 +130,14 @@ class MainWindow(QMainWindow):
 
         # 添加新的主题管理按钮
         theme_management_button = self.toolbar.addAction("主题管理")
-        theme_management_button.triggered.connect(
-            self.theme_manager_gui.show_theme_management_dialog
-        )
+
+        def refresh_style_combobox():
+            self.theme_manager_gui.show_theme_management_dialog()
+            self.style_combobox.clear()
+            self.style_combobox.addItems(
+                self.theme_manager_gui.get_theme_names())
+
+        theme_management_button.triggered.connect(refresh_style_combobox)
 
         # 创建左右布局
         splitter = QSplitter(Qt.Horizontal)
@@ -231,7 +236,6 @@ class MainWindow(QMainWindow):
     def save_pdf(self, file_name):
         """保存PDF"""
         self.webview.page().printToPdf(file_name)
-
 
     def get_base_style(self):
         return """<style>
