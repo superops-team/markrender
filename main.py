@@ -8,8 +8,10 @@ from logging import StreamHandler
 
 
 # 主窗口必要的导入
-from PySide6.QtWidgets import QApplication, QMainWindow
+from PySide6.QtWidgets import QApplication, QMainWindow, QLineEdit, QListWidget, QPushButton
+from PySide6.QtGui import QAction
 from db_manager import ThemeManager
+from markdown_history_manager import MarkdownHistoryManager
 import init_db
 
 # 其他包懒加载
@@ -65,6 +67,47 @@ def init_themes():
 
 
 class MainWindow(QMainWindow):
+    def create_new_markdown(self):
+        from PySide6.QtWidgets import QTextEdit, QDialog, QVBoxLayout, QPushButton, QLineEdit, QLabel
+        dialog = QDialog(self)
+        dialog.setWindowTitle('新建 Markdown 文件')
+        layout = QVBoxLayout()
+        title_label = QLabel('标题:')
+        title_input = QLineEdit()
+        content_label = QLabel('Markdown 内容:')
+        text_edit = QTextEdit()
+        save_button = QPushButton('保存')
+        save_button.clicked.connect(
+            lambda: self.save_new_markdown(
+                title_input.text(),
+                text_edit.toPlainText(),
+                dialog))
+        layout.addWidget(title_label)
+        layout.addWidget(title_input)
+        layout.addWidget(content_label)
+        layout.addWidget(text_edit)
+        layout.addWidget(save_button)
+        dialog.setLayout(layout)
+        dialog.exec()
+
+    def save_new_markdown(self, title, content, dialog):
+        from datetime import datetime
+        from sqlalchemy.orm import Session
+        from markdown_history_manager import MarkdownFileHistory
+        new_file = MarkdownFileHistory(
+            title=title,
+            content=content,
+            tags='',
+            render_style='',
+            created_at=datetime.now(),
+            updated_at=datetime.now()
+        )
+        dialog.close()
+        with Session(self.markdown_history_manager.engine) as session:
+            session.add(new_file)
+            session.commit()
+        self.load_history()
+
     def __init__(self):
         super().__init__()
         global markdown, Qt, QTimer, QWebEngineView, QComboBox, QFileDialog, QHBoxLayout, QInputDialog, QLabel, QMessageBox, QSplitter, QTextEdit, QToolBar, QVBoxLayout, QWidget, ThemeManagerGUI
@@ -78,10 +121,12 @@ class MainWindow(QMainWindow):
             from PySide6.QtWidgets import QComboBox, QFileDialog, QHBoxLayout, QInputDialog, QLabel, QMessageBox, QSplitter, QTextEdit, QToolBar, QVBoxLayout, QWidget
         if ThemeManagerGUI is None:
             from theme_manager_gui import ThemeManagerGUI
+        db_path = init_db.get_db_path('markrender.db')
         self.theme_manager = init_themes()
+        self.markdown_history_manager = MarkdownHistoryManager(db_path)
         self.theme_manager_gui = ThemeManagerGUI(self, self.theme_manager)
         self.setWindowTitle("MarkRender")
-        self.setGeometry(100, 100, 800, 600)
+        self.showMaximized()
 
         # 创建工具栏
         self.toolbar = QToolBar()
@@ -139,10 +184,40 @@ class MainWindow(QMainWindow):
 
         theme_management_button.triggered.connect(refresh_style_combobox)
 
-        # 创建左右布局
+        # 创建三栏布局
         splitter = QSplitter(Qt.Horizontal)
 
-        # 左侧 Markdown 编辑区
+        # 左侧 Markdown 历史栏
+        self.history_widget = QWidget()
+        history_layout = QVBoxLayout()
+
+        # 搜索输入框和按钮
+        self.new_markdown_button = QPushButton('新建 Markdown')
+        self.new_markdown_button.clicked.connect(self.create_new_markdown)
+        self.search_input = QLineEdit()
+        self.search_button = QPushButton("搜索")
+        self.search_button.clicked.connect(self.search_history)
+
+        search_layout = QHBoxLayout()
+        search_layout.addWidget(self.search_input)
+        search_layout.addWidget(self.search_button)
+
+        self.history_list = QListWidget()
+        self.history_list.itemClicked.connect(self.show_history_content)
+        self.history_list.setContextMenuPolicy(Qt.ActionsContextMenu)
+        delete_action = QAction('删除', self.history_list)
+        delete_action.triggered.connect(self.delete_selected_file)
+        self.history_list.addAction(delete_action)
+
+        self.new_markdown_button = QPushButton('新建 Markdown')
+        self.new_markdown_button.clicked.connect(self.create_new_markdown)
+        history_layout.addWidget(self.new_markdown_button)
+        history_layout.addLayout(search_layout)
+        history_layout.addWidget(self.history_list)
+        self.history_widget.setLayout(history_layout)
+        splitter.addWidget(self.history_widget)
+
+        # 中间 Markdown 编辑区
         self.text_edit = QTextEdit()
         self.text_edit.setPlaceholderText("在此输入 Markdown 文本...")
         self.text_edit.textChanged.connect(self.update_preview)
@@ -159,7 +234,59 @@ class MainWindow(QMainWindow):
         central_widget.setLayout(layout)
         self.setCentralWidget(central_widget)
 
+        # 初始化历史列表
+        self.load_history()
+
         # 初始化预览
+        self.update_preview()
+
+    def load_history(self):
+        # Assume we want to get all files, so we can iterate through all possible paths
+        # This is a workaround, better to implement a proper
+        # get_all_file_history method in the future
+        from sqlalchemy.orm import Session
+        from markdown_history_manager import MarkdownFileHistory
+
+        with Session(self.markdown_history_manager.engine) as session:
+            histories = session.query(MarkdownFileHistory).all()
+        # 确保后续代码有正确缩进，这里假设后续代码从 self.history_list.clear() 开始
+        self.history_list.clear()
+        for history in histories:
+            self.history_list.clear()
+            for history in histories:
+                self.history_list.addItem(history.title)
+
+    def search_history(self):
+        keyword = self.search_input.text()
+        if not keyword:
+            # 当关键词为空时，加载所有历史记录
+            self.load_history()
+        else:
+            histories = self.markdown_history_manager.search_file_history(
+                keyword)
+            self.history_list.clear()
+            for history in histories:
+                self.history_list.addItem(history.title)
+
+    def delete_selected_file(self):
+        from sqlalchemy.orm import Session
+        from markdown_history_manager import MarkdownFileHistory
+        selected_items = self.history_list.selectedItems()
+        if selected_items:
+            item = selected_items[0]
+            title = item.text()
+            with Session(self.markdown_history_manager.engine) as session:
+                history = session.query(MarkdownFileHistory).filter(
+                    MarkdownFileHistory.title == title).first()
+                if history:
+                    session.delete(history)
+                    session.commit()
+            self.load_history()
+
+    def show_history_content(self, item):
+        file_path = item.text()
+        history = self.markdown_history_manager.get_file_history(file_path)[0]
+        self.text_edit.setPlainText(history.content)
         self.update_preview()
 
     def get_current_style(self):
