@@ -13,7 +13,7 @@ Jinja2==3.1.3
 jinja2-ansible-filters==1.3.2
 keyboard==0.13.5
 macholib==1.16.3
-Markdown==3.8.2
+Markdown<3.4
 MarkupSafe==2.1.5
 mccabe==0.7.0
 MouseInfo==0.1.3
@@ -98,6 +98,7 @@ pyobjc-framework-ExceptionHandling==11.0
 pyobjc-framework-ExecutionPolicy==11.0
 pyobjc-framework-ExtensionKit==11.0
 pyobjc-framework-ExternalAccessory==11.0
+md-mermaid==0.1.1
 pyobjc-framework-FileProvider==11.0
 pyobjc-framework-FileProviderUI==11.0
 pyobjc-framework-FinderSync==11.0

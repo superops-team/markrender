@@ -16,7 +16,7 @@ class SingletonEngine:
         if cls._instance is None:
             cls._db_path = db_path
             from sqlalchemy import create_engine
-            cls._instance = create_engine("sqlite:///{}".format(db_path))
+            cls._instance = create_engine("sqlite:///{}".format(db_path), connect_args={'check_same_thread': False})
         elif cls._db_path != db_path:
             import logging
             logging.warning(

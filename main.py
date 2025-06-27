@@ -94,11 +94,13 @@ class MainWindow(QMainWindow):
         from datetime import datetime
         from sqlalchemy.orm import Session
         from markdown_history_manager import MarkdownFileHistory
+        theme_names = self.theme_manager_gui.get_theme_names()
+        first_theme_style = self.theme_manager_gui.get_theme_css(theme_names[0]) if theme_names else ''
         new_file = MarkdownFileHistory(
             title=title,
             content=content,
             tags='',
-            render_style='',
+            render_style=first_theme_style,
             created_at=datetime.now(),
             updated_at=datetime.now()
         )
@@ -107,6 +109,23 @@ class MainWindow(QMainWindow):
             session.add(new_file)
             session.commit()
         self.load_history()
+
+    def save_markdown_history(self):
+        """保存 Markdown 变更历史"""
+        current_title = self.history_list.currentItem().text() if self.history_list.currentItem() else "Untitled"
+        histories = self.markdown_history_manager.get_file_history(current_title)
+        if histories:
+            old_content = histories[0].content
+            new_content = self.text_edit.toPlainText()
+            if old_content != new_content:
+                self.markdown_history_manager.save_change_history(histories[0].id, old_content, new_content)
+                # 更新文件内容
+                histories = self.markdown_history_manager.get_file_history(current_title)
+                if histories:
+                    histories[0].content = new_content
+                    with self.markdown_history_manager.Session() as session:
+                        session.merge(histories[0])
+                        session.commit()
 
     def __init__(self):
         super().__init__()
@@ -135,6 +154,7 @@ class MainWindow(QMainWindow):
         # 初始化 text_edit
         self.text_edit = QTextEdit()
         self.text_edit.setPlaceholderText("在此输入 Markdown 文本...")
+        self.text_edit.textChanged.connect(self.save_markdown_history)
         self.text_edit.textChanged.connect(self.update_preview)
 
         # 初始化 webview
@@ -249,12 +269,9 @@ class MainWindow(QMainWindow):
 
         with Session(self.markdown_history_manager.engine) as session:
             histories = session.query(MarkdownFileHistory).all()
-        # 确保后续代码有正确缩进，这里假设后续代码从 self.history_list.clear() 开始
         self.history_list.clear()
         for history in histories:
-            self.history_list.clear()
-            for history in histories:
-                self.history_list.addItem(history.title)
+            self.history_list.addItem(history.title)
 
     def search_history(self):
         keyword = self.search_input.text()
@@ -299,7 +316,7 @@ class MainWindow(QMainWindow):
         # 使用fenced_code和codehilite扩展
         html = markdown.markdown(
             markdown_text,
-            extensions=["tables", "fenced_code", "codehilite"],
+            extensions=["tables", "fenced_code", "codehilite", "attr_list"],
             extension_configs={
                 "codehilite": {
                     "linenums": False,
@@ -315,14 +332,27 @@ class MainWindow(QMainWindow):
         <!DOCTYPE html>
         <html>
         <head>
-            {self.get_current_style()}
-            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/default.min.css">
+            <meta charset="UTF-8">
+            {self.get_current_style() if self.get_current_style() else self.get_base_style()}
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/default.min.css">    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.css">
             <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+            <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
             <script>
                 document.addEventListener('DOMContentLoaded', (event) => {{
                     if (window.hljs) {{
                         hljs.highlightAll();
                     }}
+                    if (window.mermaid) {{{{
+                        mermaid.initialize({{
+                            theme: 'default',
+                            fontFamily: '"Microsoft YaHei", "SimSun", Arial, sans-serif',
+                            flowchart: {{
+                                useMaxWidth: true,
+                                htmlLabels: true,
+                                curve: 'basis'
+                            }}
+                        }});
+                    }}}}
                 }});
             </script>
         </head>
@@ -367,12 +397,12 @@ class MainWindow(QMainWindow):
     def get_base_style(self):
         return """<style>
         body {
-            font-family: 'Times New Roman', Times, serif;
+            font-family: 'Times New Roman', Times, 'Microsoft YaHei', 'SimSun', serif;
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
         }
-        h2 { font-family: Arial, sans-serif; font-size: 22px; }
+        h2 { font-family: Arial, 'Microsoft YaHei', 'SimSun', sans-serif; font-size: 22px; }
         blockquote { font-style: italic; }
         table { border-collapse: collapse; }
         th, td { border: 1px solid #ccc; padding: 6px 13px; }
