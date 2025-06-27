@@ -11,6 +11,8 @@ from logging import StreamHandler
 from PySide6.QtWidgets import QApplication, QMainWindow, QLineEdit, QListWidget, QPushButton
 from PySide6.QtGui import QAction
 from db_manager import ThemeManager
+import pymdownx
+from pymdownx import superfences
 from markdown_history_manager import MarkdownHistoryManager
 import init_db
 
@@ -308,7 +310,9 @@ class MainWindow(QMainWindow):
 
     def get_current_style(self):
         return self.theme_manager_gui.get_current_style()
-
+        # 定义 Mermaid 格式化函数，将代码包装在带有 "mermaid" 类的 div 中
+    def mermaid_format(self, source, language, css_class, options, md, **kwargs):
+        return f'<div class="{css_class}">{source}</div>'
     def update_preview(self):
         """将 Markdown 转换为 HTML 并更新预览区"""
         markdown_text = self.text_edit.toPlainText()
@@ -316,13 +320,22 @@ class MainWindow(QMainWindow):
         # 使用fenced_code和codehilite扩展
         html = markdown.markdown(
             markdown_text,
-            extensions=["tables", "fenced_code", "codehilite", "attr_list"],
+            extensions=["tables", "fenced_code", "codehilite", "attr_list", "pymdownx.highlight", "pymdownx.tasklist", "pymdownx.b64", "pymdownx.superfences"],
             extension_configs={
                 "codehilite": {
                     "linenums": False,
                     "guess_lang": True,
                     "css_class": "hljs",
                     "pygments_style": "default",
+                },
+                'pymdownx.superfences': {
+                    'custom_fences': [
+                        {
+                            'name': 'mermaid',         # 识别 ```mermaid 代码块
+                            'class': 'mermaid',        # 添加 "mermaid" 类
+                            'format': self.mermaid_format   # 使用自定义格式化函数
+                        }
+                    ]
                 }
             },
         )
