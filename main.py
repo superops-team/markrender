@@ -4,12 +4,15 @@ import logging
 import os
 import sys
 import traceback
+import logging
+
 from logging import StreamHandler
 
 
 # 主窗口必要的导入
 from PySide6.QtWidgets import QApplication, QMainWindow, QLineEdit, QListWidget, QPushButton
 from PySide6.QtGui import QAction
+from PySide6 import QtCore
 from db_manager import ThemeManager
 import pymdownx
 from pymdownx import superfences
@@ -69,13 +72,33 @@ def init_themes():
 
 
 class MainWindow(QMainWindow):
+    def toggle_history_panel(self):
+        from PySide6.QtGui import QIcon
+        if self.history_widget.isVisible():
+            self.history_widget.hide()
+            from PySide6.QtWidgets import QStyle
+            icon = self.style().standardIcon(QStyle.SP_TitleBarShadeButton)
+            if not icon.isNull():
+                self.toggle_history_button.setIcon(icon)
+            else:
+                logging.warning('Failed to load icon: format-justify-fill.svg')
+        else:
+            self.history_widget.show()
+            from PySide6.QtWidgets import QStyle
+            icon = self.style().standardIcon(QStyle.SP_TitleBarUnshadeButton)
+            if not icon.isNull():
+                self.toggle_history_button.setIcon(icon)
+            else:
+                logging.warning('Failed to load icon: format-justify.svg')
+
     def rename_selected_file(self):
         from PySide6.QtWidgets import QInputDialog
         selected_items = self.history_list.selectedItems()
         if selected_items:
             item = selected_items[0]
             old_title = item.text()
-            new_title, ok = QInputDialog.getText(self, '重命名标题', '请输入新标题:', text=old_title)
+            new_title, ok = QInputDialog.getText(
+                self, '重命名标题', '请输入新标题:', text=old_title)
             if ok and new_title:
                 from sqlalchemy.orm import Session
                 from markdown_history_manager import MarkdownFileHistory
@@ -86,10 +109,11 @@ class MainWindow(QMainWindow):
                         history.title = new_title
                         session.commit()
                 self.load_history()
+
     def create_new_markdown(self):
         from PySide6.QtWidgets import QTextEdit, QDialog, QVBoxLayout, QPushButton, QLineEdit, QLabel
         dialog = QDialog(self)
-        dialog.setWindowTitle('新建 Markdown 文件')
+        dialog.setWindowTitle('新建')
         layout = QVBoxLayout()
         title_label = QLabel('标题:')
         title_input = QLineEdit()
@@ -114,7 +138,8 @@ class MainWindow(QMainWindow):
         from sqlalchemy.orm import Session
         from markdown_history_manager import MarkdownFileHistory
         theme_names = self.theme_manager_gui.get_theme_names()
-        first_theme_style = self.theme_manager_gui.get_theme_css(theme_names[0]) if theme_names else ''
+        first_theme_style = self.theme_manager_gui.get_theme_css(
+            theme_names[0]) if theme_names else ''
         new_file = MarkdownFileHistory(
             title=title,
             content=content,
@@ -131,15 +156,19 @@ class MainWindow(QMainWindow):
 
     def save_markdown_history(self):
         """保存 Markdown 变更历史"""
-        current_title = self.history_list.currentItem().text() if self.history_list.currentItem() else "Untitled"
-        histories = self.markdown_history_manager.get_file_history(current_title)
+        current_title = self.history_list.currentItem().text(
+        ) if self.history_list.currentItem() else "Untitled"
+        histories = self.markdown_history_manager.get_file_history(
+            current_title)
         if histories:
             old_content = histories[0].content
             new_content = self.text_edit.toPlainText()
             if old_content != new_content:
-                self.markdown_history_manager.save_change_history(histories[0].id, old_content, new_content)
+                self.markdown_history_manager.save_change_history(
+                    histories[0].id, old_content, new_content)
                 # 更新文件内容
-                histories = self.markdown_history_manager.get_file_history(current_title)
+                histories = self.markdown_history_manager.get_file_history(
+                    current_title)
                 if histories:
                     histories[0].content = new_content
                     with self.markdown_history_manager.Session() as session:
@@ -186,20 +215,26 @@ class MainWindow(QMainWindow):
         self.style_combobox.addItems(self.theme_manager_gui.get_theme_names())
         self.style_combobox.currentIndexChanged.connect(self.update_preview)
 
-        # 添加标题颜色选择器
-        color_layout = QHBoxLayout()
-        color_label = QLabel("标题颜色:")
-        self.color_button = QLabel("■")
-        self.color_button.setToolTip("点击选择标题颜色")
-        self.color_button.mousePressEvent = self.theme_manager_gui.select_title_color
-
         style_widget = QWidget()
         style_layout.addWidget(style_label)
         style_layout.addWidget(self.style_combobox)
-        style_layout.addLayout(color_layout)
-        style_layout.addWidget(color_label)
-        style_layout.addWidget(self.color_button)
         style_widget.setLayout(style_layout)
+
+        # 设置展开折叠按钮图标
+        from PySide6.QtGui import QIcon
+        from PySide6.QtWidgets import QStyle
+        icon = self.style().standardIcon(QStyle.SP_TitleBarShadeButton)
+        if not icon.isNull():
+            self.toggle_history_button = self.toolbar.addAction(icon, "")
+        else:
+            logging.warning('Failed to load icon: format-justify-fill.svg')
+            self.toggle_history_button = self.toolbar.addAction(
+                "展开/折叠左侧目录", None)
+        self.toggle_history_button.triggered.connect(self.toggle_history_panel)
+        self.toolbar.insertAction(
+            self.toolbar.actions()[0],
+            self.toggle_history_button)
+        self.toolbar.setIconSize(QtCore.QSize(24, 24))
 
         self.toolbar.addWidget(style_widget)
         self.toolbar.addSeparator()
@@ -232,6 +267,10 @@ class MainWindow(QMainWindow):
 
         # 搜索输入框和按钮
         self.new_markdown_button = QPushButton('新建 Markdown')
+        from PySide6.QtWidgets import QStyle
+        self.new_markdown_button.setIcon(
+            self.style().standardIcon(
+                QStyle.SP_FileIcon))
         self.new_markdown_button.clicked.connect(self.create_new_markdown)
         self.search_input = QLineEdit()
         self.search_button = QPushButton("搜索")
@@ -252,12 +291,17 @@ class MainWindow(QMainWindow):
         self.history_list.addAction(rename_action)
 
         self.new_markdown_button = QPushButton('新建 Markdown')
+        from PySide6.QtWidgets import QStyle
+        self.new_markdown_button.setIcon(
+            self.style().standardIcon(
+                QStyle.SP_FileIcon))
         self.new_markdown_button.clicked.connect(self.create_new_markdown)
         history_layout.addWidget(self.new_markdown_button)
         history_layout.addLayout(search_layout)
         history_layout.addWidget(self.history_list)
         self.history_widget.setLayout(history_layout)
         splitter.addWidget(self.history_widget)
+        self.history_widget.show()
 
         # 中间 Markdown 编辑区
         self.text_edit = QTextEdit()
@@ -331,8 +375,17 @@ class MainWindow(QMainWindow):
     def get_current_style(self):
         return self.theme_manager_gui.get_current_style()
         # 定义 Mermaid 格式化函数，将代码包装在带有 "mermaid" 类的 div 中
-    def mermaid_format(self, source, language, css_class, options, md, **kwargs):
+
+    def mermaid_format(
+            self,
+            source,
+            language,
+            css_class,
+            options,
+            md,
+            **kwargs):
         return f'<div class="{css_class}">{source}</div>'
+
     def update_preview(self):
         """将 Markdown 转换为 HTML 并更新预览区"""
         markdown_text = self.text_edit.toPlainText()
@@ -340,7 +393,15 @@ class MainWindow(QMainWindow):
         # 使用fenced_code和codehilite扩展
         html = markdown.markdown(
             markdown_text,
-            extensions=["tables", "fenced_code", "codehilite", "attr_list", "pymdownx.highlight", "pymdownx.tasklist", "pymdownx.b64", "pymdownx.superfences"],
+            extensions=[
+                "tables",
+                "fenced_code",
+                "codehilite",
+                "attr_list",
+                "pymdownx.highlight",
+                "pymdownx.tasklist",
+                "pymdownx.b64",
+                "pymdownx.superfences"],
             extension_configs={
                 "codehilite": {
                     "linenums": False,
