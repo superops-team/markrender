@@ -16,6 +16,10 @@ from PySide6 import QtCore
 from db_manager import ThemeManager
 import pymdownx
 from pymdownx import superfences
+import pymdownx.highlight
+import pymdownx.tasklist
+import pymdownx.b64
+import pymdownx.superfences
 from markdown_history_manager import MarkdownHistoryManager
 import init_db
 
@@ -229,7 +233,7 @@ class MainWindow(QMainWindow):
         else:
             logging.warning('Failed to load icon: format-justify-fill.svg')
             self.toggle_history_button = self.toolbar.addAction(
-                "展开/折叠左侧目录", None)
+                "展开/折叠", None)
         self.toggle_history_button.triggered.connect(self.toggle_history_panel)
         self.toolbar.insertAction(
             self.toolbar.actions()[0],
