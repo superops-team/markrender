@@ -69,6 +69,23 @@ def init_themes():
 
 
 class MainWindow(QMainWindow):
+    def rename_selected_file(self):
+        from PySide6.QtWidgets import QInputDialog
+        selected_items = self.history_list.selectedItems()
+        if selected_items:
+            item = selected_items[0]
+            old_title = item.text()
+            new_title, ok = QInputDialog.getText(self, '重命名标题', '请输入新标题:', text=old_title)
+            if ok and new_title:
+                from sqlalchemy.orm import Session
+                from markdown_history_manager import MarkdownFileHistory
+                with Session(self.markdown_history_manager.engine) as session:
+                    history = session.query(MarkdownFileHistory).filter(
+                        MarkdownFileHistory.title == old_title).first()
+                    if history:
+                        history.title = new_title
+                        session.commit()
+                self.load_history()
     def create_new_markdown(self):
         from PySide6.QtWidgets import QTextEdit, QDialog, QVBoxLayout, QPushButton, QLineEdit, QLabel
         dialog = QDialog(self)
@@ -229,7 +246,10 @@ class MainWindow(QMainWindow):
         self.history_list.setContextMenuPolicy(Qt.ActionsContextMenu)
         delete_action = QAction('删除', self.history_list)
         delete_action.triggered.connect(self.delete_selected_file)
+        rename_action = QAction('重命名', self.history_list)
+        rename_action.triggered.connect(self.rename_selected_file)
         self.history_list.addAction(delete_action)
+        self.history_list.addAction(rename_action)
 
         self.new_markdown_button = QPushButton('新建 Markdown')
         self.new_markdown_button.clicked.connect(self.create_new_markdown)
