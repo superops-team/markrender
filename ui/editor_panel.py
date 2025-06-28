@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QSplitter, QVBoxLayout, QFileDialog
+from PySide6.QtWidgets import QWidget, QSplitter, QVBoxLayout, QFileDialog, QSizePolicy
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtCore import Qt
 from ui.markdown_editor import MarkdownEditor
@@ -19,6 +19,9 @@ class EditorPanel(QWidget):
         splitter = QSplitter(Qt.Horizontal)
         splitter.addWidget(self.editor)
         splitter.addWidget(self.renderer)
+        self.editor.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.renderer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        splitter.setSizes([int(self.width()/2), int(self.width()/2)])
         layout.addWidget(splitter)
         self.setLayout(layout)
         

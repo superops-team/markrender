@@ -59,9 +59,9 @@ class MarkdownRenderer(QWidget):
         <head>
             <meta charset="UTF-8">
             {self.theme_manager_gui.get_current_style() if self.theme_manager_gui.get_current_style() else self.theme_manager_gui.get_base_style()}
-            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/default.min.css">    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.css">
-            <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
-            <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+            <link rel="stylesheet" href="assets/highlight.min.css">    <link rel="stylesheet" href="assets/mermaid.min.css">
+            <script src="assets/highlight.min.js"></script>
+            <script src="assets/mermaid.min.js"></script>
             <script>
                 document.addEventListener('DOMContentLoaded', (event) => {{
                     if (window.hljs) {{

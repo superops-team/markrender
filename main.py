@@ -44,9 +44,6 @@ class MainWindow(QMainWindow):
         # 创建工具栏
         self.toolbar = QToolBar()
         self.addToolBar(self.toolbar)
-
-       
-
         # 添加样式选择器
         style_layout = QHBoxLayout()
         style_label = QLabel("样式:")
@@ -112,8 +109,8 @@ class MainWindow(QMainWindow):
 
         # 添加编辑器面板
         splitter.addWidget(self.editor_panel)
-        # 设置三栏默认比例，参考VSCode布局
-        splitter.setSizes([200, 800])
+        # 设置两栏默认比例，文件列表区20%，编辑预览区80%
+        splitter.setSizes([int(self.width()*0.2), int(self.width()*0.8)])
 
         # 设置主布局
         central_widget = QWidget()
