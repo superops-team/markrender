@@ -1,50 +1,26 @@
 # -*- coding: utf-8 -*-
 from sqlalchemy import Column, DateTime, Integer, String, create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
-from sqlalchemy.sql import func
-
-# 创建基础类
-Base = declarative_base()
+from .base import Base
+from .models import Theme
 
 
 class SingletonEngine:
-    _instance = None
-    _db_path = None
+    _instances = {}
 
     @classmethod
     def get_instance(cls, db_path):
-        if cls._instance is None:
-            cls._db_path = db_path
+        if db_path not in cls._instances:
             from sqlalchemy import create_engine
-            cls._instance = create_engine(
+            cls._instances[db_path] = create_engine(
                 "sqlite:///{}".format(db_path),
                 connect_args={
                     'check_same_thread': False})
-        elif cls._db_path != db_path:
-            import logging
-            logging.warning(
-                '尝试使用不同的数据库路径，当前路径: %s, 尝试路径: %s',
-                cls._db_path,
-                db_path)
-            raise ValueError(
-                'Database path cannot be changed once the engine is initialized.')
-        return cls._instance
-
-
-class Theme(Base):
-    __tablename__ = "themes"
-
-    id = Column(Integer, primary_key=True)
-    name = Column(String, unique=True, nullable=False)
-    css_config = Column(String, nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+        return cls._instances[db_path]
 
 
 class ThemeManager:
-    def __init__(self, db_path=None):
-        if db_path is None:
-            db_path = SingletonEngine._db_path
+    def __init__(self, db_path):
         engine = SingletonEngine.get_instance(db_path)
         Base.metadata.create_all(engine)
         self.Session = sessionmaker(bind=engine)

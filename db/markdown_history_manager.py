@@ -1,42 +1,50 @@
 # -*- coding: utf-8 -*-
 from sqlalchemy import Column, DateTime, Integer, String, Text
-from db_manager import SingletonEngine
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import func
-
-# 创建基础类
-Base = declarative_base()
-
-
-class MarkdownFileHistory(Base):
-    __tablename__ = "markdown_file_history"
-
-    id = Column(Integer, primary_key=True)
-    title = Column(String, nullable=False)
-    content = Column(Text, nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    tags = Column(String)
-    render_style = Column(String)
-
-
-class MarkdownChangeHistory(Base):
-    __tablename__ = "markdown_change_history"
-
-    id = Column(Integer, primary_key=True)
-    file_id = Column(Integer, nullable=False)
-    old_content = Column(Text, nullable=False)
-    new_content = Column(Text, nullable=False)
-    changed_at = Column(DateTime(timezone=True), server_default=func.now())
+from .models import Base, MarkdownFileHistory, MarkdownChangeHistory
+from db.db_manager import SingletonEngine
 
 
 class MarkdownHistoryManager:
     def __init__(self, db_path):
-        if db_path is None:
-            db_path = SingletonEngine._db_path
         self.engine = SingletonEngine.get_instance(db_path)
         Base.metadata.create_all(self.engine)
         self.Session = sessionmaker(bind=self.engine)
+
+    def add_history_item(self, new_file):
+        try:
+            with self.Session() as session:
+                session.add(new_file)
+                session.commit()
+                return True
+        except Exception as e:
+            logger.error(f"Error adding history item: {e}")
+            return False
+
+    def delete_history_item(self, item_id):
+        try:
+            with self.Session() as session:
+                history_item = session.query(MarkdownFileHistory).filter_by(id=item_id).first()
+                if history_item:
+                    session.delete(history_item)
+                    session.commit()
+                    return True
+                return False
+        except Exception as e:
+            logger.error(f"Error deleting history item: {e}")
+            return False
+
+    def load_history(self):
+        """加载所有历史记录"""
+        session = self.Session()
+        try:
+            histories = session.query(MarkdownFileHistory).all()
+            return [{'title': h.title, 'id': h.id} for h in histories]
+        except Exception as e:
+            raise e
+        finally:
+            session.close()
 
     def save_file_history(
             self,
