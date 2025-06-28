@@ -31,7 +31,7 @@ class NewFileDialog(QDialog):
         
     def on_save_clicked(self):
         title = self.title_input.text()
-        content = self.content_edit.text()
+        content = self.content_edit.toPlainText()
         if title and content:
             self.save_requested.emit(title, content)
             self.accept()

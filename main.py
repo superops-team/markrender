@@ -13,27 +13,29 @@ from PySide6.QtWebEngineWidgets import QWebEngineView
 from ui.history_panel import HistoryPanel
 from ui.editor_panel import EditorPanel
 from ui.theme_manager_gui import ThemeManagerGUI
+from ui.status_bar import StatusBar
 from db.db_manager import ThemeManager
 from db.markdown_history_manager import MarkdownHistoryManager
 from db import init_db
+from db.schema_checker import DBSchemaChecker
 from utils.logger_utils import logger
 
-DB_NAME = "markrender.db"
+MARKDOWN_DB_NAME = "markrender.db"
+THEME_DB_NAME = "markrender_themes.db"
 
 def init_themes():
-    # 检测 markrender.db 文件是否存在
-    db_path = init_db.get_db_path(DB_NAME)
+    # 检测主题数据库文件是否存在
+    db_path = init_db.get_db_path(THEME_DB_NAME)
     theme_manager = ThemeManager(db_path=db_path)
-    init_db.init_themes(theme_manager)  # 假设 init_db.py 中有 main 函数用于初始化
+    init_db.init_themes(theme_manager)
     return theme_manager
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        db_path = init_db.get_db_path(DB_NAME)
         self.theme_manager = init_themes()
-        self.markdown_history_manager = MarkdownHistoryManager(db_path)
+        self.markdown_history_manager = MarkdownHistoryManager(init_db.get_db_path(MARKDOWN_DB_NAME))
         self.theme_manager_gui = ThemeManagerGUI(self, self.theme_manager)
         self.setWindowTitle("MarkRender")
         self.showMaximized()
@@ -125,6 +127,13 @@ class MainWindow(QMainWindow):
         # 初始化预览
         self.update_preview()
 
+        # 设置状态栏
+        self.status_bar = StatusBar()
+        self.setStatusBar(self.status_bar)
+        
+        # 连接编辑器文本变化信号
+        self.editor_panel.editor.textChanged.connect(self.update_status_bar)
+
     def show_history_content(self, item):
         # Handle case where item is an index (int) instead of QListWidgetItem
         if isinstance(item, int):
@@ -140,6 +149,17 @@ class MainWindow(QMainWindow):
         else:
             logger.warning("No valid item selected in history panel")
 
+    def update_status_bar(self):
+        """更新状态栏信息"""
+        content = self.editor_panel.get_text_content()
+        is_changed = self.editor_panel.editor.mark_file_modified()
+        content_size = len(content.encode('utf-8'))
+        word_count = len(content.split())
+        
+        self.status_bar.update_file_status(is_changed)
+        self.status_bar.update_file_size(content_size)
+        self.status_bar.update_word_count(word_count)
+
     def update_preview(self):
         """更新预览区内容"""
         logger.info('开始更新预览区内容')
@@ -154,10 +174,16 @@ if __name__ == "__main__":
     try:
         logger.info(f"工作目录: {os.getcwd()}")
         logger.info(f"应用路径: {init_db.get_app_path()}")
+        # 等待数据库迁移完成
+        # 这里可添加更复杂的线程同步逻辑，当前仅初始化主题
+        init_themes()
         logger.info(f"数据库路径: {init_db.get_db_path('markrender.db')}")
         app = QApplication(sys.argv)
         window = MainWindow()
         window.show()
+        # 确保主线程在后台迁移完成前不会退出
+        # 注意：此为简化实现，实际可能需要更复杂的线程同步机制
+        # 这里仅确保应用不会意外退出
         sys.exit(app.exec())
     except Exception as e:
         error_msg = traceback.format_exc()

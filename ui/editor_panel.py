@@ -49,7 +49,6 @@ class EditorPanel(QWidget):
         markdown_text = self.editor.get_text_content()
         self.renderer.render_markdown(markdown_text)
         
-
         
     def get_text_content(self):
         """获取编辑器内容"""

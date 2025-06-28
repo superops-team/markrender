@@ -21,6 +21,7 @@ class MarkdownFileHistory(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     tags = Column(String)
     render_style = Column(String)
+    content_md5 = Column(String, nullable=False)
 
 class MarkdownChangeHistory(Base):
     __tablename__ = "markdown_change_history"

@@ -6,9 +6,9 @@ onefile:
 		--windowed  \
 		--name "markrender" \
 		--icon "./icons/app.icns" \
-		--add-data "icons/app.icns:." \
-		--add-binary "/usr/lib/sqlite3/libtclsqlite3.dylib:." \
-		*.py
+		--add-data "icons/app.icns:." 
+		--add-binary 
+		--add-data "ui/assets:ui/assets" 
 
 # 创建 dmg
 dmg: onefile

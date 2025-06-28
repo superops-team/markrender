@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from sqlalchemy import Column, DateTime, Integer, String, create_engine
+from sqlalchemy import Column, DateTime, Integer, String, create_engine, func
 from sqlalchemy.orm import declarative_base, sessionmaker
 from .base import Base
 from .models import Theme
@@ -21,9 +21,9 @@ class SingletonEngine:
 
 class ThemeManager:
     def __init__(self, db_path):
-        engine = SingletonEngine.get_instance(db_path)
-        Base.metadata.create_all(engine)
-        self.Session = sessionmaker(bind=engine)
+        self.engine = SingletonEngine.get_instance(db_path)
+        Base.metadata.create_all(self.engine)
+        self.Session = sessionmaker(bind=self.engine)
 
     def create_theme(self, name, css_config):
         session = self.Session()

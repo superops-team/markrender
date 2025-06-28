@@ -2,7 +2,6 @@
 import os
 import logging
 import sys
-from db.db_manager import ThemeManager
 
 # 基础样式：代码高亮和一级标题样式
 base_style = """
@@ -155,7 +154,9 @@ def get_db_path_v1(db_name):
 
 
 def init_themes(manager):
-    for name, theme_style in themes.items():
+    # 确保主题表已创建
+    manager.Session.configure(bind=manager.engine)
+    for name, theme_style in themes.items():  
         if manager.theme_exists(name):
             continue
         full_style = base_style + theme_style

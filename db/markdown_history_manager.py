@@ -4,6 +4,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import func
 from .models import Base, MarkdownFileHistory, MarkdownChangeHistory
 from db.db_manager import SingletonEngine
+from utils.hash_utils import calculate_md5
 
 
 class MarkdownHistoryManager:
@@ -54,11 +55,13 @@ class MarkdownHistoryManager:
             render_style=None):
         session = self.Session()
         try:
+            content_md5 = calculate_md5(content)
             new_history = MarkdownFileHistory(
                 title=title,
                 content=content,
                 tags=tags,
-                render_style=render_style
+                render_style=render_style,
+                content_md5=content_md5
             )
             session.add(new_history)
             session.commit()

@@ -6,6 +6,8 @@ from utils.logger_utils import logger
 from utils.time_utils import get_current_timestamp
 from sqlalchemy.orm import Session
 from db.models import MarkdownFileHistory
+from datetime import datetime, timezone
+from utils.hash_utils import calculate_md5
 
 
 class HistoryPanel(QWidget):
@@ -144,16 +146,16 @@ class HistoryPanel(QWidget):
 
     def save_new_markdown(self, title, content):
         """保存新的markdown文件"""
-        theme_names = self.parent().theme_manager_gui.get_theme_names()
-        first_theme_style = self.parent().theme_manager_gui.get_theme_css(
-            theme_names[0]) if theme_names else ''
+        theme_names = self.parent.theme_manager_gui.get_theme_names()
+        first_theme_style = self.parent.theme_manager_gui.get_current_style() if theme_names else ''
         new_file = MarkdownFileHistory(
             title=title,
             content=content,
             tags='',
             render_style=first_theme_style,
-            created_at=get_current_timestamp(),
-            updated_at=get_current_timestamp()
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
+            content_md5=calculate_md5(content)
         )
 
         with Session(self.markdown_history_manager.engine) as session:
