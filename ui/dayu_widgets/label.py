@@ -16,7 +16,6 @@ from PySide6 import QtCore, QtGui
 from PySide6 import QtWidgets
 
 # Import local modules
-from . import dayu_theme
 
 
 class MLabel(QtWidgets.QLabel):
@@ -167,6 +166,8 @@ class MLabel(QtWidgets.QLabel):
         :param href: The href attr of a tag
         :param text: The a tag text content
         """
+        from . import dayu_theme
+
         # 这里富文本的超链接必须使用 html 的样式，使用 qss 不起作用
         link_style = dayu_theme.hyperlink_style
         self.setText(

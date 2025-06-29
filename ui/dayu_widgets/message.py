@@ -16,7 +16,6 @@ from PySide6 import QtCore
 from PySide6 import QtWidgets
 
 # Import local modules
-from . import dayu_theme
 from .avatar import MAvatar
 from .label import MLabel
 from .loading import MLoading
@@ -42,6 +41,8 @@ class MMessage(QtWidgets.QWidget):
             dayu_type=None,
             closable=False,
             parent=None):
+        from . import dayu_theme
+
         super(MMessage, self).__init__(parent)
         self.setObjectName("message")
         self.setWindowFlags(

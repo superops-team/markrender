@@ -7,9 +7,10 @@
 ###################################################################
 # Import future modules
 from __future__ import absolute_import
-from PySide6 import QtCore, QtWidgets
 from __future__ import division
 from __future__ import print_function
+from PySide6 import QtCore, QtWidgets
+
 
 # Import built-in modules
 import functools
@@ -21,7 +22,6 @@ from PySide6 import QtWidgets
 import six
 
 # Import local modules
-from . import dayu_theme
 from .check_box import MCheckBox
 from .menu import MMenu
 from .push_button import MPushButton
@@ -108,6 +108,8 @@ class MPushButtonGroup(MButtonGroupBase):
             parent=parent)
         self.set_spacing(1)
         self._dayu_type = MPushButton.PrimaryType
+        from . import dayu_theme
+
         self._dayu_size = dayu_theme.default_size
         self._button_group.setExclusive(False)
 

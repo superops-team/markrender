@@ -20,7 +20,6 @@ from PySide6 import QtCore
 from PySide6 import QtWidgets
 
 # Import local modules
-from . import dayu_theme
 from .mixin import cursor_mixin
 
 
@@ -33,6 +32,8 @@ class MSpinBox(QtWidgets.QSpinBox):
     """
 
     def __init__(self, parent=None):
+        from . import dayu_theme
+
         super(MSpinBox, self).__init__(parent=parent)
         self._dayu_size = dayu_theme.default_size
 
@@ -56,26 +57,36 @@ class MSpinBox(QtWidgets.QSpinBox):
 
     def huge(self):
         """Set MSpinBox to huge size"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.huge)
         return self
 
     def large(self):
         """Set MSpinBox to large size"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.large)
         return self
 
     def medium(self):
         """Set MSpinBox to  medium"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.medium)
         return self
 
     def small(self):
         """Set MSpinBox to small size"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.small)
         return self
 
     def tiny(self):
         """Set MSpinBox to tiny size"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.tiny)
         return self
 
@@ -89,6 +100,8 @@ class MDoubleSpinBox(QtWidgets.QDoubleSpinBox):
     """
 
     def __init__(self, parent=None):
+        from . import dayu_theme
+
         super(MDoubleSpinBox, self).__init__(parent=parent)
         self._dayu_size = dayu_theme.default_size
 
@@ -112,26 +125,35 @@ class MDoubleSpinBox(QtWidgets.QDoubleSpinBox):
 
     def huge(self):
         """Set MDoubleSpinBox to huge size"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.huge)
         return self
 
     def large(self):
-        """Set MDoubleSpinBox to large size"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.large)
         return self
 
     def medium(self):
         """Set MDoubleSpinBox to  medium"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.medium)
         return self
 
     def small(self):
         """Set MDoubleSpinBox to small size"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.small)
         return self
 
     def tiny(self):
         """Set MDoubleSpinBox to tiny size"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.tiny)
         return self
 
@@ -145,6 +167,8 @@ class MDateTimeEdit(QtWidgets.QDateTimeEdit):
     """
 
     def __init__(self, datetime=None, parent=None):
+        from . import dayu_theme
+
         if datetime is None:
             super(MDateTimeEdit, self).__init__(parent=parent)
         else:
@@ -171,26 +195,36 @@ class MDateTimeEdit(QtWidgets.QDateTimeEdit):
 
     def huge(self):
         """Set MDateTimeEdit to huge size"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.huge)
         return self
 
     def large(self):
         """Set MDateTimeEdit to large size"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.large)
         return self
 
     def medium(self):
         """Set MDateTimeEdit to  medium"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.medium)
         return self
 
     def small(self):
         """Set MDateTimeEdit to small size"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.small)
         return self
 
     def tiny(self):
         """Set MDateTimeEdit to tiny size"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.tiny)
         return self
 
@@ -204,10 +238,13 @@ class MDateEdit(QtWidgets.QDateEdit):
     """
 
     def __init__(self, date=None, parent=None):
+        from . import dayu_theme
+
         if date is None:
             super(MDateEdit, self).__init__(parent=parent)
         else:
             super(MDateEdit, self).__init__(date, parent=parent)
+            
         self._dayu_size = dayu_theme.default_size
 
     def get_dayu_size(self):
@@ -230,26 +267,36 @@ class MDateEdit(QtWidgets.QDateEdit):
 
     def huge(self):
         """Set MDateEdit to huge size"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.huge)
         return self
 
     def large(self):
         """Set MDateEdit to large size"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.large)
         return self
 
     def medium(self):
         """Set MDateEdit to  medium"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.medium)
         return self
 
     def small(self):
         """Set MDateEdit to small size"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.small)
         return self
 
     def tiny(self):
         """Set MDateEdit to tiny size"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.tiny)
         return self
 
@@ -263,6 +310,8 @@ class MTimeEdit(QtWidgets.QTimeEdit):
     """
 
     def __init__(self, time=None, parent=None):
+        from . import dayu_theme
+
         if time is None:
             super(MTimeEdit, self).__init__(parent=parent)
         else:
@@ -289,25 +338,35 @@ class MTimeEdit(QtWidgets.QTimeEdit):
 
     def huge(self):
         """Set MTimeEdit to huge size"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.huge)
         return self
 
     def large(self):
         """Set MTimeEdit to large size"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.large)
         return self
 
     def medium(self):
         """Set MTimeEdit to  medium"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.medium)
         return self
 
     def small(self):
         """Set MTimeEdit to small size"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.small)
         return self
 
     def tiny(self):
         """Set MTimeEdit to tiny size"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.tiny)
         return self

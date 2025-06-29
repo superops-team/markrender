@@ -18,7 +18,6 @@ from PySide6 import QtCore
 from PySide6 import QtWidgets
 
 # Import local modules
-from . import dayu_theme
 from .mixin import cursor_mixin
 
 
@@ -32,6 +31,8 @@ class MSwitch(QtWidgets.QRadioButton):
     """
 
     def __init__(self, parent=None):
+        from . import dayu_theme
+
         super(MSwitch, self).__init__(parent)
         self._dayu_size = dayu_theme.default_size
         self.setAutoExclusive(False)
@@ -64,25 +65,35 @@ class MSwitch(QtWidgets.QRadioButton):
 
     def huge(self):
         """Set MSwitch to huge size"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.huge)
         return self
 
     def large(self):
         """Set MSwitch to large size"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.large)
         return self
 
     def medium(self):
         """Set MSwitch to medium size"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.medium)
         return self
 
     def small(self):
         """Set MSwitch to small size"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.small)
         return self
 
     def tiny(self):
         """Set MSwitch to tiny size"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.tiny)
         return self

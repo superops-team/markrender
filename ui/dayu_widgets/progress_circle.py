@@ -17,7 +17,6 @@ from PySide6 import QtGui
 from PySide6 import QtWidgets
 
 # Import local modules
-from . import dayu_theme
 from . import utils
 from .label import MLabel
 
@@ -33,6 +32,8 @@ class MProgressCircle(QtWidgets.QProgressBar):
     """
 
     def __init__(self, dashboard=False, parent=None):
+        from . import dayu_theme
+
         super(MProgressCircle, self).__init__(parent)
         self._main_lay = QtWidgets.QHBoxLayout()
         self._default_label = MLabel().h3()
@@ -121,6 +122,8 @@ class MProgressCircle(QtWidgets.QProgressBar):
         # draw background circle
         pen_background = QtGui.QPen()
         pen_background.setWidth(pen_width)
+        from . import dayu_theme
+
         pen_background.setColor(
             QtGui.QColor(
                 dayu_theme.background_selected_color))

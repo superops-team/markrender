@@ -16,7 +16,6 @@ from PySide6 import QtCore
 from PySide6 import QtWidgets
 
 # Import local modules
-from . import dayu_theme
 from .avatar import MAvatar
 from .divider import MDivider
 from .label import MLabel
@@ -37,6 +36,8 @@ class MCard(QtWidgets.QWidget):
             type=None,
             parent=None):
         super(MCard, self).__init__(parent=parent)
+        from . import dayu_theme
+
         self.setAttribute(QtCore.Qt.WA_StyledBackground)
         self.setProperty("border", False)
         size = size or dayu_theme.default_size

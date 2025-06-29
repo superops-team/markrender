@@ -4,8 +4,8 @@ import traceback
 from PySide6 import QtCore
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout)
-from PySide6.QtGui import QAction
-from ui.dayu_widgets import MSplitter, dayu_theme
+from ui.dayu_widgets import dayu_theme
+from ui.dayu_widgets import MSplitter
 from app.markdown_editor import MarkdownEditor
 from app.markdown_previewer import MarkdownPreviewer
 from app.status_bar import StatusBar
@@ -32,14 +32,9 @@ class MainWindow(QMainWindow):
         if system() == 'Windows':
             user_data_dir = os.path.join(os.getenv('APPDATA'), 'markrender')
         elif system() == 'Darwin':
-            user_data_dir = os.path.join(
-                os.path.expanduser('~'),
-                'Library',
-                'Application Support',
-                'markrender')
+            user_data_dir = os.path.join(os.path.expanduser('~'), 'Library', 'Application Support', 'markrender')
         else:
-            user_data_dir = os.path.join(
-                os.path.expanduser('~'), '.local', 'share', 'markrender')
+            user_data_dir = os.path.join(os.path.expanduser('~'), '.local', 'share', 'markrender')
         os.makedirs(user_data_dir, exist_ok=True)
         db_path = os.path.join(user_data_dir, 'data.db')
         logger.info(f'数据库路径初始化完成，路径为: {db_path}')
@@ -81,9 +76,7 @@ class MainWindow(QMainWindow):
         self.markdown_previewer = MarkdownPreviewer(None, self)
         splitter.addWidget(self.markdown_previewer)
         # 设置三栏默认比例，历史区30%，编辑区35%，预览区35%
-        splitter.setSizes([int(self.width() * 0.3),
-                           int(self.width() * 0.35),
-                           int(self.width() * 0.35)])
+        splitter.setSizes([int(self.width()*0.3), int(self.width()*0.35), int(self.width()*0.35)])
         self.main_layout.addWidget(splitter)
 
         self.setCentralWidget(central_widget)
@@ -92,8 +85,7 @@ class MainWindow(QMainWindow):
         self.markdown_editor.textChanged.connect(self.update_preview)
 
         # 连接历史列表项选中信号
-        self.history_panel.history_item_selected.connect(
-            self.update_editor_and_previewer)
+        self.history_panel.history_item_selected.connect(self.update_editor_and_previewer)
 
         # 设置状态栏
         self.status_bar = StatusBar()
@@ -104,8 +96,7 @@ class MainWindow(QMainWindow):
 
     def update_preview(self):
         """更新预览区内容"""
-        self.markdown_previewer.render_markdown(
-            self.markdown_editor.get_text_content())
+        self.markdown_previewer.render_markdown(self.markdown_editor.get_text_content())
 
     def update_editor_and_previewer(self, history_item):
         """更新编辑区和预览区内容"""
@@ -113,10 +104,10 @@ class MainWindow(QMainWindow):
             self.current_file = history_item
             # 获取选中历史项的内容
             content = history_item.get('content', '')
-
+           
             # 更新编辑区内容
             self.markdown_editor.set_text_content(content)
-
+            
             # 更新预览区内容
             self.markdown_previewer.render_markdown(content)
         except Exception as e:
@@ -128,6 +119,15 @@ class MainWindow(QMainWindow):
         if self.current_file:
             self.history_panel.select_history_item(self.current_file)
 
+    def export_pdf(self):
+        """导出PDF功能"""
+        logger.info('触发导出PDF功能')
+        try:
+            # 假设 self.markdown_editor 是 Markdown 编辑器实例
+            self.markdown_previewer.export_to_pdf()
+            logger.info('PDF导出成功')
+        except Exception as e:
+            logger.error(f'PDF导出失败: {str(e)}')
 
 if __name__ == "__main__":
     logger.info("应用启动")

@@ -22,7 +22,6 @@ from PySide6 import QtWidgets
 import six
 
 # Import local modules
-from . import dayu_theme
 from .avatar import MAvatar
 from .label import MLabel
 from .mixin import property_mixin
@@ -48,6 +47,8 @@ class MAlert(QtWidgets.QWidget):
 
     def __init__(self, text="", parent=None, flags=QtCore.Qt.Widget):
         super(MAlert, self).__init__(parent, flags)
+        from . import dayu_theme
+
         self.setAttribute(QtCore.Qt.WA_StyledBackground)
         self._icon_label = MAvatar()
         self._icon_label.set_dayu_size(dayu_theme.tiny)
@@ -97,6 +98,8 @@ class MAlert(QtWidgets.QWidget):
         self._set_dayu_text()
 
     def _set_dayu_type(self):
+        from . import dayu_theme
+
         self._icon_label.set_dayu_image(
             MPixmap(
                 "{}_fill.svg".format(self._dayu_type),

@@ -45,8 +45,7 @@ class MPopup(QtWidgets.QFrame):
     def post_init(self):
         start_size = self.property("anim_size_start")
         size = self.sizeHint()
-        start_size = start_size if start_size else QtCore.QSize(
-            0, size.height())
+        start_size = start_size if start_size else QtCore.QSize(0, size.height())
         end_size = self.property("anim_size_end")
         end_size = end_size if end_size else size
         self.setProperty("anim_size_start", start_size)

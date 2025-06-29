@@ -18,7 +18,6 @@ from PySide6 import QtCore
 from PySide6 import QtWidgets
 
 # Import local modules
-from . import dayu_theme
 from .mixin import cursor_mixin
 from .mixin import focus_shadow_mixin
 
@@ -41,6 +40,8 @@ class MPushButton(QtWidgets.QPushButton):
     DangerType = "danger"
 
     def __init__(self, text="", icon=None, parent=None):
+        from . import dayu_theme
+
         if icon is None:
             super(MPushButton, self).__init__(text=text, parent=parent)
         else:
@@ -120,25 +121,35 @@ class MPushButton(QtWidgets.QPushButton):
 
     def huge(self):
         """Set MPushButton to huge size"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.huge)
         return self
 
     def large(self):
         """Set MPushButton to large size"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.large)
         return self
 
     def medium(self):
         """Set MPushButton to  medium"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.medium)
         return self
 
     def small(self):
         """Set MPushButton to small size"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.small)
         return self
 
     def tiny(self):
         """Set MPushButton to tiny size"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.tiny)
         return self

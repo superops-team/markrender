@@ -19,7 +19,6 @@ from PySide6 import QtGui
 from PySide6 import QtWidgets
 
 # Import local modules
-from . import dayu_theme
 from .qt import MPixmap
 
 
@@ -29,6 +28,8 @@ class MLoading(QtWidgets.QWidget):
     """
 
     def __init__(self, size=None, color=None, parent=None):
+        from . import dayu_theme
+
         super(MLoading, self).__init__(parent)
         size = size or dayu_theme.default_size
         self.setFixedSize(QtCore.QSize(size, size))
@@ -76,26 +77,36 @@ class MLoading(QtWidgets.QWidget):
     @classmethod
     def huge(cls, color=None):
         """Create a MLoading with huge size"""
+        from . import dayu_theme
+
         return cls(dayu_theme.huge, color)
 
     @classmethod
     def large(cls, color=None):
         """Create a MLoading with large size"""
+        from . import dayu_theme
+
         return cls(dayu_theme.large, color)
 
     @classmethod
     def medium(cls, color=None):
         """Create a MLoading with medium size"""
+        from . import dayu_theme
+
         return cls(dayu_theme.medium, color)
 
     @classmethod
     def small(cls, color=None):
         """Create a MLoading with small size"""
+        from . import dayu_theme
+
         return cls(dayu_theme.small, color)
 
     @classmethod
     def tiny(cls, color=None):
         """Create a MLoading with tiny size"""
+        from . import dayu_theme
+
         return cls(dayu_theme.tiny, color)
 
 

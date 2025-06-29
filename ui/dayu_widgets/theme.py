@@ -14,8 +14,6 @@ from __future__ import print_function
 import string
 
 # Import local modules
-from . import DEFAULT_STATIC_FOLDER
-from . import utils
 from .qt import get_scale_factor
 
 
@@ -124,6 +122,7 @@ class MTheme(object):
 
     def __init__(self, theme="light", primary_color=None):
         super(MTheme, self).__init__()
+        from . import utils
         default_qss_file = utils.get_static_file("main.qss")
         with open(default_qss_file, "r") as f:
             self.default_qss = QssTemplate(f.read())
@@ -161,6 +160,7 @@ class MTheme(object):
         self._init_icon(theme)
 
     def set_primary_color(self, color):
+        from . import utils
         self.primary_color = color
         self.primary_1 = utils.generate_color(color, 1)
         self.primary_2 = utils.generate_color(color, 2)
@@ -186,6 +186,8 @@ class MTheme(object):
         )
 
     def _init_icon(self, theme):
+        from . import DEFAULT_STATIC_FOLDER
+
         # icon
         pre_str = DEFAULT_STATIC_FOLDER.replace("\\", "/")
         suf_str = "" if theme == "light" else "_dark"
@@ -212,7 +214,7 @@ class MTheme(object):
         self.processing_color = self.blue
         self.error_color = self.red
         self.warning_color = self.gold
-
+        from . import utils
         self.info_1 = utils.fade_color(self.info_color, "15%")
         self.info_2 = utils.generate_color(self.info_color, 2)
         self.info_3 = utils.fade_color(self.info_color, "35%")
@@ -294,6 +296,7 @@ class MTheme(object):
         self.toast_color = "#555555"
 
     def _light(self):
+        from . import utils
         self.title_color = "#262626"
         self.primary_text_color = "#595959"
         self.secondary_text_color = "#8c8c8c"

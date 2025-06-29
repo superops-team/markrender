@@ -25,7 +25,6 @@ from .qt import MPixmap
 from .tool_button import MToolButton
 from .button_group import MRadioButtonGroup
 from .avatar import MAvatar
-from . import dayu_theme
 
 
 @property_mixin
@@ -115,6 +114,8 @@ class MSectionItem(QtWidgets.QWidget):
 
         if icon is not None:
             self.icon.set_dayu_image(icon)
+            from . import dayu_theme
+
             self.icon.set_dayu_size(dayu_theme.small)
             self.icon.setVisible(True)
         else:

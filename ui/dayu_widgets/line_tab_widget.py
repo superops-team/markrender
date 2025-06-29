@@ -17,7 +17,6 @@ from PySide6 import QtCore
 from PySide6 import QtWidgets
 
 # Import local modules
-from . import dayu_theme
 from .button_group import MButtonGroupBase
 from .divider import MDivider
 from .stacked_widget import MStackedWidget
@@ -108,6 +107,8 @@ class MLineTabWidget(QtWidgets.QWidget):
         main_lay.addSpacing(5)
         main_lay.addWidget(self.stack_widget)
         self.setLayout(main_lay)
+        from . import dayu_theme
+
         self._dayu_size = dayu_theme.default
 
     def append_widget(self, widget):

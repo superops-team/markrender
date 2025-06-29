@@ -16,7 +16,6 @@ from PySide6 import QtWidgets
 import six
 
 # Import local modules
-from . import dayu_theme
 from . import utils
 from .header_view import MHeaderView
 from .item_model import MTableModel
@@ -106,6 +105,8 @@ class MOptionDelegate(QtWidgets.QStyledItemDelegate):
                     option.rect.height())))
 
     def paint(self, painter, option, index):
+        from . import dayu_theme
+
         painter.save()
         icon_color = dayu_theme.icon_color
         if option.state & QtWidgets.QStyle.State_MouseOver:
@@ -235,6 +236,8 @@ class MTableView(QtWidgets.QTableView):
     sig_context_menu = QtCore.Signal(object)
 
     def __init__(self, size=None, show_row_count=False, parent=None):
+        from . import dayu_theme
+
         super(MTableView, self).__init__(parent)
         self._no_data_image = None
         self._no_data_text = self.tr("No Data")
@@ -372,6 +375,8 @@ class MBigView(QtWidgets.QListView):
     sig_context_menu = QtCore.Signal(object)
 
     def __init__(self, parent=None):
+        from . import dayu_theme
+
         super(MBigView, self).__init__(parent)
         self._no_data_image = None
         self._no_data_text = self.tr("No Data")
@@ -386,6 +391,8 @@ class MBigView(QtWidgets.QListView):
 
     def scale_size(self, factor):
         """Scale the icon size."""
+        from . import dayu_theme
+
         new_size = self.iconSize() * factor
         max_size = dayu_theme.big_view_max_size
         min_size = dayu_theme.big_view_min_size
@@ -432,6 +439,8 @@ class MListView(QtWidgets.QListView):
     sig_context_menu = QtCore.Signal(object)
 
     def __init__(self, size=None, parent=None):
+        from . import dayu_theme
+
         super(MListView, self).__init__(parent)
         self._no_data_image = None
         self._no_data_text = self.tr("No Data")

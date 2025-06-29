@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 # Import future modules
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 from .splitter import MSplitter
 from .tool_button import MToolButton
 from .toast import MToast
@@ -59,8 +61,7 @@ from .badge import MBadge
 from .avatar import MAvatar
 from .alert import MAlert
 from .theme import MTheme
-from __future__ import division
-from __future__ import print_function
+
 
 # Import built-in modules
 import os

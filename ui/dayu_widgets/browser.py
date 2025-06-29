@@ -27,7 +27,6 @@ from PySide6 import QtWidgets
 import six
 
 # Import local modules
-from . import dayu_theme
 from .mixin import cursor_mixin
 from .mixin import property_mixin
 from .push_button import MPushButton
@@ -320,6 +319,8 @@ class MDragFileButton(MToolButton):
     slot_browser_file = _slot_browser_file
 
     def __init__(self, text="", multiple=False, parent=None):
+        from . import dayu_theme
+
         super(MDragFileButton, self).__init__(parent=parent)
         self.setAcceptDrops(True)
         self.setMouseTracking(True)
@@ -568,6 +569,8 @@ class MDragFolderButton(MToolButton):
         self.setMouseTracking(True)
         self.text_under_icon()
         self.set_dayu_svg("folder_line.svg")
+        from . import dayu_theme
+
         size = dayu_theme.drag_size
         self.set_dayu_size(size)
         self.setIconSize(QtCore.QSize(size, size))

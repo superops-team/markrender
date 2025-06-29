@@ -15,7 +15,6 @@ from PySide6 import QtCore
 from PySide6 import QtWidgets
 
 # Import local modules
-from . import dayu_theme
 from .completer import MCompleter
 from .mixin import cursor_mixin
 from .mixin import focus_shadow_mixin
@@ -71,6 +70,8 @@ class MComboBox(MComboBoxSearchMixin, QtWidgets.QComboBox):
     sig_value_changed = QtCore.Signal(object)
 
     def __init__(self, parent=None):
+        from . import dayu_theme
+
         super(MComboBox, self).__init__(parent)
 
         self._root_menu = None

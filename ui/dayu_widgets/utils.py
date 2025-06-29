@@ -33,8 +33,6 @@ else:
     from singledispatch import singledispatch
 
 # Import local modules
-from . import CUSTOM_STATIC_FOLDERS
-from . import DEFAULT_STATIC_FOLDER
 from .qt import MIcon
 from .qt import get_scale_factor
 
@@ -51,6 +49,9 @@ def get_static_file(path):
     :param path: file name
     :return: if input file found, return the full path, else return None
     """
+    from ui.dayu_widgets import CUSTOM_STATIC_FOLDERS
+    from ui.dayu_widgets import DEFAULT_STATIC_FOLDER
+
     if not isinstance(path, six.string_types):
         raise TypeError(
             "Input argument 'path' should be six.string_types type, "

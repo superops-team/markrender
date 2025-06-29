@@ -19,13 +19,13 @@ from PySide6 import QtGui
 from PySide6 import QtWidgets
 
 # Import local modules
-from . import dayu_theme
 from .mixin import property_mixin
 
 
 @property_mixin
 class MSplitter(QtWidgets.QSplitter):
     def __init__(self, Orientation=QtCore.Qt.Horizontal, parent=None):
+        from . import dayu_theme
         super(MSplitter, self).__init__(Orientation, parent=parent)
         self.setHandleWidth(10)
         self.setProperty("animatable", True)

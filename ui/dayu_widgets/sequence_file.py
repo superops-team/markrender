@@ -20,7 +20,6 @@ from PySide6 import QtWidgets
 from dayu_path import DayuPath
 
 # Import local modules
-from . import dayu_theme
 from .check_box import MCheckBox
 from .field_mixin import MFieldMixin
 from .label import MLabel
@@ -41,6 +40,8 @@ class MSequenceFile(QtWidgets.QWidget, MFieldMixin):
 
     def __init__(self, size=None, parent=None):
         super(MSequenceFile, self).__init__(parent)
+        from . import dayu_theme
+
         self.sequence_obj = None
         size = size or dayu_theme.small
         self._file_label = MLineEdit()

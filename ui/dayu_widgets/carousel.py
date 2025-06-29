@@ -20,7 +20,6 @@ from PySide6 import QtGui
 from PySide6 import QtWidgets
 
 # Import local modules
-from . import dayu_theme
 from .mixin import property_mixin
 
 
@@ -33,6 +32,8 @@ class MGuidPrivate(QtWidgets.QFrame):
         self.set_checked(False)
 
     def set_checked(self, value):
+        from . import dayu_theme
+
         self.setStyleSheet("background-color:{}".format(
             dayu_theme.primary_color if value else dayu_theme.background_color))
         self.setFixedSize(20 if value else 16, 4)
@@ -53,6 +54,8 @@ class MCarousel(QtWidgets.QGraphicsView):
             height=500,
             parent=None):
         super(MCarousel, self).__init__(parent)
+        from . import dayu_theme
+
         self.scene = QtWidgets.QGraphicsScene()
         self.scene.setBackgroundBrush(
             QtGui.QBrush(

@@ -19,7 +19,6 @@ from PySide6 import QtCore
 from PySide6 import QtWidgets
 
 # Import local modules
-from . import dayu_theme
 from . import utils
 from .combo_box import MComboBox
 from .field_mixin import MFieldMixin
@@ -39,6 +38,8 @@ class MPage(QtWidgets.QWidget, MFieldMixin):
     sig_page_changed = QtCore.Signal(int, int)
 
     def __init__(self, parent=None):
+        from . import dayu_theme
+
         super(MPage, self).__init__(parent)
         self.register_field("page_size_selected", 25)
         self.register_field(

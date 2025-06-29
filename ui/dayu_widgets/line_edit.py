@@ -22,7 +22,6 @@ from PySide6 import QtWidgets
 import six
 
 # Import local modules
-from . import dayu_theme
 from .browser import MClickBrowserFileToolButton
 from .browser import MClickBrowserFolderToolButton
 from .browser import MClickSaveFileToolButton
@@ -55,6 +54,8 @@ class MLineEdit(QtWidgets.QLineEdit):
         self._delay_timer.setSingleShot(True)
         self._delay_timer.timeout.connect(self._slot_delay_text_changed)
         self.textChanged.connect(self._slot_begin_to_start_delay)
+        from . import dayu_theme
+
         self._dayu_size = dayu_theme.default_size
 
     def get_dayu_size(self):
@@ -230,27 +231,37 @@ class MLineEdit(QtWidgets.QLineEdit):
 
     def huge(self):
         """Set MLineEdit to huge size"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.huge)
         return self
 
     def large(self):
         """Set MLineEdit to large size"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.large)
         return self
 
     def medium(self):
-        """Set MLineEdit to  medium"""
+        """Set MLineEdit to  medium size"""
+        from . import dayu_theme
+
         self.set_dayu_size(dayu_theme.medium)
         return self
 
     def small(self):
         """Set MLineEdit to small size"""
-        self.set_dayu_size(dayu_theme.small)
+        from . import dayu_theme
+
+        self.set_dayu_size(dayu_theme.small)    
         return self
 
     def tiny(self):
         """Set MLineEdit to tiny size"""
-        self.set_dayu_size(dayu_theme.tiny)
+        from . import dayu_theme
+
+        self.set_dayu_size(dayu_theme.tiny)     
         return self
 
     def password(self):

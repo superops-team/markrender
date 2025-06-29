@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QHBoxLayout, QWidget, QMenuBar, QVBoxLayout
-from ui.dayu_widgets import MPushButton, dayu_theme, MMessage
+from ui.dayu_widgets import MPushButton, MMessage, dayu_theme
 from utils.logger_utils import logger
 from app.new_file_dialog import NewFileDialog
 from sqlalchemy.orm import Session

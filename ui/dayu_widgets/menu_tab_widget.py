@@ -17,7 +17,6 @@ from PySide6 import QtCore
 from PySide6 import QtWidgets
 
 # Import local modules
-from . import dayu_theme
 from .button_group import MButtonGroupBase
 from .divider import MDivider
 from .tool_button import MToolButton
@@ -118,6 +117,8 @@ class MMenuTabWidget(QtWidgets.QWidget):
 
         main_lay.addSpacing(5)
         self.setLayout(main_lay)
+        from . import dayu_theme
+
         self._dayu_size = dayu_theme.large
 
     def tool_bar_append_widget(self, widget):

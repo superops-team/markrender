@@ -19,7 +19,6 @@ from PySide6 import QtGui
 from PySide6 import QtWidgets
 
 # Import local modules
-from . import dayu_theme
 from .qt import MPixmap
 
 
@@ -33,6 +32,8 @@ class MAvatar(QtWidgets.QLabel):
     """
 
     def __init__(self, parent=None, flags=QtCore.Qt.Widget):
+        from . import dayu_theme
+
         super(MAvatar, self).__init__(parent, flags)
         self._default_pix = MPixmap("user_fill.svg")
         self._pixmap = self._default_pix
@@ -100,6 +101,8 @@ class MAvatar(QtWidgets.QLabel):
     @classmethod
     def huge(cls, image=None):
         """Create a MAvatar with huge size"""
+        from . import dayu_theme
+
         inst = cls()
         inst.set_dayu_size(dayu_theme.huge)
         inst.set_dayu_image(image)
@@ -108,6 +111,8 @@ class MAvatar(QtWidgets.QLabel):
     @classmethod
     def large(cls, image=None):
         """Create a MAvatar with large size"""
+        from . import dayu_theme
+
         inst = cls()
         inst.set_dayu_size(dayu_theme.large)
         inst.set_dayu_image(image)
@@ -116,6 +121,8 @@ class MAvatar(QtWidgets.QLabel):
     @classmethod
     def medium(cls, image=None):
         """Create a MAvatar with medium size"""
+        from . import dayu_theme
+
         inst = cls()
         inst.set_dayu_size(dayu_theme.medium)
         inst.set_dayu_image(image)
@@ -124,6 +131,7 @@ class MAvatar(QtWidgets.QLabel):
     @classmethod
     def small(cls, image=None):
         """Create a MAvatar with small size"""
+        from . import dayu_theme
         inst = cls()
         inst.set_dayu_size(dayu_theme.small)
         inst.set_dayu_image(image)
@@ -132,6 +140,8 @@ class MAvatar(QtWidgets.QLabel):
     @classmethod
     def tiny(cls, image=None):
         """Create a MAvatar with tiny size"""
+        from . import dayu_theme
+
         inst = cls()
         inst.set_dayu_size(dayu_theme.tiny)
         inst.set_dayu_image(image)

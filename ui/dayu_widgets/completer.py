@@ -16,7 +16,6 @@ from PySide6 import QtGui
 from PySide6 import QtWidgets
 
 # Import local modules
-from . import dayu_theme
 from .mixin import property_mixin
 
 
@@ -25,6 +24,8 @@ class MCompleter(QtWidgets.QCompleter):
     ITEM_HEIGHT = 28
 
     def __init__(self, parent=None):
+        from . import dayu_theme
+
         super(MCompleter, self).__init__(parent)
         self.setProperty("animatable", True)
 

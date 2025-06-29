@@ -18,11 +18,10 @@ from PySide6 import QtCore
 from PySide6 import QtWidgets
 
 # Import local modules
-from . import dayu_theme
-from .avatar import MAvatar
-from .label import MLabel
-from .loading import MLoading
-from .qt import MPixmap
+from ui.dayu_widgets.avatar import MAvatar
+from ui.dayu_widgets.label import MLabel
+from ui.dayu_widgets.loading import MLoading
+from ui.dayu_widgets.qt import MPixmap
 
 
 class MToast(QtWidgets.QWidget):
@@ -44,6 +43,8 @@ class MToast(QtWidgets.QWidget):
     sig_closed = QtCore.Signal()
 
     def __init__(self, text, duration=None, dayu_type=None, parent=None):
+        from ui.dayu_widgets import dayu_theme
+
         super(MToast, self).__init__(parent)
         self.setWindowFlags(
             QtCore.Qt.FramelessWindowHint

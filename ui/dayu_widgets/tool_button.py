@@ -17,8 +17,7 @@ from PySide6 import QtCore
 from PySide6 import QtWidgets
 
 # Import local modules
-from . import dayu_theme
-from .mixin import cursor_mixin
+from ui.dayu_widgets.mixin import cursor_mixin
 from .qt import MIcon
 
 
@@ -37,7 +36,7 @@ class MToolButton(QtWidgets.QToolButton):
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Minimum,
             QtWidgets.QSizePolicy.Minimum)
-
+        from . import dayu_theme
         self._dayu_size = dayu_theme.default_size
 
     @QtCore.Slot(bool)
@@ -91,26 +90,31 @@ class MToolButton(QtWidgets.QToolButton):
 
     def huge(self):
         """Set MToolButton to huge size"""
+        from . import dayu_theme
         self.set_dayu_size(dayu_theme.huge)
         return self
 
     def large(self):
         """Set MToolButton to large size"""
+        from . import dayu_theme
         self.set_dayu_size(dayu_theme.large)
         return self
 
     def medium(self):
-        """Set MToolButton to  medium size"""
+        """Set MToolButton to medium size"""
+        from . import dayu_theme
         self.set_dayu_size(dayu_theme.medium)
         return self
 
     def small(self):
         """Set MToolButton to small size"""
+        from . import dayu_theme
         self.set_dayu_size(dayu_theme.small)
         return self
 
     def tiny(self):
         """Set MToolButton to tiny size"""
+        from . import dayu_theme
         self.set_dayu_size(dayu_theme.tiny)
         return self
 
