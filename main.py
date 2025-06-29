@@ -1,199 +1,145 @@
 # -*- coding: utf-8 -*-
 import sys
-import os
 import traceback
-import markdown
 from PySide6 import QtCore
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout)
 from PySide6.QtGui import QAction
-from PySide6.QtWidgets import (QApplication, QMainWindow, QComboBox, QFileDialog, 
-                               QHBoxLayout, QInputDialog, QLabel, QMessageBox, 
-                               QSplitter, QToolBar, QVBoxLayout, QWidget)
-from PySide6.QtWebEngineWidgets import QWebEngineView
-from ui.history_panel import HistoryPanel
-from ui.editor_panel import EditorPanel
-from ui.theme_manager_gui import ThemeManagerGUI
-from ui.status_bar import StatusBar
-from db.db_manager import ThemeManager
-from db.markdown_history_manager import MarkdownHistoryManager
-from db import init_db
-from db.schema_checker import DBSchemaChecker
+from ui.dayu_widgets import MSplitter, dayu_theme
+from app.markdown_editor import MarkdownEditor
+from app.markdown_previewer import MarkdownPreviewer
+from app.status_bar import StatusBar
+from app.history_panel import HistoryPanel
+from app.top_menu import TopMenu
+from db.markdown_manager import MarkdownManager
 from utils.logger_utils import logger
-
-MARKDOWN_DB_NAME = "markrender.db"
-THEME_DB_NAME = "markrender_themes.db"
-
-def init_themes():
-    # 检测主题数据库文件是否存在
-    db_path = init_db.get_db_path(THEME_DB_NAME)
-    theme_manager = ThemeManager(db_path=db_path)
-    init_db.init_themes(theme_manager)
-    return theme_manager
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.theme_manager = init_themes()
-        self.markdown_history_manager = MarkdownHistoryManager(init_db.get_db_path(MARKDOWN_DB_NAME))
-        self.theme_manager_gui = ThemeManagerGUI(self, self.theme_manager)
         self.setWindowTitle("MarkRender")
         self.showMaximized()
+        dayu_theme.apply(self)
         self.setup_ui()
+        self.current_file = None
 
     def setup_ui(self):
         """设置UI界面"""
-        # 创建工具栏
-        self.toolbar = QToolBar()
-        self.addToolBar(self.toolbar)
-        # 添加样式选择器
-        style_layout = QHBoxLayout()
-        style_label = QLabel("样式:")
-        self.style_combobox = QComboBox()
-        self.style_combobox.addItems(self.theme_manager_gui.get_theme_names())
-        self.style_combobox.currentIndexChanged.connect(self.update_preview)
-
-        style_widget = QWidget()
-        style_layout.addWidget(style_label)
-        style_layout.addWidget(self.style_combobox)
-        style_widget.setLayout(style_layout)
-
-        # 设置展开折叠按钮图标
-        from PySide6.QtGui import QIcon
-        from PySide6.QtWidgets import QStyle
-        icon = self.style().standardIcon(QStyle.SP_TitleBarShadeButton)
-        if not icon.isNull():
-            self.toggle_history_button = self.toolbar.addAction(icon, "")
+        # 初始化数据库路径，使用用户数据路径
+        import os
+        from platform import system
+        if system() == 'Windows':
+            user_data_dir = os.path.join(os.getenv('APPDATA'), 'markrender')
+        elif system() == 'Darwin':
+            user_data_dir = os.path.join(
+                os.path.expanduser('~'),
+                'Library',
+                'Application Support',
+                'markrender')
         else:
-            logger.warning('Failed to load icon: format-justify-fill.svg')
-            self.toggle_history_button = self.toolbar.addAction(
-                "展开/折叠", None)
-        # 左侧历史记录面板
-        self.history_panel = HistoryPanel(self.markdown_history_manager, parent=self)
-        self.toggle_history_button.triggered.connect(self.history_panel.toggle_panel)
-        self.toolbar.insertAction(
-            self.toolbar.actions()[0],
-            self.toggle_history_button)
-        self.toolbar.setIconSize(QtCore.QSize(24, 24))
+            user_data_dir = os.path.join(
+                os.path.expanduser('~'), '.local', 'share', 'markrender')
+        os.makedirs(user_data_dir, exist_ok=True)
+        db_path = os.path.join(user_data_dir, 'data.db')
+        logger.info(f'数据库路径初始化完成，路径为: {db_path}')
 
-        self.toolbar.addWidget(style_widget)
-        self.toolbar.addSeparator()
-        
-        # 初始化编辑器面板
-        self.editor_panel = EditorPanel(self.theme_manager_gui)
-        self.editor_panel.editor.textChanged.connect(self.history_panel.save_history)
-        # 新建文件按钮
-        new_file_button = self.toolbar.addAction("新建")
-        new_file_button.triggered.connect(self.history_panel.create_new_markdown)
+        # 添加数据库初始化逻辑
+        from db.init_db import init_db
+        try:
+            init_db(db_path)
+            logger.info('数据库初始化完成')
+        except Exception as e:
+            logger.error(f'数据库初始化失败: {e}')
+            sys.exit(1)
 
-        # 导出按钮
-        export_image_button = self.toolbar.addAction("导出图片")
-        export_image_button.triggered.connect(self.editor_panel.export_image_dialog)
+        # 创建顶部菜单栏和工具按钮栏
+        self.top_menu = TopMenu(self)
 
-        export_pdf_button = self.toolbar.addAction("导出PDF")
-        export_pdf_button.triggered.connect(self.editor_panel.export_pdf_dialog)
-
-        # 添加新的主题管理按钮
-        theme_management_button = self.toolbar.addAction("主题管理")
-
-        def refresh_style_combobox():
-            self.theme_manager_gui.show_theme_management_dialog()
-            self.style_combobox.clear()
-            self.style_combobox.addItems(
-                self.theme_manager_gui.get_theme_names())
-
-        theme_management_button.triggered.connect(refresh_style_combobox)
-
-        # 创建三栏布局
-        splitter = QSplitter(Qt.Horizontal)
-        splitter.addWidget(self.history_panel)
-        self.history_panel.history_item_selected.connect(self.show_history_content)
-
-        # 添加编辑器面板
-        splitter.addWidget(self.editor_panel)
-        # 设置两栏默认比例，文件列表区20%，编辑预览区80%
-        splitter.setSizes([int(self.width()*0.2), int(self.width()*0.8)])
-
-        # 设置主布局
+        # 将顶部组件添加到主窗口
         central_widget = QWidget()
-        layout = QVBoxLayout()
-        layout.addWidget(splitter)
-        central_widget.setLayout(layout)
+        self.main_layout = QVBoxLayout(central_widget)
+        self.main_layout.setContentsMargins(10, 10, 10, 10)
+        self.main_layout.setSpacing(10)
+        self.main_layout.addWidget(self.top_menu, stretch=0)
+
+        # 初始化历史面板
+        self.markdown_manager = MarkdownManager(db_path)
+        logger.info("MarkdownManager 初始化完成")
+        self.history_panel = HistoryPanel(self.markdown_manager, self)
+        logger.info("HistoryPanel 初始化完成")
+        # 初始化 Markdown 编辑器
+        self.markdown_editor = MarkdownEditor(self.markdown_manager, self)
+
+        # 初始化三栏布局
+        splitter = MSplitter(Qt.Horizontal)
+        # 添加历史面板
+        splitter.addWidget(self.history_panel)
+        # 添加 Markdown 编辑器
+        splitter.addWidget(self.markdown_editor)
+        # 初始化 Markdown 预览器
+        self.markdown_previewer = MarkdownPreviewer(None, self)
+        splitter.addWidget(self.markdown_previewer)
+        # 设置三栏默认比例，历史区30%，编辑区35%，预览区35%
+        splitter.setSizes([int(self.width() * 0.3),
+                           int(self.width() * 0.35),
+                           int(self.width() * 0.35)])
+        self.main_layout.addWidget(splitter)
+
         self.setCentralWidget(central_widget)
 
-        # 初始化历史列表
-        self.history_panel.load_history_items()
+        # 连接编辑器文本变化事件
+        self.markdown_editor.textChanged.connect(self.update_preview)
 
-        # 初始化预览
-        self.update_preview()
+        # 连接历史列表项选中信号
+        self.history_panel.history_item_selected.connect(
+            self.update_editor_and_previewer)
 
         # 设置状态栏
         self.status_bar = StatusBar()
         self.setStatusBar(self.status_bar)
-        
-        # 连接编辑器文本变化信号
-        self.editor_panel.editor.textChanged.connect(self.update_status_bar)
 
-    def show_history_content(self, item):
-        # Handle case where item is an index (int) instead of QListWidgetItem
-        if isinstance(item, int):
-            item = self.history_panel.history_list.item(item)
-        if item:
-            file_name = item.text()
-            histories = self.markdown_history_manager.get_file_history(file_name)
-            if histories:
-                self.editor_panel.set_text_content(histories[0].content)
-                self.update_preview()
-            else:
-                logger.warning(f"No history found for file: {file_name}")
-        else:
-            logger.warning("No valid item selected in history panel")
-
-    def update_status_bar(self):
-        """更新状态栏信息"""
-        content = self.editor_panel.get_text_content()
-        is_changed = self.editor_panel.editor.mark_file_modified()
-        content_size = len(content.encode('utf-8'))
-        word_count = len(content.split())
-        
-        self.status_bar.update_file_status(is_changed)
-        self.status_bar.update_file_size(content_size)
-        self.status_bar.update_word_count(word_count)
+        # 初始化预览
+        self.update_preview()
 
     def update_preview(self):
         """更新预览区内容"""
-        logger.info('开始更新预览区内容')
-        self.editor_panel.update_preview()
-        logger.info('预览区内容更新完成')
+        self.markdown_previewer.render_markdown(
+            self.markdown_editor.get_text_content())
 
-   
+    def update_editor_and_previewer(self, history_item):
+        """更新编辑区和预览区内容"""
+        try:
+            self.current_file = history_item
+            # 获取选中历史项的内容
+            content = history_item.get('content', '')
+
+            # 更新编辑区内容
+            self.markdown_editor.set_text_content(content)
+
+            # 更新预览区内容
+            self.markdown_previewer.render_markdown(content)
+        except Exception as e:
+            logger.error(f"更新编辑区和预览区失败: {e}")
+
+    def update_history_list(self):
+        """更新历史列表"""
+        self.history_panel.load_history_items()
+        if self.current_file:
+            self.history_panel.select_history_item(self.current_file)
 
 
 if __name__ == "__main__":
     logger.info("应用启动")
     try:
-        logger.info(f"工作目录: {os.getcwd()}")
-        logger.info(f"应用路径: {init_db.get_app_path()}")
-        # 等待数据库迁移完成
-        # 这里可添加更复杂的线程同步逻辑，当前仅初始化主题
-        init_themes()
-        logger.info(f"数据库路径: {init_db.get_db_path('markrender.db')}")
         app = QApplication(sys.argv)
+        logger.info("QApplication 创建完成")
         window = MainWindow()
+        logger.info("MainWindow 创建完成")
         window.show()
-        # 确保主线程在后台迁移完成前不会退出
-        # 注意：此为简化实现，实际可能需要更复杂的线程同步机制
-        # 这里仅确保应用不会意外退出
+        logger.info("MainWindow 显示完成")
         sys.exit(app.exec())
     except Exception as e:
         error_msg = traceback.format_exc()
-        logger.critical(f"致命错误: {e}\n{error_msg}")
-        # 可以显示一个错误对话框
-        from PySide6.QtWidgets import QMessageBox
-        msg_box = QMessageBox()
-        msg_box.setIcon(QMessageBox.Critical)
-        msg_box.setText(f"应用遇到致命错误: {str(e)}")
-        msg_box.setDetailedText(error_msg)
-        msg_box.setWindowTitle("错误")
-        msg_box.exec()
+        logger.critical(f"致命错误: {e} {error_msg}")
         sys.exit(1)

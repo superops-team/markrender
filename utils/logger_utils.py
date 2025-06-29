@@ -3,7 +3,9 @@ import os
 from datetime import datetime
 
 
-def setup_logger(name: str = __name__, log_level: int = logging.INFO) -> logging.Logger:
+def setup_logger(
+        name: str = __name__,
+        log_level: int = logging.INFO) -> logging.Logger:
     """配置并返回一个标准化的日志记录器
 
     Args:
@@ -12,7 +14,7 @@ def setup_logger(name: str = __name__, log_level: int = logging.INFO) -> logging
 
     Returns:
         配置好的日志记录器实例
-    """ 
+    """
     # 创建日志记录器
     logger = logging.getLogger(name)
     logger.setLevel(log_level)
@@ -24,9 +26,8 @@ def setup_logger(name: str = __name__, log_level: int = logging.INFO) -> logging
 
     # 创建日志格式
     log_format = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
-    )
+        '%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S')
 
     # 控制台处理器
     console_handler = logging.StreamHandler()
@@ -36,7 +37,9 @@ def setup_logger(name: str = __name__, log_level: int = logging.INFO) -> logging
     # 日志文件处理器
     log_dir = 'logs'
     os.makedirs(log_dir, exist_ok=True)
-    log_file = os.path.join(log_dir, f'{datetime.now().strftime("%Y%m%d")}.log')
+    log_file = os.path.join(
+        log_dir, f'{
+            datetime.now().strftime("%Y%m%d")}.log')
     file_handler = logging.FileHandler(log_file, encoding='utf-8')
     file_handler.setFormatter(log_format)
     logger.addHandler(file_handler)
@@ -45,4 +48,4 @@ def setup_logger(name: str = __name__, log_level: int = logging.INFO) -> logging
 
 
 # 默认日志记录器
-logger = setup_logger()
+logger = setup_logger("markrender")

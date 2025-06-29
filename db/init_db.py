@@ -153,10 +153,16 @@ def get_db_path_v1(db_name):
     return _db_path
 
 
-def init_themes(manager):
+def init_db(db_path):
     # 确保主题表已创建
+    from db.base import Base
+    from db.db_manager import SingletonEngine
+    from db.theme_manager import ThemeManager
+    engine = SingletonEngine.get_settings_instance()
+    Base.metadata.create_all(engine)
+    manager = ThemeManager()
     manager.Session.configure(bind=manager.engine)
-    for name, theme_style in themes.items():  
+    for name, theme_style in themes.items():
         if manager.theme_exists(name):
             continue
         full_style = base_style + theme_style

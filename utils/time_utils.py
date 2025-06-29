@@ -11,7 +11,9 @@ def get_current_timestamp() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def format_datetime(dt: Optional[datetime] = None, fmt: str = '%Y-%m-%d %H:%M:%S') -> str:
+def format_datetime(
+        dt: Optional[datetime] = None,
+        fmt: str = '%Y-%m-%d %H:%M:%S') -> str:
     """格式化日期时间为指定字符串格式
 
     Args:
@@ -26,7 +28,9 @@ def format_datetime(dt: Optional[datetime] = None, fmt: str = '%Y-%m-%d %H:%M:%S
     return dt.strftime(fmt)
 
 
-def parse_datetime(datetime_str: str, fmt: str = '%Y-%m-%d %H:%M:%S') -> datetime:
+def parse_datetime(
+        datetime_str: str,
+        fmt: str = '%Y-%m-%d %H:%M:%S') -> datetime:
     """将字符串解析为datetime对象
 
     Args:

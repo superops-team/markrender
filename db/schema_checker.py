@@ -8,6 +8,7 @@ from datetime import datetime
 import threading
 from sqlalchemy import create_engine
 
+
 class DBSchemaChecker:
     def __init__(self, db_path):
         self.db_path = db_path
@@ -46,7 +47,8 @@ class DBSchemaChecker:
         if not os.path.exists(self.backup_dir):
             os.makedirs(self.backup_dir)
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        backup_path = os.path.join(self.backup_dir, f'db_backup_{timestamp}.db')
+        backup_path = os.path.join(
+            self.backup_dir, f'db_backup_{timestamp}.db')
         shutil.copy2(self.db_path, backup_path)
         return backup_path
 
@@ -54,34 +56,37 @@ class DBSchemaChecker:
         """从备份数据库迁移数据到新数据库"""
         from sqlalchemy import create_engine
         from sqlalchemy.orm import sessionmaker
-        
+
         # 创建备份数据库引擎和会话
         backup_engine = create_engine(f'sqlite:///{backup_path}')
         backup_session = sessionmaker(bind=backup_engine)()
-        
+
         # 获取当前数据库会话
         current_session = self.Session()
-        
+
         try:
             # 获取所有表名
             inspector = inspect(backup_engine)
             table_names = inspector.get_table_names()
             total_tables = len(table_names)
-            
+
             for idx, table_name in enumerate(table_names, start=1):
                 # 获取备份数据库中的数据
                 backup_table = Base.metadata.tables.get(table_name)
                 if backup_table:
                     rows = backup_session.execute(backup_table.select())
-                    
+
                     # 将数据插入到新数据库
                     for row in rows:
-                        current_session.execute(backup_table.insert().values(dict(row)))
-                    
+                        current_session.execute(
+                            backup_table.insert().values(dict(row)))
+
                     # 显示迁移进度
                     progress = idx / total_tables * 100
-                    self.show_upgrade_status(f'正在迁移表 {table_name}，进度: {progress:.1f}%')
-            
+                    self.show_upgrade_status(
+                        f'正在迁移表 {table_name}，进度: {
+                            progress:.1f}%')
+
             current_session.commit()
             self.show_upgrade_status('数据迁移完成')
         except Exception as e:
@@ -90,7 +95,7 @@ class DBSchemaChecker:
         finally:
             backup_session.close()
             current_session.close()
-        
+
     def show_upgrade_status(self, message=None):
         """显示数据库升级状态"""
         if message is None:
@@ -104,12 +109,15 @@ class DBSchemaChecker:
 
     def run_check(self):
         """运行 Schema 检查，必要时执行备份和数据迁移"""
-        if self.schema_changed(): 
+        if self.schema_changed():
             self.show_upgrade_status()
             backup_path = self.backup_db()
             # 移动老数据库到待迁移状态
             if os.path.exists(self.db_path):
-                pending_migration_path = os.path.join(self.backup_dir, f'pending_migration_{os.path.basename(self.db_path)}')
+                pending_migration_path = os.path.join(
+                    self.backup_dir, f'pending_migration_{
+                        os.path.basename(
+                            self.db_path)}')
                 # 关闭数据库连接
                 self.engine.dispose()
                 shutil.move(self.db_path, pending_migration_path)
