@@ -79,8 +79,7 @@ class HistoryPanel(QWidget):
             logger.debug("开始加载历史记录...")
             self.all_history_items = self.markdown_manager.load_history()
             if self.all_history_items:
-                logger.info(
-                    f"成功加载 {len(self.all_history_items)} 条历史记录，内容: {self.all_history_items}")
+                logger.info(f"成功加载 {len(self.all_history_items)} 条历史记录")
             else:
                 logger.info("未找到历史记录")
             logger.debug("调用 filter_history 方法过滤历史记录...")

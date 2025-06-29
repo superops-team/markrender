@@ -1,6 +1,7 @@
-import logging
 import os
-from datetime import datetime
+from db.db_manager import get_user_data_dir
+import logging
+from logging.handlers import TimedRotatingFileHandler
 
 
 def setup_logger(
@@ -34,13 +35,16 @@ def setup_logger(
     console_handler.setFormatter(log_format)
     logger.addHandler(console_handler)
 
-    # 日志文件处理器
-    log_dir = 'logs'
+    # 获取用户路径
+    log_dir = get_user_data_dir()
+    # 创建日志目录
     os.makedirs(log_dir, exist_ok=True)
-    log_file = os.path.join(
-        log_dir, f'{
-            datetime.now().strftime("%Y%m%d")}.log')
-    file_handler = logging.FileHandler(log_file, encoding='utf-8')
+    log_file = os.path.join(log_dir, 'app.log')
+    
+    # 修改文件处理器为 TimedRotatingFileHandler，设置保留 5 天日志
+    file_handler = TimedRotatingFileHandler(
+        log_file, when='midnight', interval=1, backupCount=5
+    )
     file_handler.setFormatter(log_format)
     logger.addHandler(file_handler)
 

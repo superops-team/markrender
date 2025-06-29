@@ -9,25 +9,30 @@ from utils import logger_utils
 # data_db = 'data.db'
 
 
+def get_user_data_dir():
+    """统一管理多平台数据库路径"""
+    if system() == 'Windows':
+        user_data_dir = os.path.join(os.getenv('APPDATA'), 'markrender')
+    elif system() == 'Darwin':
+        user_data_dir = os.path.join(
+            os.path.expanduser('~'),
+            'Library',
+            'Application Support',
+            'markrender')
+    else:
+        user_data_dir = os.path.join(
+            os.path.expanduser('~'), '.local', 'share', 'markrender')
+
+    os.makedirs(user_data_dir, exist_ok=True)
+    return user_data_dir
+
 class SingletonEngine:
     _instances = {}
 
     @staticmethod
     def get_db_path(db_name):
         """统一管理多平台数据库路径"""
-        if system() == 'Windows':
-            user_data_dir = os.path.join(os.getenv('APPDATA'), 'markrender')
-        elif system() == 'Darwin':
-            user_data_dir = os.path.join(
-                os.path.expanduser('~'),
-                'Library',
-                'Application Support',
-                'markrender')
-        else:
-            user_data_dir = os.path.join(
-                os.path.expanduser('~'), '.local', 'share', 'markrender')
-
-        os.makedirs(user_data_dir, exist_ok=True)
+        user_data_dir = get_user_data_dir()
         return os.path.join(user_data_dir, db_name)
 
     @classmethod
