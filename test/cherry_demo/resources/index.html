@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" type="text/css" href="cherry-markdown.min.css">
+    <script src="cherry-markdown.min.js"></script>
+    <!-- Add ECharts import -->
+    <script src="echarts.min.js"></script>
+    <script src="jspdf.umd.min.js"></script>
+    <script src="qrc:/qtwebchannel/qwebchannel.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/0.4.1/html2canvas.min.js"></script>
+    <style>
+        body {
+            margin: 10px;
+            height: 100vh;
+            padding: 0;
+            box-sizing: border-box;
+            overflow: hidden; /* 禁止页面滚动 */
+        }
+        #editor {
+            width: calc(100% - 20px);
+            height: calc(100vh - 20px);
+            margin: 10px;
+            overflow: hidden; /* 禁止编辑器滚动 */
+        }
+    </style>
+</head>
+<body>
+    <div id="editor"></div>
+    <script>
+        // 添加全局错误监听
+        window.onerror = function(message, source, lineno, colno, error) {
+            console.error('捕获到 JavaScript 错误:');
+            console.error('错误信息:', message);
+            console.error('错误文件:', source);
+            console.error('错误行号:', lineno);
+            console.error('错误列号:', colno);
+            if (error && error.stack) {
+                console.error('错误堆栈:', error.stack);
+            }
+            // 返回 true 阻止错误默认行为
+            return true;
+        };
+
+        'use strict';
+        var editor = new Cherry({
+            id: 'editor',
+            value: '',
+            toolbars: {
+                theme: 'light',
+                toolbar: ['bold','italic','strikethrough','|','color','header','ruby','|','list','panel','detail'],
+                sidebar: [],
+                toolbarRight: ['copy', 'mobilePreview'],
+                bubble: false,
+                float: false
+            },
+            // 启用双栏模式
+            mode: 'edit&preview',
+            preview: {
+                // 设置预览区域样式
+                style: {
+                    height: '100%',
+                    width: '100%'
+                }
+            }
+        });
+
+        new QWebChannel(qt.webChannelTransport, function(channel) {
+            var content = channel.objects.content;
+            editor.setValue(content.text);
+            // Fix signal name
+            content.text_changed.connect(function(text) {
+                editor.setValue(text);
+            });
+        });
+    </script>
+</body>
+</html>

@@ -22,8 +22,13 @@ class MarkdownEditor(MTextEdit):
 
     def setup_editor(self):
         """配置编辑器基本属性"""
-        self.setAcceptRichText(False)
+        self.setAcceptRichText(True)
         self.setLineWrapMode(QtWidgets.QTextEdit.WidgetWidth)
+        
+        # 设置默认字体大小为 pt
+        font = self.font()
+        font.setPointSize(20)
+        self.setFont(font)
 
     def setup_shortcuts(self):
         """设置保存快捷键"""
