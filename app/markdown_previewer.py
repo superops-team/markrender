@@ -1,10 +1,16 @@
+import os
 from ui.dayu_widgets import MLoadingWrapper, MMessage, MTextEdit
 from utils.logger_utils import logger
 
 from PySide6.QtWebEngineWidgets import QWebEngineView
-import markdown
-import os
 from PySide6.QtWidgets import QWidget, QVBoxLayout
+import markdown
+import pymdownx
+from pymdownx import superfences
+import pymdownx.highlight
+import pymdownx.tasklist
+import pymdownx.b64
+import pymdownx.superfences
 
 
 class MarkdownPreviewer(QWidget):
