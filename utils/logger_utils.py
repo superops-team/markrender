@@ -1,56 +1,39 @@
 import os
-from db.db_manager import get_user_data_dir
 import logging
 from logging.handlers import TimedRotatingFileHandler
+from logging import StreamHandler
+
+from db import db_manager
 
 
-def setup_logger(
-        name: str = __name__,
-        log_level: int = logging.INFO) -> logging.Logger:
-    """配置并返回一个标准化的日志记录器
+def setup_logger():
+    # 创建日志器
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
 
-    Args:
-        name: 日志记录器名称
-        log_level: 日志级别, 默认为INFO
+    # 创建文件处理器
+    log_file = os.path.join(db_manager.get_user_data_dir(), 'app.log')
+    # 修改 backupCount 参数为 7，实现保留 7 天日志
+    file_handler = TimedRotatingFileHandler(
+        log_file, when='midnight', interval=1, backupCount=7
+    )
+    
+    # 修改日志格式，添加调用文件和所在行信息
+    log_format = logging.Formatter('%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s')
+    
+    file_handler.setFormatter(log_format)
 
-    Returns:
-        配置好的日志记录器实例
-    """
-    # 创建日志记录器
-    logger = logging.getLogger(name)
-    logger.setLevel(log_level)
-    logger.propagate = False  # 防止日志重复传播
-
-    # 如果已经有处理器，直接返回
-    if logger.handlers:
-        return logger
-
-    # 创建日志格式
-    log_format = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S')
-
-    # 控制台处理器
-    console_handler = logging.StreamHandler()
+    # 创建控制台处理器
+    console_handler = StreamHandler()
     console_handler.setFormatter(log_format)
+
+    # 将处理器添加到日志器
+    logger.addHandler(file_handler)
     logger.addHandler(console_handler)
 
-    # 获取用户路径
-    log_dir = get_user_data_dir()
-    # 创建日志目录
-    os.makedirs(log_dir, exist_ok=True)
-    log_file = os.path.join(log_dir, 'app.log')
-    print(log_file)
-    
-    # 修改文件处理器为 TimedRotatingFileHandler，设置保留 5 天日志
-    file_handler = TimedRotatingFileHandler(
-        log_file, when='midnight', interval=1, backupCount=5
-    )
-    file_handler.setFormatter(log_format)
-    logger.addHandler(file_handler)
-
+    logger = logging.getLogger(__name__)
+    logger.info("Logger setup complete, path=%s", log_file)
     return logger
 
-
 # 默认日志记录器
-logger = setup_logger("MarkRender")
+logger = setup_logger()

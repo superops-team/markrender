@@ -4,6 +4,7 @@ import traceback
 from PySide6 import QtCore
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout)
+from utils.logger_utils import logger
 from ui.dayu_widgets import dayu_theme
 from ui.dayu_widgets import MSplitter
 from app.markdown_editor import MarkdownEditor
@@ -12,7 +13,6 @@ from app.status_bar import StatusBar
 from app.history_panel import HistoryPanel
 from app.top_menu import TopMenu
 from db.markdown_manager import MarkdownManager
-from utils.logger_utils import logger
 
 
 class MainWindow(QMainWindow):
@@ -142,4 +142,11 @@ if __name__ == "__main__":
     except Exception as e:
         error_msg = traceback.format_exc()
         logger.critical(f"致命错误: {e} {error_msg}")
+        from PySide6.QtWidgets import QMessageBox
+        msg_box = QMessageBox()
+        msg_box.setIcon(QMessageBox.Critical)
+        msg_box.setText(f"应用遇到致命错误: {str(e)}")
+        msg_box.setDetailedText(error_msg)
+        msg_box.setWindowTitle("错误")
+        msg_box.exec()
         sys.exit(1)

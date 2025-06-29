@@ -2,26 +2,21 @@
 
 import os
 from platform import system
-from utils import logger_utils
 
 # 删除原来的路径定义
 # settings_db = 'settings.db'
 # data_db = 'data.db'
 
+app_name = 'MarkRender'
 
 def get_user_data_dir():
     """统一管理多平台数据库路径"""
     if system() == 'Windows':
-        user_data_dir = os.path.join(os.getenv('APPDATA'), 'MarkRender')
+        user_data_dir = os.path.join(os.getenv('APPDATA'), app_name)
     elif system() == 'Darwin':
-        user_data_dir = os.path.join(
-            os.path.expanduser('~'),
-            'Library',
-            'Application Support',
-            'MarkRender')
+        user_data_dir = os.path.expanduser(f'~/Library/Application Support/{app_name}')
     else:
-        user_data_dir = os.path.join(
-            os.path.expanduser('~'), '.local', 'share', 'MarkRender')
+        user_data_dir = os.path.join(os.path.expanduser('~'), '.local', 'share', app_name)
 
     os.makedirs(user_data_dir, exist_ok=True)
     return user_data_dir
@@ -39,8 +34,7 @@ class SingletonEngine:
     def get_instance(cls, db_path):
         if db_path not in cls._instances:
             from sqlalchemy import create_engine
-            logger = logger_utils.setup_logger(__name__)
-            logger.info(f"Creating database engine for path: {db_path}")
+            print(f"Creating database engine for path: {db_path}")
             cls._instances[db_path] = create_engine(
                 "sqlite:///{}".format(db_path),
                 connect_args={
