@@ -40,6 +40,7 @@ def setup_logger(
     # 创建日志目录
     os.makedirs(log_dir, exist_ok=True)
     log_file = os.path.join(log_dir, 'app.log')
+    print(log_file)
     
     # 修改文件处理器为 TimedRotatingFileHandler，设置保留 5 天日志
     file_handler = TimedRotatingFileHandler(
@@ -52,4 +53,4 @@ def setup_logger(
 
 
 # 默认日志记录器
-logger = setup_logger("markrender")
+logger = setup_logger("MarkRender")

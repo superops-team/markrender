@@ -12,16 +12,16 @@ from utils import logger_utils
 def get_user_data_dir():
     """统一管理多平台数据库路径"""
     if system() == 'Windows':
-        user_data_dir = os.path.join(os.getenv('APPDATA'), 'markrender')
+        user_data_dir = os.path.join(os.getenv('APPDATA'), 'MarkRender')
     elif system() == 'Darwin':
         user_data_dir = os.path.join(
             os.path.expanduser('~'),
             'Library',
             'Application Support',
-            'markrender')
+            'MarkRender')
     else:
         user_data_dir = os.path.join(
-            os.path.expanduser('~'), '.local', 'share', 'markrender')
+            os.path.expanduser('~'), '.local', 'share', 'MarkRender')
 
     os.makedirs(user_data_dir, exist_ok=True)
     return user_data_dir
