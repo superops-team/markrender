@@ -31,8 +31,7 @@ class MarkdownManager:
     def delete_history_item(self, item_id):
         try:
             with self.Session() as session:
-                history_item = session.query(
-                    MarkdownFileHistory).filter_by(id=item_id).first()
+                history_item = session.query(MarkdownFileHistory).filter_by(id=item_id).first()
                 if history_item:
                     session.delete(history_item)
                     session.commit()
@@ -47,11 +46,7 @@ class MarkdownManager:
         session = self.Session()
         try:
             histories = session.query(MarkdownFileHistory).all()
-            return [{'title': h.title,
-                     'id': h.id,
-                     'content': h.content,
-                     'tags': h.tags,
-                     'render_style': h.render_style} for h in histories]
+            return [{'title': h.title, 'id': h.id, 'content': h.content, 'tags': h.tags, 'render_style': h.render_style} for h in histories]
         except Exception as e:
             raise e
         finally:
@@ -69,8 +64,7 @@ class MarkdownManager:
             content_md5 = calculate_md5(content)
             if id:
                 # 更新现有记录
-                history = session.query(
-                    MarkdownFileHistory).filter_by(id=id).first()
+                history = session.query(MarkdownFileHistory).filter_by(id=id).first()
                 if history:
                     history.title = title
                     history.content = content
