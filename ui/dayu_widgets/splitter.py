@@ -1,10 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-###################################################################
-# Author: TimmyLiang
-# Date  : 2021.12
-# Email : 820472580@qq.com
-###################################################################
 # Import future modules
 from __future__ import absolute_import
 from __future__ import division

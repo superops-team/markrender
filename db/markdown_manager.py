@@ -46,7 +46,17 @@ class MarkdownManager:
         session = self.Session()
         try:
             histories = session.query(MarkdownFileHistory).all()
-            return [{'title': h.title, 'id': h.id, 'content': h.content, 'tags': h.tags, 'render_style': h.render_style} for h in histories]
+            return [
+                {
+                    'title': h.title,
+                    'id': h.id,
+                    'content': h.content,
+                    'tags': h.tags,
+                    'render_style': h.render_style,
+                    'updated_at': h.updated_at,
+                    'content_md5': h.content_md5,
+                    'created_at': h.created_at
+                } for h in histories]
         except Exception as e:
             raise e
         finally:

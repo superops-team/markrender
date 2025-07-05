@@ -1,18 +1,108 @@
-from ui.dayu_widgets import MListView, MLineEdit, MMenu
-from db.markdown_manager import MarkdownManager
-from PySide6.QtWidgets import QVBoxLayout
-from PySide6.QtGui import QAction
+# 修改导入语句，移除 dayu_widgets 相关导入，添加 QListWidget 和 QLineEdit 导入
+from PySide6.QtWidgets import QVBoxLayout, QListWidget, QListWidgetItem, QLineEdit, QMenu, QStyledItemDelegate, QStyleOptionViewItem, QStyle
+from PySide6.QtGui import QAction, QPainter, QFont, QColor
 from PySide6 import QtWidgets
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QSize
 from PySide6.QtWidgets import QWidget, QInputDialog
-from PySide6.QtGui import QStandardItemModel, QStandardItem
 from utils.logger_utils import logger
-from utils.time_utils import get_current_timestamp
 from sqlalchemy.orm import Session
 from db.models import MarkdownFileHistory
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from utils.hash_utils import calculate_md5
+from PySide6.QtGui import QColor, QFont, QPainter, QPen  # 添加 QPen 导入
 
+class HistoryItemDelegate(QStyledItemDelegate):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+    def _format_time(self, modified_time):
+        if isinstance(modified_time, datetime):
+            # 确保 now 和 modified_time 时区一致
+            if modified_time.tzinfo is None:
+                now = datetime.now()
+            else:
+                now = datetime.now(timezone.utc)
+            delta = now - modified_time
+            if delta < timedelta(seconds=60):
+                return f'{delta.seconds}秒前'
+            elif delta < timedelta(minutes=60):
+                return f'{delta.seconds // 60}分钟前'
+            elif delta < timedelta(hours=24):
+                return f'{delta.seconds // 3600}小时前'
+            elif delta < timedelta(days=30):
+                return f'{delta.days}天前'
+            elif delta < timedelta(days=365):
+                return f'{delta.days // 30}个月前'
+            else:
+                return f'{delta.days // 365}年前'
+        return str(modified_time)
+
+    def paint(self, painter: QPainter, option: QStyleOptionViewItem, index):
+        painter.save()
+        radius = 15
+        
+        if option.state & QStyle.State_Selected:
+            painter.setBrush(QColor(25, 144, 255, 38))   
+            painter.setPen(Qt.NoPen)  # 设置无边框
+            painter.drawRoundedRect(option.rect, radius, radius)
+        elif option.state & QStyle.State_MouseOver:
+            painter.setBrush(QColor(25, 144, 255, 25))
+            painter.setPen(Qt.NoPen)  # 设置无边框
+            painter.drawRoundedRect(option.rect, radius, radius)
+        else:
+            painter.setPen(Qt.NoPen)  # 设置无边框
+
+        # Get item data
+        item_data = index.data(Qt.UserRole)
+        if item_data:
+            title = item_data.get('title', '')
+            modified_time = item_data.get('updated_at', '')
+            preview = item_data.get('content', '')[:15] + ('...' if len(item_data.get('content', '')) > 15 else '')
+            formatted_time = self._format_time(modified_time)
+
+            # 设置边距
+            margin = 10
+            text_rect = option.rect.adjusted(margin, margin, -margin, -margin)
+
+            # 绘制标题
+            title_font = QFont()
+            title_font.setBold(True)
+            painter.setFont(title_font)
+            if option.state & QStyle.State_Selected:
+                painter.setPen(QColor(25, 144, 255))  # #006400 --> 1990ff
+            else:
+                painter.setPen(QColor(0, 0, 0))
+            # Bug fix: 使用 horizontalAdvance 替代 width
+            title_width = painter.fontMetrics().horizontalAdvance(title)
+            painter.drawText(text_rect.x(), text_rect.y() + 15, title)
+
+            # 绘制修改时间
+            time_font = QFont()
+            time_font.setPointSize(9)
+            painter.setFont(time_font)
+            if option.state & QStyle.State_Selected:
+                painter.setPen(QColor(25, 144, 255))  # #006400 --> 1990ff
+            else:
+                painter.setPen(QColor(100, 100, 100))
+            time_x = text_rect.x() + title_width + 10
+            painter.drawText(time_x, text_rect.y() + 15, formatted_time)
+
+            # 绘制预览
+            preview_font = QFont()
+            preview_font.setPointSize(9)
+            if option.state & QStyle.State_Selected:
+                painter.setPen(QColor(25, 144, 255))  # #006400--->1990ff
+            else:
+                painter.setPen(QColor(100, 100, 100))
+            painter.setFont(preview_font)
+            preview_rect = text_rect.adjusted(0, 20, 0, 0)
+            painter.drawText(preview_rect, Qt.TextSingleLine, preview)
+
+        painter.restore()
+
+    def sizeHint(self, option: QStyleOptionViewItem, index):
+        # Bug fix: Call width() method to get the width value
+        return QSize(option.rect.width(), 50)
 
 class HistoryPanel(QWidget):
     file_created = Signal(str)
@@ -24,54 +114,111 @@ class HistoryPanel(QWidget):
         self.parent = parent
         super().__init__(parent)
         self.markdown_manager = markdown_manager
-        self.history_list = MListView()
+        # 替换 MListView 为 QListWidget
+        self.history_list = QListWidget()
+        # 设置 sizePolicy 为 Expanding
+        from PySide6.QtWidgets import QSizePolicy
+        self.history_list.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        # 禁用水平滚动条
+        from PySide6.QtCore import Qt
+        self.history_list.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.history_list.setItemDelegate(HistoryItemDelegate(self.history_list))
         # 设置列表项可编辑
         self.history_list.setEditTriggers(
-            QtWidgets.QAbstractItemView.DoubleClicked)
+            QtWidgets.QAbstractItemView.DoubleClicked
+        )
         self.init_ui()
-        # 初始化模型并保存为实例属性
-        self.model = QStandardItemModel()
-        self.history_list.setModel(self.model)
+        # 删除初始化模型及设置模型的代码
+        # self.model = QStandardItemModel()
+        # self.history_list.setModel(self.model)
         # 将 load_history_items 调用移到 init_ui 之后，确保 search_input 已初始化
         self.load_history_items()
         self.history_list.clicked.connect(self.on_item_clicked)
-        # 连接编辑完成信号到保存标题的方法
-        self.model.itemChanged.connect(self.save_title_edit)
+        # 删除编辑完成信号连接代码
+        # self.model.itemChanged.connect(self.save_title_edit)
 
     def init_ui(self):
         main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(10, 10, 10, 10)  # 设置布局的 margin
-
-        # 创建搜索框
-        self.search_input = MLineEdit()
-        self.search_input.setPlaceholderText("搜索历史...")
+        # 设置上下左右边距均为 5px
+        main_layout.setContentsMargins(1, 1, 1, 1)
+        # 创建美观的搜索框
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("搜索...")
+        self.search_input.setStyleSheet('''
+            QLineEdit {
+                border: 2px solid #ddd;
+                border-radius: 15px;
+                padding: 5px 15px;
+                font-size: 16px;
+            }
+            QLineEdit:hover {
+                border: 2px solid #E6F6FF;
+                background-color: #EAF3FF;
+            }
+            QLineEdit:focus {
+                border: 2px solid #e1e1e1; 
+                outline: none;
+            }
+        ''')
+        # #E6F6FF
         self.search_input.textChanged.connect(self.filter_history)
         self.search_input.returnPressed.connect(self.filter_history)
         main_layout.addWidget(self.search_input)
+
+        # 优化列表项选中样式，与全局风格保持一致
+        self.history_list.setStyleSheet('''
+            QListWidget { 
+                border: 2px solid #ddd; 
+                border-radius: 15px; 
+                padding: 0; 
+            } 
+            QListWidget::item { 
+                border: 2px solid transparent; 
+                border-radius: 15px; 
+                padding: 5px 10px; 
+                background-color: #f0f0f0; 
+            } 
+            QListWidget::item:hover { 
+                border: 2px solid rgb(25, 144, 255, 0.1); 
+                background-color: rgb(234, 243, 255, 0.1); 
+            } 
+            QListWidget::item:selected { 
+                border: 2px solid rgb(25, 144, 255, 0.1); 
+                background-color: rgb(234, 243, 255, 0.1); 
+            } 
+        ''')
         main_layout.addWidget(self.history_list)
+        # 设置布局后，添加样式表修改底色，这里以浅灰色为例
         self.setLayout(main_layout)
-
-        # 设置上下文菜单
-        self.history_list.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.history_list.customContextMenuRequested.connect(
-            self.show_context_menu)
-
-        # 存储所有历史项
-        self.all_history_items = []
+        
+        # 设置控件边角样式，与搜索框保持一致，并设置白色背景
+        self.setStyleSheet('''
+            QWidget { 
+                border: 2px solid #ddd;
+                border-radius: 15px;
+                background-color: white;
+            }
+        ''')
 
     def on_item_clicked(self, index):
-        model = self.history_list.model()
-        item = model.itemFromIndex(index)
-        item_id = item.data(Qt.UserRole)
-        logger.debug(f"点击的列表项ID: {item_id}")
-        # 找到对应的完整历史记录项
-        selected_item = next(
-            (x for x in self.all_history_items if x['id'] == item_id), None)
-        if selected_item:
-            logger.debug(f"找到匹配的历史记录项: {selected_item}")
-            self.history_item_selected.emit(selected_item)
+        # 修改获取数据的方式
+        item = self.history_list.itemFromIndex(index)
+        if item:
+            data = item.data(Qt.UserRole)
+            if data and 'id' in data:
+                logger.debug(f"点击的列表项ID: {data['id']}")
+                # 找到对应的完整历史记录项
+                selected_item = next(
+                    (x for x in self.all_history_items if x['id'] == data['id']), None)
+                if selected_item:
+                    logger.debug(f"找到匹配的历史记录项: {selected_item}")
+                    self.history_item_selected.emit(selected_item)
+                else:
+                    logger.warning(f"未找到ID为 {data['id']} 的历史记录项")
+            else:
+                logger.warning("点击的列表项数据为空或缺少ID字段")
         else:
-            logger.warning(f"未找到ID为 {item_id} 的历史记录项")
+            logger.warning("未找到点击的列表项")
 
     def load_history_items(self):
         """加载所有历史记录"""
@@ -91,10 +238,8 @@ class HistoryPanel(QWidget):
         """根据搜索框过滤历史记录"""
         try:
             logger.debug("开始过滤历史记录...")
-            # MListView may not have clear method, use model().clear() instead
-            if self.history_list.model() is not None:
-                logger.debug("清除当前列表模型中的数据...")
-                self.model.clear()
+            # 清除当前列表中的数据
+            self.history_list.clear()
             search_text = self.search_input.text().lower()
             logger.debug(f"搜索关键字: {search_text}")
 
@@ -104,13 +249,14 @@ class HistoryPanel(QWidget):
             for item in self.all_history_items:
                 if search_text in item['title'].lower():
                     logger.debug(f"找到匹配项: {item}")
-                    list_item = QStandardItem(item['title'])
-                    list_item.setData(item['id'], Qt.UserRole)
-                    self.model.appendRow(list_item)
-            logger.debug(f"过滤后匹配项数量: {self.model.rowCount()}")
-            logger.debug(
-                f"历史列表模型是否设置成功: {
-                    self.history_list.model() is not None}")
+                    # 创建自定义列表项
+                    list_item = QListWidgetItem()
+                    list_item.setData(Qt.UserRole, item)
+                    # 设置列表项文本，确保项可见
+                    list_item.setText(item.get('title', ''))
+                    self.history_list.addItem(list_item)
+            logger.debug(f"过滤后匹配项数量: {self.history_list.count()}")
+            logger.debug(f"历史列表模型是否设置成功: {self.history_list.model() is not None}")
             logger.debug("历史记录过滤完成。")
         except Exception as e:
             logger.error(f"过滤历史记录时发生错误: {e}", exc_info=True)
@@ -121,7 +267,8 @@ class HistoryPanel(QWidget):
         if not index.isValid():
             return
 
-        menu = MMenu()
+        # 替换 MMenu 为 QMenu
+        menu = QMenu()
         rename_action = QAction('重命名', self.history_list)
         rename_action.triggered.connect(self.rename_selected_file)
         delete_action = QAction('删除', self.history_list)
@@ -133,8 +280,8 @@ class HistoryPanel(QWidget):
     def save_history(self):
         """保存 Markdown 变更历史"""
         index = self.history_list.currentIndex()
-        current_title = self.history_list.model().itemFromIndex(
-            index).text() if index.isValid() else "Untitled"
+        # 修改获取当前标题的方式
+        current_title = self.history_list.item(index.row()).text() if index.isValid() else "Untitled"
         try:
             histories = self.markdown_manager.get_file_history(current_title)
             if histories:
@@ -151,8 +298,8 @@ class HistoryPanel(QWidget):
         """重命名选中的文件"""
         index = self.history_list.currentIndex()
         if index.isValid():
-            model = self.history_list.model()
-            item = model.itemFromIndex(index)
+            # 修改获取项的方式
+            item = self.history_list.item(index.row())
             old_title = item.text()
             new_title, ok = QInputDialog.getText(
                 self, '重命名标题', '请输入新标题:', text=old_title)
@@ -175,8 +322,8 @@ class HistoryPanel(QWidget):
         """删除选中的历史记录"""
         index = self.history_list.currentIndex()
         if index.isValid():
-            model = self.history_list.model()
-            item = model.itemFromIndex(index)
+            # 修改获取项的方式
+            item = self.history_list.item(index.row())
             title = item.text()
             try:
                 # 获取 id 而非 title 进行删除
@@ -226,38 +373,18 @@ class HistoryPanel(QWidget):
         else:
             self.show()
 
-    def select_history_item(self, file_path):
+    def select_history_item(self, current_file):
         """根据文件路径选择历史记录项"""
-        for item in self.all_history_items:
-            if item.get('UserRole') == file_path:
-                self.list_widget.setCurrentItem(item)
+        if not current_file or 'id' not in current_file:
+            logger.warning("传入的 current_file 为空或缺少 id 字段")
+            return
+        for i in range(self.history_list.count()):
+            item = self.history_list.item(i)
+            data = item.data(Qt.UserRole)
+            if data and data.get('id') == current_file['id']:
+                self.history_list.setCurrentItem(item)
                 break
 
     def save_title_edit(self, item):
-        """保存标题编辑内容"""
-        item_id = item.data(Qt.UserRole)
-        old_title = None
-        # 从 all_history_items 中找到原标题
-        for history_item in self.all_history_items:
-            if history_item['id'] == item_id:
-                old_title = history_item['title']
-                break
-
-        if old_title:
-            new_title = item.text()
-            if new_title and new_title != old_title:
-                try:
-                    with Session(self.markdown_manager.engine) as session:
-                        # 通过 ID 搜索文件
-                        history = session.query(MarkdownFileHistory).filter(
-                            MarkdownFileHistory.id == item_id).first()
-                        if history:
-                            history.title = new_title
-                            history.updated_at = datetime.now()
-                            session.commit()
-                            self.load_history_items()
-                            self.file_renamed.emit(old_title, new_title)
-                except Exception as e:
-                    logger.error(f"重命名文件失败: {e}")
-                    # 恢复原标题
-                    item.setText(old_title)
+        # 此方法暂时不需要，可删除
+        pass

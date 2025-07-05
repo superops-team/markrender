@@ -1,10 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-###################################################################
-# Author: Mu yanru
-# Date  : 2019.2
-# Email : muyanru345@163.com
-###################################################################
 """
 MClickBrowserFilePushButton, MClickBrowserFileToolButton
 MClickBrowserFolderPushButton, MClickBrowserFolderToolButton

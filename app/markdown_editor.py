@@ -6,7 +6,6 @@ from PySide6.QtCore import Qt
 from PySide6 import QtWidgets
 from utils.hash_utils import calculate_md5
 from utils.logger_utils import logger
-from db.markdown_manager import MarkdownManager
 
 
 class MarkdownEditor(MTextEdit):

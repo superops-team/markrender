@@ -1,17 +1,14 @@
 # -*- coding: utf-8 -*-
 import sys
 import traceback
-from PySide6 import QtCore
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout)
 from utils.logger_utils import logger
-from ui.dayu_widgets import dayu_theme
-from ui.dayu_widgets import MSplitter
-from app.markdown_editor import MarkdownEditor
-from app.markdown_previewer import MarkdownPreviewer
+from PySide6.QtWidgets import QSplitter
+from app.editor import MarkdownEditor
 from app.status_bar import StatusBar
 from app.history_panel import HistoryPanel
-from app.top_menu import TopMenu
+from app.sidebar_manager import SidebarManager
 from db.markdown_manager import MarkdownManager
 
 
@@ -20,7 +17,6 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("MarkRender")
         self.showMaximized()
-        dayu_theme.apply(self)
         self.setup_ui()
         self.current_file = None
 
@@ -48,41 +44,58 @@ class MainWindow(QMainWindow):
             logger.error(f'数据库初始化失败: {e}')
             sys.exit(1)
 
-        # 创建顶部菜单栏和工具按钮栏
-        self.top_menu = TopMenu(self)
-
         # 将顶部组件添加到主窗口
         central_widget = QWidget()
         self.main_layout = QVBoxLayout(central_widget)
-        self.main_layout.setContentsMargins(10, 10, 10, 10)
-        self.main_layout.setSpacing(10)
-        self.main_layout.addWidget(self.top_menu, stretch=0)
-
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.setSpacing(0)
         # 初始化历史面板
         self.markdown_manager = MarkdownManager(db_path)
         logger.info("MarkdownManager 初始化完成")
         self.history_panel = HistoryPanel(self.markdown_manager, self)
         logger.info("HistoryPanel 初始化完成")
         # 初始化 Markdown 编辑器
-        self.markdown_editor = MarkdownEditor(self.markdown_manager, self)
+        self.markdown_editor = MarkdownEditor(self)
+        self.sidebar = SidebarManager(self)
 
-        # 初始化三栏布局
-        splitter = MSplitter(Qt.Horizontal)
-        # 添加历史面板
-        splitter.addWidget(self.history_panel)
-        # 添加 Markdown 编辑器
-        splitter.addWidget(self.markdown_editor)
-        # 初始化 Markdown 预览器
-        self.markdown_previewer = MarkdownPreviewer(None, self)
-        splitter.addWidget(self.markdown_previewer)
-        # 设置三栏默认比例，历史区30%，编辑区35%，预览区35%
-        splitter.setSizes([int(self.width()*0.3), int(self.width()*0.35), int(self.width()*0.35)])
-        self.main_layout.addWidget(splitter)
-
+        # 修改为创建主分割器，使用 PySide6 原生的 QSplitter
+        main_splitter = QSplitter(Qt.Horizontal)
+        # 禁止分割条调整大小
+        main_splitter.setOpaqueResize(False)
+        main_splitter.setHandleWidth(0)
+        
+        # 创建右侧内容分割器，同样使用 QSplitter
+        right_splitter = QSplitter(Qt.Horizontal)
+        # 设置分割器样式，统一边距和圆角
+        right_splitter.setStyleSheet('''
+            QSplitter::handle {
+                background: transparent;
+                width: 0px;
+            }
+            QSplitter {
+                padding: 10px;
+                border-radius: 5px;
+            }
+            QSplitter > QWidget {
+                margin: 0 5px;
+            }
+        ''')
+        right_splitter.addWidget(self.history_panel)
+        right_splitter.addWidget(self.markdown_editor)
+        initial_right_sizes = [int(self.width() * 0.2), int(self.width() * 0.8)]
+        right_splitter.setSizes(initial_right_sizes)
+        
+        # 将侧边栏和右侧内容添加到主分割器，侧边栏放在左侧
+        main_splitter.addWidget(self.sidebar)
+        main_splitter.addWidget(right_splitter)
+        
+        # 设置侧边栏宽度为 30，并禁止调整大小
+        main_splitter.setSizes([32, int(self.width() - 32)])
+        self.sidebar.setFixedWidth(32)
+        
+        self.main_layout.addWidget(main_splitter)
+        
         self.setCentralWidget(central_widget)
-
-        # 连接编辑器文本变化事件
-        self.markdown_editor.textChanged.connect(self.update_preview)
 
         # 连接历史列表项选中信号
         self.history_panel.history_item_selected.connect(self.update_editor_and_previewer)
@@ -90,13 +103,10 @@ class MainWindow(QMainWindow):
         # 设置状态栏
         self.status_bar = StatusBar()
         self.setStatusBar(self.status_bar)
-
-        # 初始化预览
-        self.update_preview()
-
-    def update_preview(self):
-        """更新预览区内容"""
-        self.markdown_previewer.render_markdown(self.markdown_editor.get_text_content())
+    
+    def update_theme(self, theme):
+        """切换主题"""
+        self.markdown_editor.update_theme(theme)
 
     def update_editor_and_previewer(self, history_item):
         """更新编辑区和预览区内容"""
@@ -104,12 +114,9 @@ class MainWindow(QMainWindow):
             self.current_file = history_item
             # 获取选中历史项的内容
             content = history_item.get('content', '')
-           
             # 更新编辑区内容
             self.markdown_editor.set_text_content(content)
             
-            # 更新预览区内容
-            self.markdown_previewer.render_markdown(content)
         except Exception as e:
             logger.error(f"更新编辑区和预览区失败: {e}")
 
@@ -124,7 +131,7 @@ class MainWindow(QMainWindow):
         logger.info('触发导出PDF功能')
         try:
             # 假设 self.markdown_editor 是 Markdown 编辑器实例
-            self.markdown_previewer.export_to_pdf()
+            self.markdown_editor.export_to_pdf()
             logger.info('PDF导出成功')
         except Exception as e:
             logger.error(f'PDF导出失败: {str(e)}')
@@ -133,6 +140,10 @@ if __name__ == "__main__":
     logger.info("应用启动")
     try:
         app = QApplication(sys.argv)
+        # 设置全局字体
+        font = app.font()
+        font.setFamily('Arial')  # 可替换为系统存在的字体
+        app.setFont(font)
         logger.info("QApplication 创建完成")
         window = MainWindow()
         logger.info("MainWindow 创建完成")
