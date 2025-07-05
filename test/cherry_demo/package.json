@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "cherry-markdown": "^0.9.4",
+    "jspdf": "^3.0.1"
+  }
+}
