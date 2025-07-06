@@ -106,7 +106,7 @@ class ImportDialog(QDialog):
         dialog_layout.addWidget(self.info_label)
 
         # 关闭按钮
-        self.close_button = QPushButton("关闭", self)
+        self.close_button = QPushButton("离线后台处理", self)
         self.close_button.hide()
         self.close_button.setStyleSheet("""
             QPushButton {
