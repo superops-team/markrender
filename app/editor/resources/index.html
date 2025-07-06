@@ -13,14 +13,16 @@
             height: 100vh;
             padding: 0;
             box-sizing: border-box;
-            overflow: hidden; /* 禁止页面滚动 */
+            /* 修改：移除禁止页面滚动的样式 */
+            /* overflow: hidden; 禁止页面滚动 */
             background-color: transparent; /* 新增透明背景 */
         }
         #editor {
             width: calc(100% - 20px);
             height: calc(100vh - 20px);
             margin: 0px;
-            overflow: hidden; /* 禁止编辑器滚动 */
+            /* 修改：移除禁止编辑器滚动的样式 */
+            /* overflow: hidden; 禁止编辑器滚动 */
         }
     </style>
 </head>
@@ -69,15 +71,15 @@
         var currentPage = 1;
         var totalData = []; // 存储全部数据
         var loadedLines = 0; // 记录已加载的行数
+        var fileID = '';
+        var fileName = '';
 
         // 定义 updateContent 函数，根据实际需求更新页面内容
         function updateContent(data) {
             if (window.editor) {
                 // 将数据拼接成字符串并设置到编辑器中
                 var content = data.join('\n');
-                // 获取当前内容并追加新数据
-                var currentContent = window.editor.getValue();
-                window.editor.setValue(currentContent + (currentContent ? '\n' : '') + content);
+                window.editor.setValue(content);
             }
         }
 
@@ -98,35 +100,25 @@
             }
         }
 
+        // 加载前 500 行内容
+        function loadFirstPage() {
+            currentPage = 1;
+            loadPage(currentPage);
+        }
+
         // 在 QWebChannel 接收数据时初始化
+        // 确保 QWebChannel 初始化完成
         new QWebChannel(qt.webChannelTransport, function(channel) {
-            var content = channel.objects.content;
-            content.text_changed.connect(function(text) {
-                // 清空当前编辑器内容
+            var document = channel.objects.document;
+            document.text_changed.connect(function(text) {
+                // 处理加载的更多内容
+                console.log('Loaded more content:', text);
                 if (window.editor) {
                     window.editor.setValue('');
                 }
-                totalData = text.split('\n'); // 假设按行分割数据
-                loadedLines = 0;
-                currentPage = 1;
-                loadPage(currentPage);
+                window.editor.setValue(text);
             });
         });
-
-        // 添加滚动事件监听，模拟向上翻页
-        window.addEventListener('scroll', function() {
-            if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight) {
-                appendPage();
-            }
-        });
-
-        // 移除原有的 Web Worker 相关代码
-        // var worker = new Worker('worker.js');
-        // worker.postMessage(totalData);
-        // worker.onmessage = function(e) {
-        //     var processedData = e.data;
-        //     updateContent(processedData);
-        // };
     </script>
 </body>
 </html>

@@ -1,4 +1,5 @@
 import os
+from utils import logger
 from PySide6 import QtWidgets
 from PySide6.QtWidgets import QFileDialog
 from PySide6.QtWebEngineWidgets import QWebEngineView
@@ -33,9 +34,10 @@ class MarkdownDocument(QObject):
         # 仅在文件 ID 变化时才 reset，这里调用 set_text 时应先设置正确的 file_id
         self._text = text
         self._lines = text.split('\n')
-        self.load_next_page()
-
-    def load_next_page(self):
+        self.text_changed.emit(text)
+    
+    def load_more(self):
+        logger.debug(f'load_more, file_id: {self.file_id}, _loaded_lines: {self._loaded_lines}, _page_size: {self._page_size}, _lines: {self._lines}')
         start = self._loaded_lines
         end = start + self._page_size
         page_text = '\n'.join(self._lines[start:end])
@@ -88,7 +90,7 @@ class MarkdownEditor(QtWidgets.QWidget):
 
         # Setup WebChannel
         self.channel = QWebChannel(self)
-        self.channel.registerObject("content", self.document)
+        self.channel.registerObject("document", self.document)
         self.preview.page().setWebChannel(self.channel)
 
         # Load HTML file

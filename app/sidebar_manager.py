@@ -2,6 +2,8 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QSpacerItem, Q
 from PySide6.QtGui import QIcon, QFont, QColor
 from PySide6 import QtCore, QtGui
 from PySide6.QtCore import Qt
+from utils import logger
+from db import db_manager
 from db.markdown_manager import MarkdownManager
 import os
 from markitdown import MarkItDown # 假设 markitdown 工具包已安装
@@ -38,6 +40,19 @@ class ImportDialog(QDialog):
         """)
         area_layout = QVBoxLayout(self.import_area)
         area_layout.setAlignment(QtCore.Qt.AlignCenter)
+
+        # 创建遮罩层和加载状态标签，初始状态隐藏
+        self.overlay = QFrame(self.import_area)
+        # 修改遮罩层样式，将透明度设为 1 使其不透明
+        self.overlay.setStyleSheet("background-color: rgba(255, 255, 255, 1);")
+        self.overlay.setGeometry(self.import_area.geometry())
+        self.overlay.hide()
+
+        self.loading_label = QLabel("处理中...", self.overlay)
+        self.loading_label.setAlignment(Qt.AlignCenter)
+        self.loading_label.setStyleSheet("font-size: 16px; color: #0d6efd;")
+        self.loading_label.setGeometry(self.overlay.geometry())
+        self.loading_label.hide()
 
         # 导入区域文字提示
         self.import_label = QLabel("点击导入", self)
@@ -115,7 +130,7 @@ class ImportDialog(QDialog):
     def perform_import(self, event=None):  # 显式声明事件参数，设置默认值避免调用冲突
         # 定义支持的文件格式和最大文件大小
         supported_formats = ['doc', 'pdf', 'md', 'xlsx', 'xls', 'pptx', 'epub', 'docx']
-        max_size = 10 * 1024 * 1024  # 10MB
+        max_size = 30 * 1024 * 1024  # 30MB
 
         # 弹出文件选择对话框
         file_path, _ = QFileDialog.getOpenFileName(
@@ -131,19 +146,25 @@ class ImportDialog(QDialog):
         # 验证文件大小
         file_size = os.path.getsize(file_path)
         if file_size > max_size:
-            QMessageBox.warning(self, "文件过大", "文件大小不能超过 10MB")
+            QMessageBox.warning(self, "文件过大", "文件大小不能超过 30MB")
             return
 
         # 验证文件格式
-        file_ext = os.path.splitext(file_path)[1][1:].lower()
+        file_ext = os.path.splitext(file_path)[1][1:]
         if file_ext not in supported_formats:
-            QMessageBox.warning(self, "格式不支持", "仅支持 doc、pdf、md、excel、pptx、epub 格式的文件")
+            QMessageBox.warning(self, "格式不支持", "仅支持 md、doc、pdf、md、excel、pptx、epub 格式的文件")
             return
 
         self.import_area.setEnabled(False)
         self.progress_bar.show()
         self.info_label.show()
         self.progress_bar.setValue(0)
+        # 显示遮罩层和加载状态标签
+        self.overlay.show()
+        self.loading_label.show()
+        self.overlay.resize(self.import_area.size())
+        # 将遮罩层置于最上层
+        self.overlay.raise_()
 
         # 创建并启动导入线程
         self.import_thread = ImportThread(file_path, self.markdown_manager, self.history_panel)
@@ -160,9 +181,17 @@ class ImportDialog(QDialog):
         self.info_label.setText(file_info)
         self.progress_bar.setValue(100)
         self.close_button.show()
+        # 隐藏遮罩层和加载状态标签
+        self.overlay.hide()
+        self.loading_label.hide()
+        self.import_area.setEnabled(True)
 
     def import_error(self, error_msg):
         QMessageBox.warning(self, "导入失败", error_msg)
+        # 隐藏遮罩层和加载状态标签
+        self.overlay.hide()
+        self.loading_label.hide()
+        self.import_area.setEnabled(True)
         self.close()
 
 class ImportThread(QtCore.QThread):
@@ -176,7 +205,7 @@ class ImportThread(QtCore.QThread):
         self.markdown_manager = markdown_manager
         self.history_panel = history_panel
         self.file_size = os.path.getsize(file_path)
-        self.file_ext = os.path.splitext(file_path)[1][1:].lower()
+        self.file_ext = os.path.splitext(file_path)[1][1:]
 
     def run(self):
         try:
@@ -190,35 +219,50 @@ class ImportThread(QtCore.QThread):
             size_kb = self.file_size / 1024
             size_str = f'{size_kb:.2f} KB' if size_kb < 1024 else f'{size_kb / 1024:.2f} MB'
             title = os.path.basename(self.file_path)
-            tag = self.file_ext.lower()
-            progress = int(100 / steps)
-            self.progress_updated.emit(progress)
+            tag = self.file_ext
+            self.progress_updated.emit(25)
             # step2: 转换格式
-            result = md.convert(self.file_path)
-            md_content = result.text_content
-            process_time = time.time() - start_time
-            info_text = f"转换格式！\n处理时长: {process_time:.2f} 秒\n文件格式: {self.file_ext}\n文件大小: {size_str}"
-            self.finished.emit(info_text)
-            progress = int(200 / steps)
-            self.progress_updated.emit(progress)
+            logger.debug(f"开始转换格式！文件格式: {self.file_ext} 文件大小: {size_str}")
+            md_content = self.convert()
+            self.progress_updated.emit(50)
             # step3: 写入数据
             self.markdown_manager.save_markdown(title=title, content=md_content, tags=tag)
-            process_time = time.time() - start_time
-            info_text = f"写入数据！\n处理时长: {process_time:.2f} 秒\n文件格式: {self.file_ext}\n文件大小: {size_str}"
-            self.finished.emit(info_text)
-            progress = int(300 / steps)
-            self.progress_updated.emit(progress)  
-            self.finished.emit(info_text)
-
+            logger.debug(f"写入数据！文件格式: {self.file_ext} 文件大小: {size_str}, tags: {tag}")
+            self.progress_updated.emit(75)  
             # step4: 刷新历史记录
             self.history_panel.load_history_items()
             process_time = time.time() - start_time
             info_text = f"导入成功！\n处理时长: {process_time:.2f} 秒\n文件格式: {self.file_ext}\n文件大小: {size_str}"
             self.finished.emit(info_text)
-            progress = int(400 / steps)
-            self.progress_updated.emit(progress)
+            self.progress_updated.emit(100)
         except Exception as e:
             self.error_occurred.emit(f"导入文件时出错: {str(e)}")
+    
+    def convert(self):
+        # 初始化 MarkItDown
+        if self.file_ext == 'pdf':
+            from marker.converters.pdf import PdfConverter
+            from marker.models import create_model_dict
+            from marker.config.parser import ConfigParser
+
+            config = {
+                "output_format": "markdown",
+                "output_dir": f"{db_manager.get_user_data_dir()}/output",
+            }
+            config_parser = ConfigParser(config)
+
+            converter = PdfConverter(
+                config=config_parser.generate_config_dict(),
+                artifact_dict=create_model_dict(),
+                processor_list=config_parser.get_processors(),
+                renderer=config_parser.get_renderer(),
+                llm_service=config_parser.get_llm_service()
+            )
+            rendered = converter(self.file_path)
+            return rendered.markdown
+        result = md.convert(self.file_path)
+        return result.text_content
+        
 
 class SidebarManager(QWidget):
     def __init__(self, parent=None):
