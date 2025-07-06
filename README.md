@@ -1,31 +1,33 @@
 # MarkRender
 
-> Any File Convert Into Markdown Then Export As Readable File
+![Architecture Diagram](./docs/arch.png)
 
-[](./docs/intro.md)
+> Convert any file into Markdown and export it as a readable file.
 
-## Supported Input File
+## Overview
+MarkRender is a powerful file conversion tool that enables users to convert various file formats into Markdown and then export them as readable files. With a wide range of supported input and output formats, it provides a convenient solution for file format conversion.
 
-1. pdf input
-2. docx input
-3. epub input
-4. xlsx input
+## Key Features
+- **Multiple Input Formats**: Support for converting PDF, DOCX, EPUB, XLSX, and more into Markdown.
+- **Diverse Output Options**: Export converted content as Markdown, PDF, EPUB, etc.
+- **Extensible Converters**: A variety of converters are available, and more are under development.
 
-## Supported Output File
+## Supported Input Files
+1. PDF
+2. DOCX
+3. EPUB
+4. XLSX
 
-1. markdown
-2. pdf
-3. epub
+## Supported Output Files
+1. Markdown
+2. PDF
+3. EPUB
 
-## Supported Converter
+## Supported Converters
+- **markitdown**: Works well in most cases, but PDF file styles are not supported.
+- **marker-pdf**: Converts PDF files into Markdown files.
+- **xlsx2md**: Converts XLSX files into Markdown files.
+- **epub2md**: Converts EPUB files into Markdown files.
+- **docx2md**: Converts DOCX files into Markdown files.
 
-* markitdown: most of the time it can work, but pdf file style is not supported
-* marker-pdf: convert pdf file into markdown file
-
----
-
-* xlsx2md: convert xlsx file into markdown file
-* epub2md: convert epub file into markdown file
-* docx2md: convert docx file into markdown file
-
-and more convert was in progress
+More converters are in development.
