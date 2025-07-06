@@ -30,4 +30,13 @@ MarkRender is a powerful file conversion tool that enables users to convert vari
 - **epub2md**: Converts EPUB files into Markdown files.
 - **docx2md**: Converts DOCX files into Markdown files.
 
+## GUI Screenshots
+Here are some screenshots of the application's graphical user interface:
+
+![GUI 1](./docs/gui_1.png)
+
+![GUI 2](./docs/gui_2.png)
+
+![Markdown Preview](./docs/markdown_show.png)
+
 More converters are in development.
