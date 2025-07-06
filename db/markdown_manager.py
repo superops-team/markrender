@@ -6,6 +6,8 @@ from .models import Base, MarkdownFileHistory, MarkdownChangeHistory
 from db.db_manager import SingletonEngine
 from utils.hash_utils import calculate_md5
 from utils.logger_utils import logger  # 添加 logger 导入
+from datetime import datetime
+import pytz  # 导入 pytz 库
 
 
 class MarkdownManager:
@@ -45,7 +47,7 @@ class MarkdownManager:
         """加载所有历史记录"""
         session = self.Session()
         try:
-            histories = session.query(MarkdownFileHistory).all()
+            histories = session.query(MarkdownFileHistory).order_by(MarkdownFileHistory.updated_at.desc()).all()
             return [
                 {
                     'title': h.title,
@@ -72,6 +74,8 @@ class MarkdownManager:
         session = self.Session()
         try:
             content_md5 = calculate_md5(content)
+            beijing_tz = pytz.timezone('Asia/Shanghai')  # 设置北京时间时区
+            now = datetime.now(beijing_tz)  # 获取当前北京时间
             if id:
                 # 更新现有记录
                 history = session.query(MarkdownFileHistory).filter_by(id=id).first()
@@ -81,6 +85,7 @@ class MarkdownManager:
                     history.tags = tags
                     history.render_style = render_style
                     history.content_md5 = content_md5
+                    history.updated_at = now  # 使用北京时间更新
                     session.commit()
                     return history
                 else:
@@ -92,7 +97,9 @@ class MarkdownManager:
                     content=content,
                     tags=tags,
                     render_style=render_style,
-                    content_md5=content_md5
+                    content_md5=content_md5,
+                    created_at=now,  # 使用北京时间创建
+                    updated_at=now  # 使用北京时间更新
                 )
                 session.add(new_history)
                 session.commit()

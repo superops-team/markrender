@@ -1,10 +1,230 @@
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QSpacerItem, QSizePolicy)
-from PySide6.QtGui import QIcon
-from PySide6 import QtCore
+from PySide6.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QSpacerItem, QSizePolicy, QFileDialog, QMessageBox, QDialog, QLabel, QProgressBar, QFrame)
+from PySide6.QtGui import QIcon, QFont, QColor
+from PySide6 import QtCore, QtGui
+from PySide6.QtCore import Qt
+from db.markdown_manager import MarkdownManager
+import os
+from markitdown import MarkItDown # 假设 markitdown 工具包已安装
+import time
+
+class ImportDialog(QDialog):
+    def __init__(self, parent, markdown_manager, history_panel):
+        super().__init__(parent)
+        self.markdown_manager = markdown_manager
+        self.parent = parent
+        self.history_panel = history_panel
+        self.init_ui()
+
+    def init_ui(self):
+        self.setWindowTitle("文件导入")
+        dialog_layout = QVBoxLayout(self)
+        dialog_layout.setContentsMargins(10, 10, 10, 10)
+        dialog_layout.setSpacing(10)
+
+        # 创建大尺寸导入区域（类似拖拽风格）
+        self.import_area = QFrame(self)
+        self.import_area.setMinimumSize(400, 200)
+        self.import_area.setStyleSheet("""
+            QFrame {
+                border: 1px dashed #1990ff;
+                border-radius: 8px;
+                background-color: #f5f5f5;
+                margin: 10px;
+            }
+            QFrame:hover {
+                border-color: #0d6efd;
+                background-color: #e6e6e6;
+            }
+        """)
+        area_layout = QVBoxLayout(self.import_area)
+        area_layout.setAlignment(QtCore.Qt.AlignCenter)
+
+        # 导入区域文字提示
+        self.import_label = QLabel("点击导入", self)
+        font = QFont()
+        # 设置字体大小和加粗
+        font.setPointSize(12)
+        font.setBold(True)
+        self.import_label.setFont(font)
+        
+        # 设置标签居中对齐和背景颜色
+        self.import_label.setAlignment(Qt.AlignCenter)
+        # 合并样式设置，避免被覆盖
+        self.import_label.setStyleSheet("background-color: #F0F3FF; padding: 10px; border-radius: 4px; color: #343a40;")
+        
+        # 创建布局并将标签居中添加到import_area
+        label_layout = QVBoxLayout(self.import_area)
+        label_layout.addWidget(self.import_label, alignment=Qt.AlignCenter)
+        # 移除单独设置颜色的代码
+        # self.import_label.setStyleSheet("color: #343a40;")
+        area_layout.addWidget(self.import_label)
+
+        # 支持的导入格式
+        supported_formats = ['doc', 'pdf', 'md', 'xlsx', 'xls', 'pptx', 'epub', 'docx']
+        self.format_label = QLabel(f"支持格式: {', '.join(supported_formats)}", self)
+        self.format_label.setStyleSheet("color: #6c757d; font-size: 12px;")
+        area_layout.addWidget(self.format_label)
+
+        dialog_layout.addWidget(self.import_area, 0, QtCore.Qt.AlignCenter)
+
+        # 进度条
+        self.progress_bar = QProgressBar(self)
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.hide()
+        self.progress_bar.setStyleSheet("""
+            QProgressBar {
+                border-radius: 4px;
+                text-align: center;
+                height: 8px;
+            }
+            QProgressBar::chunk {
+                background-color: #0d6efd;
+                border-radius: 4px;
+            }
+        """)
+        dialog_layout.addWidget(self.progress_bar)
+
+        # 文件信息标签
+        self.info_label = QLabel(self)
+        self.info_label.hide()
+        self.info_label.setStyleSheet("color: #28a745; font-size: 13px;")
+        dialog_layout.addWidget(self.info_label)
+
+        # 关闭按钮
+        self.close_button = QPushButton("关闭", self)
+        self.close_button.hide()
+        self.close_button.setStyleSheet("""
+            QPushButton {
+                background-color: #0d6efd;
+                color: white;
+                border-radius: 5px;
+                padding: 8px 16px;
+                font-size: 14px;
+            }
+            QPushButton:hover {
+                background-color: #0b5ed7;
+                border-radius: 5px;
+            }
+        """)
+        self.close_button.clicked.connect(self.close)
+        dialog_layout.addWidget(self.close_button, 0, QtCore.Qt.AlignCenter)
+
+        # 为导入区域添加点击事件
+        self.import_area.mousePressEvent = self.perform_import
+
+    def perform_import(self, event=None):  # 显式声明事件参数，设置默认值避免调用冲突
+        # 定义支持的文件格式和最大文件大小
+        supported_formats = ['doc', 'pdf', 'md', 'xlsx', 'xls', 'pptx', 'epub', 'docx']
+        max_size = 10 * 1024 * 1024  # 10MB
+
+        # 弹出文件选择对话框
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "导入文件",
+            "",
+            "支持的文件 (*.doc *.pdf *.md *.xlsx *.xls *.pptx *.epub *.docx)"
+        )
+
+        if not file_path:
+            return
+
+        # 验证文件大小
+        file_size = os.path.getsize(file_path)
+        if file_size > max_size:
+            QMessageBox.warning(self, "文件过大", "文件大小不能超过 10MB")
+            return
+
+        # 验证文件格式
+        file_ext = os.path.splitext(file_path)[1][1:].lower()
+        if file_ext not in supported_formats:
+            QMessageBox.warning(self, "格式不支持", "仅支持 doc、pdf、md、excel、pptx、epub 格式的文件")
+            return
+
+        self.import_area.setEnabled(False)
+        self.progress_bar.show()
+        self.info_label.show()
+        self.progress_bar.setValue(0)
+
+        # 创建并启动导入线程
+        self.import_thread = ImportThread(file_path, self.markdown_manager, self.history_panel)
+        self.import_thread.progress_updated.connect(self.update_progress)
+        self.import_thread.finished.connect(self.import_finished)
+        self.import_thread.error_occurred.connect(self.import_error)
+        self.import_thread.start()
+
+    def update_progress(self, progress):
+        self.progress_bar.setValue(progress)
+        self.repaint()
+
+    def import_finished(self, file_info):
+        self.info_label.setText(file_info)
+        self.progress_bar.setValue(100)
+        self.close_button.show()
+
+    def import_error(self, error_msg):
+        QMessageBox.warning(self, "导入失败", error_msg)
+        self.close()
+
+class ImportThread(QtCore.QThread):
+    progress_updated = QtCore.Signal(int)
+    finished = QtCore.Signal(str)
+    error_occurred = QtCore.Signal(str)
+
+    def __init__(self, file_path, markdown_manager, history_panel):
+        super().__init__()
+        self.file_path = file_path
+        self.markdown_manager = markdown_manager
+        self.history_panel = history_panel
+        self.file_size = os.path.getsize(file_path)
+        self.file_ext = os.path.splitext(file_path)[1][1:].lower()
+
+    def run(self):
+        try:
+            start_time = time.time()
+            # 这里需要根据实际转换进度更新进度条，以下为示例
+            # 初始化 MarkItDown
+            md = MarkItDown(enable_plugins=False)
+            # 假设转换过程可分步骤，这里简单模拟
+            steps = 4
+            # step1: 获取文件属性
+            size_kb = self.file_size / 1024
+            size_str = f'{size_kb:.2f} KB' if size_kb < 1024 else f'{size_kb / 1024:.2f} MB'
+            title = os.path.basename(self.file_path)
+            tag = self.file_ext.lower()
+            progress = int(100 / steps)
+            self.progress_updated.emit(progress)
+            # step2: 转换格式
+            result = md.convert(self.file_path)
+            md_content = result.text_content
+            process_time = time.time() - start_time
+            info_text = f"转换格式！\n处理时长: {process_time:.2f} 秒\n文件格式: {self.file_ext}\n文件大小: {size_str}"
+            self.finished.emit(info_text)
+            progress = int(200 / steps)
+            self.progress_updated.emit(progress)
+            # step3: 写入数据
+            self.markdown_manager.save_markdown(title=title, content=md_content, tags=tag)
+            process_time = time.time() - start_time
+            info_text = f"写入数据！\n处理时长: {process_time:.2f} 秒\n文件格式: {self.file_ext}\n文件大小: {size_str}"
+            self.finished.emit(info_text)
+            progress = int(300 / steps)
+            self.progress_updated.emit(progress)  
+            self.finished.emit(info_text)
+
+            # step4: 刷新历史记录
+            self.history_panel.load_history_items()
+            process_time = time.time() - start_time
+            info_text = f"导入成功！\n处理时长: {process_time:.2f} 秒\n文件格式: {self.file_ext}\n文件大小: {size_str}"
+            self.finished.emit(info_text)
+            progress = int(400 / steps)
+            self.progress_updated.emit(progress)
+        except Exception as e:
+            self.error_occurred.emit(f"导入文件时出错: {str(e)}")
 
 class SidebarManager(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.markdown_manager = MarkdownManager()
+        self.parent = parent
         self.init_ui()
 
     def init_ui(self):
@@ -28,6 +248,7 @@ class SidebarManager(QWidget):
         self.import_btn.setIcon(QIcon("icons/plus-square.svg"))  # 需替换为实际图标路径
         self.import_btn.setIconSize(QtCore.QSize(22, 22))
         self.import_btn.setFlat(True)
+        self.import_btn.clicked.connect(self.handle_import)
 
         # 将顶部按钮添加到布局
         layout.addWidget(self.file_browse_btn)
@@ -47,11 +268,6 @@ class SidebarManager(QWidget):
         # 设置布局策略
         self.setLayout(layout)
 
-if __name__ == '__main__':
-    from PySide6.QtWidgets import QApplication
-    import sys
-
-    app = QApplication(sys.argv)
-    sidebar = SidebarManager()
-    sidebar.show()
-    sys.exit(app.exec_())
+    def handle_import(self):
+        import_dialog = ImportDialog(self, self.markdown_manager, self.parent.history_panel if self.parent else None)
+        import_dialog.exec_()

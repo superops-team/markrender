@@ -156,7 +156,7 @@ class MarkdownPreviewer(QWidget):
                     if (window.mermaid) {{
                         mermaid.initialize({{
                             theme: '{theme}',
-                            fontFamily: '"Microsoft YaHei", "SimSun", Arial, sans-serif',
+                            fontFamily: 'SimSun, Arial, sans-serif',
                             flowchart: {{
                                 useMaxWidth: true,
                                 htmlLabels: true,

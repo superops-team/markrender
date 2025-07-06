@@ -1,8 +1,8 @@
-# 修改导入语句，移除 dayu_widgets 相关导入，添加 QListWidget 和 QLineEdit 导入
-from PySide6.QtWidgets import QVBoxLayout, QListWidget, QListWidgetItem, QLineEdit, QMenu, QStyledItemDelegate, QStyleOptionViewItem, QStyle
-from PySide6.QtGui import QAction, QPainter, QFont, QColor
+# 修改导入语句，添加 QEvent 导入
+from PySide6.QtWidgets import QVBoxLayout, QListWidget, QListWidgetItem, QLineEdit, QMenu, QStyledItemDelegate, QStyleOptionViewItem, QStyle, QPushButton, QMessageBox
+from PySide6.QtGui import QAction, QPainter, QFont, QColor, QIcon
 from PySide6 import QtWidgets
-from PySide6.QtCore import Qt, Signal, QSize
+from PySide6.QtCore import Qt, Signal, QSize, QEvent, QRect  # 添加 QRect 导入
 from PySide6.QtWidgets import QWidget, QInputDialog
 from utils.logger_utils import logger
 from sqlalchemy.orm import Session
@@ -14,6 +14,8 @@ from PySide6.QtGui import QColor, QFont, QPainter, QPen  # 添加 QPen 导入
 class HistoryItemDelegate(QStyledItemDelegate):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.delete_icon = QIcon('icons/trash.svg')  # 假设图标文件名为 trash.svg
+        self.parent = parent  # 保存父对象引用
 
     def _format_time(self, modified_time):
         if isinstance(modified_time, datetime):
@@ -95,11 +97,51 @@ class HistoryItemDelegate(QStyledItemDelegate):
             preview_rect = text_rect.adjusted(0, 20, 0, 0)
             painter.drawText(preview_rect, Qt.TextSingleLine, preview)
 
+            # 鼠标悬停时绘制删除按钮
+            if option.state & QStyle.State_MouseOver:
+                button_width = 20
+                button_height = 20
+                button_x = option.rect.right() - button_width - 10
+                button_y = option.rect.top() + (option.rect.height() - button_height) // 2
+                # 扩大点击区域，四周各增加 5 像素
+                padding = 10
+                # 修改为局部变量，避免所有项共享同一个删除按钮区域
+                delete_button_rect = QRect(
+                    button_x - padding,
+                    button_y - padding,
+                    button_width + padding * 2,
+                    button_height + padding * 2
+                )
+                # 存储删除按钮区域到 index 中，用于 editorEvent 判断
+                index.model().setData(index, delete_button_rect, Qt.UserRole + 1)
+                painter.drawPixmap(button_x, button_y, self.delete_icon.pixmap(button_width, button_height))
+            else:
+                # 非悬停状态清除存储的删除按钮区域
+                index.model().setData(index, None, Qt.UserRole + 1)
+
         painter.restore()
 
     def sizeHint(self, option: QStyleOptionViewItem, index):
         # Bug fix: Call width() method to get the width value
         return QSize(option.rect.width(), 50)
+
+    def editorEvent(self, event, model, option, index):
+        if event.type() == QEvent.MouseButtonRelease and event.button() == Qt.LeftButton:
+            logger.debug("检测到鼠标左键释放事件")
+            # 从 index 中获取当前项的删除按钮区域
+            delete_button_rect = index.data(Qt.UserRole + 1)
+            if delete_button_rect:
+                # 直接使用 event.pos()，不进行坐标转换
+                if delete_button_rect.contains(event.pos()):
+                    logger.debug("点击了删除按钮")
+                    item_data = index.data(Qt.UserRole)
+                    if item_data and 'id' in item_data:
+                        logger.debug(f"尝试删除ID为 {item_data['id']} 的记录")
+                        if isinstance(self.parent, QListWidget):
+                            history_panel = self.parent.parent()
+                            if hasattr(history_panel, 'delete_item'):
+                                history_panel.delete_item(item_data['id'])
+        return super().editorEvent(event, model, option, index)
 
 class HistoryPanel(QWidget):
     file_created = Signal(str)
@@ -145,7 +187,7 @@ class HistoryPanel(QWidget):
             QLineEdit {
                 border: 2px solid #ddd;
                 padding: 5px 15px;
-                font-size: 16px;
+                font-size: 20px;
             }
             QLineEdit:hover {
                 border: 2px solid #E6F6FF;
@@ -162,6 +204,7 @@ class HistoryPanel(QWidget):
         main_layout.addWidget(self.search_input)
 
         # 优化列表项选中样式，与全局风格保持一致
+        self.history_list.viewport().setMouseTracking(True)
         self.history_list.setStyleSheet('''
             QListWidget { 
                 border: 2px solid #ddd; 
@@ -171,6 +214,10 @@ class HistoryPanel(QWidget):
                 border: 2px solid transparent; 
                 padding: 5px 10px; 
                 background-color: #f0f0f0; 
+                border-bottom: 1px solid #ddd !important; 
+            } 
+            QListWidget::item:last { 
+                border-bottom: none !important; 
             } 
             QListWidget::item:hover { 
                 border: 2px solid rgb(25, 144, 255, 0.1); 
@@ -196,22 +243,23 @@ class HistoryPanel(QWidget):
     def on_item_clicked(self, index):
         # 修改获取数据的方式
         item = self.history_list.itemFromIndex(index)
-        if item:
-            data = item.data(Qt.UserRole)
-            if data and 'id' in data:
-                logger.debug(f"点击的列表项ID: {data['id']}")
-                # 找到对应的完整历史记录项
-                selected_item = next(
-                    (x for x in self.all_history_items if x['id'] == data['id']), None)
-                if selected_item:
-                    logger.debug(f"找到匹配的历史记录项: {selected_item}")
-                    self.history_item_selected.emit(selected_item)
-                else:
-                    logger.warning(f"未找到ID为 {data['id']} 的历史记录项")
-            else:
-                logger.warning("点击的列表项数据为空或缺少ID字段")
-        else:
+        if not item:
             logger.warning("未找到点击的列表项")
+            return
+        data = item.data(Qt.UserRole)
+        if data and 'id' in data:
+            logger.debug(f"点击的列表项ID: {data['id']}")
+            # 找到对应的完整历史记录项
+            selected_item = next(
+                (x for x in self.all_history_items if x['id'] == data['id']), None)
+            if selected_item:
+                logger.debug(f"找到匹配的历史记录项: {selected_item}")
+                self.history_item_selected.emit(selected_item)
+            else:
+                logger.warning(f"未找到ID为 {data['id']} 的历史记录项")
+        else:
+            logger.warning("点击的列表项数据为空或缺少ID字段")
+        
 
     def load_history_items(self):
         """加载所有历史记录"""
@@ -279,7 +327,7 @@ class HistoryPanel(QWidget):
             histories = self.markdown_manager.get_file_history(current_title)
             if histories:
                 old_content = histories[0].content
-                new_content = self.parent.editor_panel.get_text_content()
+                new_content = self.parent.markdown_editor.get_text_content()
                 if old_content != new_content:
                     self.markdown_manager.save_change_history(
                         histories[0].id, old_content, new_content)
@@ -314,19 +362,37 @@ class HistoryPanel(QWidget):
     def delete_selected_history(self):
         """删除选中的历史记录"""
         index = self.history_list.currentIndex()
-        if index.isValid():
-            # 修改获取项的方式
-            item = self.history_list.item(index.row())
-            title = item.text()
-            try:
-                # 获取 id 而非 title 进行删除
-                item_id = item.data(Qt.UserRole)
-                if self.markdown_manager.delete_history_item(item_id):
-                    self.load_history_items()
-                else:
-                    logger.warning(f'无法删除历史记录: {title}')
-            except Exception as e:
-                logger.error(f"删除历史记录失败: {e}")
+        if not index.isValid():
+            return
+        # 修改获取项的方式
+        item = self.history_list.itemFromIndex(index)
+        if not item:
+            return
+        data = item.data(Qt.UserRole)
+        if not data:
+            return
+        if 'id' not in data:
+            return
+        # 显示确认对话框
+        reply = QMessageBox.question(
+            self, '确认删除', '确定要删除该文件吗？',
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+        )
+        if reply != QMessageBox.Yes:
+            return
+        try:
+            if self.markdown_manager.delete_history_item(data['id']):
+                self.load_history_items()
+                # 清空编辑区
+                if hasattr(self.parent, 'markdown_editor'):
+                    self.parent.markdown_editor.reset()
+                # 设置 current_file 为空
+                if hasattr(self.parent, 'current_file'):
+                    self.parent.current_file = None
+            else:
+                logger.warning(f'无法删除历史记录: {data}')
+        except Exception as e:
+            logger.error(f"删除历史记录失败: {e}")
 
     def save_new_markdown(self, title, content):
         try:
@@ -381,3 +447,46 @@ class HistoryPanel(QWidget):
     def save_title_edit(self, item):
         # 此方法暂时不需要，可删除
         pass
+
+    def delete_item(self, item_id):
+        """删除指定ID的历史记录"""
+        logger.debug(f"准备删除ID为 {item_id} 的历史记录，显示确认对话框")
+        # 获取当前要删除的历史记录项
+        item = next((x for x in self.all_history_items if x['id'] == item_id), None)
+        if not item:
+            logger.warning(f'未找到ID为 {item_id} 的历史记录')
+            return
+
+        title = item.get('title', '')
+        preview = item.get('content', '')[:50] + ('...' if len(item.get('content', '')) > 50 else '')
+
+        # 显示确认对话框
+        msg_box = QMessageBox()
+        msg_box.setWindowTitle('确认删除')
+        msg_box.setText('确定要删除该文件吗？')
+        msg_box.setInformativeText(f'文件名: {title}\n文件预览: {preview}')
+        
+        # 设置按钮
+        cancel_btn = msg_box.addButton('取消', QMessageBox.RejectRole)
+        delete_btn = msg_box.addButton('删除', QMessageBox.AcceptRole)
+        
+        # 设置删除按钮为红色
+        delete_btn.setStyleSheet('QPushButton { color: white; background-color: #ff4444; border-radius: 4px; padding: 5px 15px; } QPushButton:hover { background-color: #cc0000; }')
+        
+        msg_box.exec_()
+        
+        if msg_box.clickedButton() != delete_btn:
+            return
+        logger.debug(f"用户确认删除ID为 {item_id} 的历史记录")
+        try:
+            if self.markdown_manager.delete_history_item(item_id):
+                logger.info(f"成功删除ID为 {item_id} 的历史记录，刷新列表")
+                self.load_history_items()
+                # 清空编辑区
+                self.parent.markdown_editor.reset()
+                # 设置 current_file 为空
+                self.parent.current_file = None
+            else:
+                logger.warning(f'无法删除历史记录: ID为 {item_id} 的记录')
+        except Exception as e:
+            logger.error(f"删除历史记录失败: {e}")

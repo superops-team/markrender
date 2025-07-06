@@ -64,14 +64,69 @@
             }
         });
 
+        // 修改为每页 500 行
+        var pageSize = 500;
+        var currentPage = 1;
+        var totalData = []; // 存储全部数据
+        var loadedLines = 0; // 记录已加载的行数
+
+        // 定义 updateContent 函数，根据实际需求更新页面内容
+        function updateContent(data) {
+            if (window.editor) {
+                // 将数据拼接成字符串并设置到编辑器中
+                var content = data.join('\n');
+                // 获取当前内容并追加新数据
+                var currentContent = window.editor.getValue();
+                window.editor.setValue(currentContent + (currentContent ? '\n' : '') + content);
+            }
+        }
+
+        function loadPage(page) {
+            var start = (page - 1) * pageSize;
+            var end = start + pageSize;
+            var pageData = totalData.slice(start, end);
+            // 更新页面内容
+            updateContent(pageData);
+            loadedLines = end > totalData.length ? totalData.length : end;
+        }
+
+        // 向上翻页时触发增量加载
+        function appendPage() {
+            if (loadedLines < totalData.length) {
+                currentPage++;
+                loadPage(currentPage);
+            }
+        }
+
+        // 在 QWebChannel 接收数据时初始化
         new QWebChannel(qt.webChannelTransport, function(channel) {
             var content = channel.objects.content;
-            editor.setValue(content.text);
-            // Fix signal name
             content.text_changed.connect(function(text) {
-                editor.setValue(text);
+                // 清空当前编辑器内容
+                if (window.editor) {
+                    window.editor.setValue('');
+                }
+                totalData = text.split('\n'); // 假设按行分割数据
+                loadedLines = 0;
+                currentPage = 1;
+                loadPage(currentPage);
             });
         });
+
+        // 添加滚动事件监听，模拟向上翻页
+        window.addEventListener('scroll', function() {
+            if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight) {
+                appendPage();
+            }
+        });
+
+        // 移除原有的 Web Worker 相关代码
+        // var worker = new Worker('worker.js');
+        // worker.postMessage(totalData);
+        // worker.onmessage = function(e) {
+        //     var processedData = e.data;
+        //     updateContent(processedData);
+        // };
     </script>
 </body>
 </html>

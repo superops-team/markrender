@@ -53,9 +53,10 @@ class MainWindow(QMainWindow):
         self.markdown_manager = MarkdownManager(db_path)
         logger.info("MarkdownManager 初始化完成")
         self.history_panel = HistoryPanel(self.markdown_manager, self)
+        self.sidebar_manager = SidebarManager(parent=self)
         logger.info("HistoryPanel 初始化完成")
         # 初始化 Markdown 编辑器
-        self.markdown_editor = MarkdownEditor(self)
+        self.markdown_editor = MarkdownEditor(self, '', '')
         self.sidebar = SidebarManager(self)
 
         # 修改为创建主分割器，使用 PySide6 原生的 QSplitter
@@ -70,13 +71,13 @@ class MainWindow(QMainWindow):
         right_splitter.setStyleSheet('''
             QSplitter::handle {
                 background: transparent;
-                width: 0px;
+                width: 2px;
             }
             QSplitter {
                 padding: 3px;
             }
             QSplitter > QWidget {
-                margin: 0 0px;
+                margin: 2 2px;
             }
         ''')
         right_splitter.addWidget(self.history_panel)
@@ -114,6 +115,8 @@ class MainWindow(QMainWindow):
             # 获取选中历史项的内容
             content = history_item.get('content', '')
             # 更新编辑区内容
+            self.markdown_editor.set_file_id(history_item.get('id', ''))
+            self.markdown_editor.set_file_name(history_item.get('title', ''))
             self.markdown_editor.set_text_content(content)
             self.status_bar.update_file_size(len(content))
             self.status_bar.update_word_count(len(content))

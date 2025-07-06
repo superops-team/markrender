@@ -23,7 +23,6 @@ class StatusBar(QStatusBar):
                 border-radius: 10px; /* 边框圆角 */
                 background-color: #f5f5f5; /* 背景颜色 */
                 color: #eaf3ff; /* 字体颜色 */
-                font-family: "Microsoft YaHei"; /* 字体 */
                 font-size: 12px; /* 字体大小 */
                 padding: 5px 20px 5px 32px; /* 上、右、下、左内边距，左侧设置为 32px */
             }
