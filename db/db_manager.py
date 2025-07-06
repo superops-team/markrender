@@ -19,6 +19,8 @@ def get_user_data_dir():
         user_data_dir = os.path.join(os.path.expanduser('~'), '.local', 'share', app_name)
 
     os.makedirs(user_data_dir, exist_ok=True)
+    os.makedirs(user_data_dir + '/output', exist_ok=True)
+    os.makedirs(user_data_dir + '/tmp', exist_ok=True)
     return user_data_dir
 
 class SingletonEngine:

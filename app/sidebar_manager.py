@@ -8,6 +8,7 @@ from db.markdown_manager import MarkdownManager
 import os
 from markitdown import MarkItDown # 假设 markitdown 工具包已安装
 import time
+import sys
 
 class ImportDialog(QDialog):
     def __init__(self, parent, markdown_manager, history_panel):
@@ -250,16 +251,18 @@ class ImportThread(QtCore.QThread):
                 "output_dir": f"{db_manager.get_user_data_dir()}/output",
             }
             config_parser = ConfigParser(config)
-
-            converter = PdfConverter(
-                config=config_parser.generate_config_dict(),
-                artifact_dict=create_model_dict(),
-                processor_list=config_parser.get_processors(),
-                renderer=config_parser.get_renderer(),
-                llm_service=config_parser.get_llm_service()
-            )
-            rendered = converter(self.file_path)
-            return rendered.markdown
+            try:
+                converter = PdfConverter(
+                    config=config_parser.generate_config_dict(),
+                    artifact_dict=create_model_dict(),
+                    processor_list=config_parser.get_processors(),
+                    renderer=config_parser.get_renderer(),
+                    llm_service=config_parser.get_llm_service()
+                )
+                rendered = converter(self.file_path)
+                return rendered.markdown
+            except Exception as e:
+                logger.error(f"转换 PDF 时出错, 降级为markitdown: {str(e)}")
         result = md.convert(self.file_path)
         return result.text_content
         
@@ -271,6 +274,11 @@ class SidebarManager(QWidget):
         self.parent = parent
         self.init_ui()
 
+    def get_icon_path(self, icon_name):
+        if hasattr(sys, '_MEIPASS'):
+            return os.path.join(sys._MEIPASS, 'icons', icon_name)
+        return os.path.join('icons', icon_name)
+        
     def init_ui(self):
         # 创建主布局
         layout = QVBoxLayout(self)
@@ -279,17 +287,17 @@ class SidebarManager(QWidget):
 
         # 创建顶部按钮组
         self.file_browse_btn = QPushButton()
-        self.file_browse_btn.setIcon(QIcon("icons/folder.svg"))  # 需替换为实际图标路径
+        self.file_browse_btn.setIcon(QIcon(self.get_icon_path("folder.svg")))  # 需替换为实际图标路径
         self.file_browse_btn.setIconSize(QtCore.QSize(22, 22))
         self.file_browse_btn.setFlat(True)
 
         self.search_btn = QPushButton()
-        self.search_btn.setIcon(QIcon("icons/search.svg"))  # 需替换为实际图标路径
+        self.search_btn.setIcon(QIcon(self.get_icon_path("search.svg")))  # 需替换为实际图标路径
         self.search_btn.setIconSize(QtCore.QSize(22, 22))
         self.search_btn.setFlat(True)
 
         self.import_btn = QPushButton()
-        self.import_btn.setIcon(QIcon("icons/plus-square.svg"))  # 需替换为实际图标路径
+        self.import_btn.setIcon(QIcon(self.get_icon_path("plus-square.svg")))  # 需替换为实际图标路径
         self.import_btn.setIconSize(QtCore.QSize(22, 22))
         self.import_btn.setFlat(True)
         self.import_btn.clicked.connect(self.handle_import)
@@ -304,7 +312,7 @@ class SidebarManager(QWidget):
 
         # 创建设置按钮
         self.settings_btn = QPushButton()
-        self.settings_btn.setIcon(QIcon("icons/settings.svg"))  # 需替换为实际图标路径
+        self.settings_btn.setIcon(QIcon(self.get_icon_path("settings.svg")))  # 需替换为实际图标路径
         self.settings_btn.setIconSize(QtCore.QSize(22, 22))
         self.settings_btn.setFlat(True)
         layout.addWidget(self.settings_btn)
