@@ -37,7 +37,7 @@ class MarkdownEditor(QtWidgets.QWidget):
         # 创建布局
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self.preview)
-        layout.setContentsMargins(1, 1, 1, 1)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         self.setLayout(layout)
 
@@ -45,7 +45,6 @@ class MarkdownEditor(QtWidgets.QWidget):
         self.setStyleSheet('''
             QWidget {  /* 父容器样式 */
                 border: 2px solid #ddd; 
-                border-radius: 15px; 
                 padding: 0; 
             }
             QWebEngineView {  /* 预览视图样式 */

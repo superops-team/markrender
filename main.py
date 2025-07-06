@@ -73,11 +73,10 @@ class MainWindow(QMainWindow):
                 width: 0px;
             }
             QSplitter {
-                padding: 10px;
-                border-radius: 5px;
+                padding: 3px;
             }
             QSplitter > QWidget {
-                margin: 0 5px;
+                margin: 0 0px;
             }
         ''')
         right_splitter.addWidget(self.history_panel)
@@ -116,7 +115,8 @@ class MainWindow(QMainWindow):
             content = history_item.get('content', '')
             # 更新编辑区内容
             self.markdown_editor.set_text_content(content)
-            
+            self.status_bar.update_file_size(len(content))
+            self.status_bar.update_word_count(len(content))
         except Exception as e:
             logger.error(f"更新编辑区和预览区失败: {e}")
 

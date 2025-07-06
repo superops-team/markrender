@@ -39,16 +39,13 @@ class HistoryItemDelegate(QStyledItemDelegate):
 
     def paint(self, painter: QPainter, option: QStyleOptionViewItem, index):
         painter.save()
-        radius = 15
         
         if option.state & QStyle.State_Selected:
             painter.setBrush(QColor(25, 144, 255, 38))   
             painter.setPen(Qt.NoPen)  # 设置无边框
-            painter.drawRoundedRect(option.rect, radius, radius)
         elif option.state & QStyle.State_MouseOver:
             painter.setBrush(QColor(25, 144, 255, 25))
             painter.setPen(Qt.NoPen)  # 设置无边框
-            painter.drawRoundedRect(option.rect, radius, radius)
         else:
             painter.setPen(Qt.NoPen)  # 设置无边框
 
@@ -140,14 +137,13 @@ class HistoryPanel(QWidget):
     def init_ui(self):
         main_layout = QVBoxLayout()
         # 设置上下左右边距均为 5px
-        main_layout.setContentsMargins(1, 1, 1, 1)
+        main_layout.setContentsMargins(0, 0, 0, 0)
         # 创建美观的搜索框
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("搜索...")
         self.search_input.setStyleSheet('''
             QLineEdit {
                 border: 2px solid #ddd;
-                border-radius: 15px;
                 padding: 5px 15px;
                 font-size: 16px;
             }
@@ -169,12 +165,10 @@ class HistoryPanel(QWidget):
         self.history_list.setStyleSheet('''
             QListWidget { 
                 border: 2px solid #ddd; 
-                border-radius: 15px; 
                 padding: 0; 
             } 
             QListWidget::item { 
                 border: 2px solid transparent; 
-                border-radius: 15px; 
                 padding: 5px 10px; 
                 background-color: #f0f0f0; 
             } 
@@ -195,7 +189,6 @@ class HistoryPanel(QWidget):
         self.setStyleSheet('''
             QWidget { 
                 border: 2px solid #ddd;
-                border-radius: 15px;
                 background-color: white;
             }
         ''')
