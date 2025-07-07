@@ -108,16 +108,32 @@
 
         // 在 QWebChannel 接收数据时初始化
         // 确保 QWebChannel 初始化完成
-        new QWebChannel(qt.webChannelTransport, function(channel) {
-            var document = channel.objects.document;
-            document.text_changed.connect(function(text) {
-                // 处理加载的更多内容
-                console.log('Loaded more content:', text);
+        new QWebChannel(qt.webChannelTransport, function(channel) { 
+            var document = channel.objects.document; 
+            document.text_changed.connect(function(text) { 
                 if (window.editor) {
                     window.editor.setValue('');
                 }
-                window.editor.setValue(text);
-            });
+                // 处理加载的更多内容
+                console.log('Loaded more content:', text);
+                const lines = text.split('\n');
+                let index = 0;
+                
+                function appendChunk() {
+                    const chunk = lines.slice(index, index + 500).join('\n');
+                    if (chunk) {
+                        if (!window.editor.getValue()) {
+                            window.editor.setValue(chunk);
+                        } else {
+                            window.editor.setValue(window.editor.getValue() + '\n' + chunk);
+                        }
+                        index += 500;
+                        setTimeout(appendChunk, 5);
+                    }
+                }
+                
+                appendChunk();
+            }); 
         });
     </script>
 </body>
