@@ -6,9 +6,32 @@ from utils import logger
 from db import db_manager
 from db.markdown_manager import MarkdownManager
 import os
-from markitdown import MarkItDown # 假设 markitdown 工具包已安装
+from markitdown import MarkItDown 
 import time
 import sys
+import re
+import urllib.parse
+
+def replace_image_paths(content, base_url):
+    # 匹配 Markdown 图片语法：![alt](path)
+    pattern = r'!\[(.*?)\]\((.*?)\)'
+    
+    # 替换为完整路径
+    def replace(match):
+        alt = match.group(1)
+        path = match.group(2)
+        
+        # 跳过已为完整路径的图片
+        if path.startswith(('http://', 'https://')):
+            return f'![{alt}]({path})'
+        # 构建完整路径（根据实际需求调整拼接方式）
+        full_path = os.path.join(base_url, path)
+        # 对路径中的空格进行 URL 编码
+        encoded_path = urllib.parse.quote(full_path, safe=':/')
+        logger.info(f"full_path: {encoded_path}")
+        return f'![{alt}]({encoded_path})'
+    
+    return re.sub(pattern, replace, content)
 
 class ImportDialog(QDialog):
     def __init__(self, parent, markdown_manager, history_panel):
@@ -49,7 +72,7 @@ class ImportDialog(QDialog):
         self.overlay.setGeometry(self.import_area.geometry())
         self.overlay.hide()
 
-        self.loading_label = QLabel("处理中...", self.overlay)
+        self.loading_label = QLabel("任务支持后台处理，可关闭此窗口，后台处理中...", self.overlay)
         self.loading_label.setAlignment(Qt.AlignCenter)
         self.loading_label.setStyleSheet("font-size: 16px; color: #0d6efd;")
         self.loading_label.setGeometry(self.overlay.geometry())
@@ -107,7 +130,7 @@ class ImportDialog(QDialog):
         dialog_layout.addWidget(self.info_label)
 
         # 关闭按钮
-        self.close_button = QPushButton("离线后台处理", self)
+        self.close_button = QPushButton("关闭", self)
         self.close_button.hide()
         self.close_button.setStyleSheet("""
             QPushButton {
@@ -203,6 +226,7 @@ class ImportThread(QtCore.QThread):
     def __init__(self, file_path, markdown_manager, history_panel):
         super().__init__()
         self.file_path = file_path
+        self.file_name = os.path.basename(self.file_path)
         self.markdown_manager = markdown_manager
         self.history_panel = history_panel
         self.file_size = os.path.getsize(file_path)
@@ -211,15 +235,11 @@ class ImportThread(QtCore.QThread):
     def run(self):
         try:
             start_time = time.time()
-            # 这里需要根据实际转换进度更新进度条，以下为示例
-            # 初始化 MarkItDown
-            md = MarkItDown(enable_plugins=False)
             # 假设转换过程可分步骤，这里简单模拟
-            steps = 4
             # step1: 获取文件属性
             size_kb = self.file_size / 1024
             size_str = f'{size_kb:.2f} KB' if size_kb < 1024 else f'{size_kb / 1024:.2f} MB'
-            title = os.path.basename(self.file_path)
+            title = os.path.splitext(self.file_name)[0]
             tag = self.file_ext
             self.progress_updated.emit(25)
             # step2: 转换格式
@@ -245,10 +265,12 @@ class ImportThread(QtCore.QThread):
             from marker.converters.pdf import PdfConverter
             from marker.models import create_model_dict
             from marker.config.parser import ConfigParser
-
+            from marker.output import save_output
+            base_path =  f"{db_manager.get_user_data_dir()}/output"
+            # base_path = urllib.parse.quote(base_path, safe=':/')
             config = {
                 "output_format": "markdown",
-                "output_dir": f"{db_manager.get_user_data_dir()}/output",
+                "output_dir": base_path,
             }
             config_parser = ConfigParser(config)
             try:
@@ -260,9 +282,12 @@ class ImportThread(QtCore.QThread):
                     llm_service=config_parser.get_llm_service()
                 )
                 rendered = converter(self.file_path)
-                return rendered.markdown
+                logger.info(f"转换 PDF 成功, 输出路径: {base_path}, 文件名: {self.file_name}")
+                save_output(rendered, base_path, self.file_name)
+                return replace_image_paths(rendered.markdown, base_path)
             except Exception as e:
                 logger.error(f"转换 PDF 时出错, 降级为markitdown: {str(e)}")
+        md = MarkItDown()
         result = md.convert(self.file_path)
         return result.text_content
         
