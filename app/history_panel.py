@@ -5,6 +5,7 @@ from PySide6 import QtWidgets
 from PySide6.QtCore import Qt, Signal, QSize, QEvent, QRect  # 添加 QRect 导入
 from PySide6.QtWidgets import QWidget, QInputDialog
 from utils.logger_utils import logger
+from utils.path import get_icon_path
 from sqlalchemy.orm import Session
 from db.models import MarkdownFileHistory
 from datetime import datetime, timezone, timedelta
@@ -14,7 +15,7 @@ from PySide6.QtGui import QColor, QFont, QPainter, QPen  # 添加 QPen 导入
 class HistoryItemDelegate(QStyledItemDelegate):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.delete_icon = QIcon('icons/trash.svg')  # 假设图标文件名为 trash.svg
+        self.delete_icon = QIcon(get_icon_path('trash.svg'))  # 假设图标文件名为 trash.svg
         self.parent = parent  # 保存父对象引用
 
     def _format_time(self, modified_time):

@@ -2,7 +2,7 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QSpacerItem, Q
 from PySide6.QtGui import QIcon, QFont, QColor
 from PySide6 import QtCore, QtGui
 from PySide6.QtCore import Qt
-from utils import logger
+from utils import logger, get_icon_path
 from db import db_manager
 from db.markdown_manager import MarkdownManager
 import os
@@ -298,11 +298,6 @@ class SidebarManager(QWidget):
         self.markdown_manager = MarkdownManager()
         self.parent = parent
         self.init_ui()
-
-    def get_icon_path(self, icon_name):
-        if hasattr(sys, '_MEIPASS'):
-            return os.path.join(sys._MEIPASS, 'icons', icon_name)
-        return os.path.join('icons', icon_name)
         
     def init_ui(self):
         # 创建主布局
@@ -312,17 +307,17 @@ class SidebarManager(QWidget):
 
         # 创建顶部按钮组
         self.file_browse_btn = QPushButton()
-        self.file_browse_btn.setIcon(QIcon(self.get_icon_path("folder.svg")))  # 需替换为实际图标路径
+        self.file_browse_btn.setIcon(QIcon(get_icon_path("folder.svg")))  # 需替换为实际图标路径
         self.file_browse_btn.setIconSize(QtCore.QSize(22, 22))
         self.file_browse_btn.setFlat(True)
 
         self.search_btn = QPushButton()
-        self.search_btn.setIcon(QIcon(self.get_icon_path("search.svg")))  # 需替换为实际图标路径
+        self.search_btn.setIcon(QIcon(get_icon_path("search.svg")))  # 需替换为实际图标路径
         self.search_btn.setIconSize(QtCore.QSize(22, 22))
         self.search_btn.setFlat(True)
 
         self.import_btn = QPushButton()
-        self.import_btn.setIcon(QIcon(self.get_icon_path("plus-square.svg")))  # 需替换为实际图标路径
+        self.import_btn.setIcon(QIcon(get_icon_path("plus-square.svg")))  # 需替换为实际图标路径
         self.import_btn.setIconSize(QtCore.QSize(22, 22))
         self.import_btn.setFlat(True)
         self.import_btn.clicked.connect(self.handle_import)
@@ -337,7 +332,7 @@ class SidebarManager(QWidget):
 
         # 创建设置按钮
         self.settings_btn = QPushButton()
-        self.settings_btn.setIcon(QIcon(self.get_icon_path("settings.svg")))  # 需替换为实际图标路径
+        self.settings_btn.setIcon(QIcon(get_icon_path("settings.svg")))  # 需替换为实际图标路径
         self.settings_btn.setIconSize(QtCore.QSize(22, 22))
         self.settings_btn.setFlat(True)
         layout.addWidget(self.settings_btn)
