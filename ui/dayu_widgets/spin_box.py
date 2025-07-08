@@ -244,7 +244,7 @@ class MDateEdit(QtWidgets.QDateEdit):
             super(MDateEdit, self).__init__(parent=parent)
         else:
             super(MDateEdit, self).__init__(date, parent=parent)
-            
+
         self._dayu_size = dayu_theme.default_size
 
     def get_dayu_size(self):

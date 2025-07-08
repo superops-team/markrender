@@ -23,7 +23,7 @@ class MarkdownEditor(MTextEdit):
         """配置编辑器基本属性"""
         self.setAcceptRichText(True)
         self.setLineWrapMode(QtWidgets.QTextEdit.WidgetWidth)
-        
+
         # 设置默认字体大小为 pt
         font = self.font()
         font.setPointSize(20)

@@ -7,6 +7,7 @@ from PySide6.QtCore import Qt, QUrl
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtCore import QObject
 
+
 class MarkdownDocument(QObject):
     def __init__(self):
         super().__init__()
@@ -22,6 +23,7 @@ class MarkdownDocument(QObject):
     from PySide6.QtCore import Signal, Property
     text_changed = Signal(str)
     text = Property(str, get_text, set_text, notify=text_changed)
+
 
 class MarkdownEditor(QMainWindow):
     def __init__(self):
@@ -73,7 +75,11 @@ class MarkdownEditor(QMainWindow):
         self.preview.page().setWebChannel(self.channel)
 
         # Load HTML file
-        html_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "resources", "index.html"))
+        html_path = os.path.abspath(
+            os.path.join(
+                os.path.dirname(__file__),
+                "resources",
+                "index.html"))
         self.preview.setUrl(QUrl.fromLocalFile(html_path))
 
         # 注入 JavaScript 禁止页面滚动
@@ -99,7 +105,8 @@ class MarkdownEditor(QMainWindow):
 
     def open_file(self):
         """Open a Markdown file and set it in Cherry Markdown."""
-        file_path, _ = QFileDialog.getOpenFileName(self, "Open File", "", "Markdown Files (*.md)")
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Open File", "", "Markdown Files (*.md)")
         if file_path:
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
@@ -113,7 +120,8 @@ class MarkdownEditor(QMainWindow):
 
     def save_file(self):
         """Save the raw Markdown content from Cherry Markdown."""
-        file_path, _ = QFileDialog.getSaveFileName(self, "Save File", "", "Markdown Files (*.md)")
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, "Save File", "", "Markdown Files (*.md)")
         if file_path:
             # Retrieve raw Markdown content from Cherry Markdown
             def handle_markdown_content(content):
@@ -134,6 +142,7 @@ class MarkdownEditor(QMainWindow):
         super().resizeEvent(event)
         # 可以在这里添加额外的调整逻辑
         # 布局管理器会自动处理子部件的大小
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

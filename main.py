@@ -28,9 +28,14 @@ class MainWindow(QMainWindow):
         if system() == 'Windows':
             user_data_dir = os.path.join(os.getenv('APPDATA'), 'markrender')
         elif system() == 'Darwin':
-            user_data_dir = os.path.join(os.path.expanduser('~'), 'Library', 'Application Support', 'markrender')
+            user_data_dir = os.path.join(
+                os.path.expanduser('~'),
+                'Library',
+                'Application Support',
+                'markrender')
         else:
-            user_data_dir = os.path.join(os.path.expanduser('~'), '.local', 'share', 'markrender')
+            user_data_dir = os.path.join(
+                os.path.expanduser('~'), '.local', 'share', 'markrender')
         os.makedirs(user_data_dir, exist_ok=True)
         db_path = os.path.join(user_data_dir, 'data.db')
         logger.info(f'数据库路径初始化完成，路径为: {db_path}')
@@ -64,7 +69,7 @@ class MainWindow(QMainWindow):
         # 禁止分割条调整大小
         main_splitter.setOpaqueResize(False)
         main_splitter.setHandleWidth(0)
-        
+
         # 创建右侧内容分割器，同样使用 QSplitter
         right_splitter = QSplitter(Qt.Horizontal)
         # 设置分割器样式，统一边距和圆角
@@ -82,28 +87,30 @@ class MainWindow(QMainWindow):
         ''')
         right_splitter.addWidget(self.history_panel)
         right_splitter.addWidget(self.markdown_editor)
-        initial_right_sizes = [int(self.width() * 0.2), int(self.width() * 0.8)]
+        initial_right_sizes = [
+            int(self.width() * 0.2), int(self.width() * 0.8)]
         right_splitter.setSizes(initial_right_sizes)
-        
+
         # 将侧边栏和右侧内容添加到主分割器，侧边栏放在左侧
         main_splitter.addWidget(self.sidebar)
         main_splitter.addWidget(right_splitter)
-        
+
         # 设置侧边栏宽度为 30，并禁止调整大小
         main_splitter.setSizes([32, int(self.width() - 32)])
         self.sidebar.setFixedWidth(32)
-        
+
         self.main_layout.addWidget(main_splitter)
-        
+
         self.setCentralWidget(central_widget)
 
         # 连接历史列表项选中信号
-        self.history_panel.history_item_selected.connect(self.update_editor_and_previewer)
+        self.history_panel.history_item_selected.connect(
+            self.update_editor_and_previewer)
 
         # 设置状态栏
         self.status_bar = StatusBar()
         self.setStatusBar(self.status_bar)
-    
+
     def update_theme(self, theme):
         """切换主题"""
         self.markdown_editor.update_theme(theme)
@@ -138,6 +145,7 @@ class MainWindow(QMainWindow):
             logger.info('PDF导出成功')
         except Exception as e:
             logger.error(f'PDF导出失败: {str(e)}')
+
 
 if __name__ == "__main__":
     logger.info("应用启动")

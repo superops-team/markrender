@@ -1,4 +1,15 @@
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QSpacerItem, QSizePolicy, QFileDialog, QMessageBox, QDialog, QLabel, QProgressBar, QFrame)
+from PySide6.QtWidgets import (
+    QWidget,
+    QVBoxLayout,
+    QPushButton,
+    QSpacerItem,
+    QSizePolicy,
+    QFileDialog,
+    QMessageBox,
+    QDialog,
+    QLabel,
+    QProgressBar,
+    QFrame)
 from PySide6.QtGui import QIcon, QFont, QColor
 from PySide6 import QtCore, QtGui
 from PySide6.QtCore import Qt
@@ -6,21 +17,22 @@ from utils import logger, get_icon_path
 from db import db_manager
 from db.markdown_manager import MarkdownManager
 import os
-from markitdown import MarkItDown 
+from markitdown import MarkItDown
 import time
 import sys
 import re
 import urllib.parse
 
+
 def replace_image_paths(content, base_url):
     # 匹配 Markdown 图片语法：![alt](path)
     pattern = r'!\[(.*?)\]\((.*?)\)'
-    
+
     # 替换为完整路径
     def replace(match):
         alt = match.group(1)
         path = match.group(2)
-        
+
         # 跳过已为完整路径的图片
         if path.startswith(('http://', 'https://')):
             return f'![{alt}]({path})'
@@ -30,8 +42,9 @@ def replace_image_paths(content, base_url):
         encoded_path = urllib.parse.quote(full_path, safe=':/')
         logger.info(f"full_path: {encoded_path}")
         return f'![{alt}]({encoded_path})'
-    
+
     return re.sub(pattern, replace, content)
+
 
 class ImportDialog(QDialog):
     def __init__(self, parent, markdown_manager, history_panel):
@@ -85,12 +98,13 @@ class ImportDialog(QDialog):
         font.setPointSize(12)
         font.setBold(True)
         self.import_label.setFont(font)
-        
+
         # 设置标签居中对齐和背景颜色
         self.import_label.setAlignment(Qt.AlignCenter)
         # 合并样式设置，避免被覆盖
-        self.import_label.setStyleSheet("background-color: #F0F3FF; padding: 10px; border-radius: 4px; color: #343a40;")
-        
+        self.import_label.setStyleSheet(
+            "background-color: #F0F3FF; padding: 10px; border-radius: 4px; color: #343a40;")
+
         # 创建布局并将标签居中添加到import_area
         label_layout = QVBoxLayout(self.import_area)
         label_layout.addWidget(self.import_label, alignment=Qt.AlignCenter)
@@ -99,8 +113,17 @@ class ImportDialog(QDialog):
         area_layout.addWidget(self.import_label)
 
         # 支持的导入格式
-        supported_formats = ['doc', 'pdf', 'md', 'xlsx', 'xls', 'pptx', 'epub', 'docx']
-        self.format_label = QLabel(f"支持格式: {', '.join(supported_formats)}", self)
+        supported_formats = [
+            'doc',
+            'pdf',
+            'md',
+            'xlsx',
+            'xls',
+            'pptx',
+            'epub',
+            'docx']
+        self.format_label = QLabel(
+            f"支持格式: {', '.join(supported_formats)}", self)
         self.format_label.setStyleSheet("color: #6c757d; font-size: 12px;")
         area_layout.addWidget(self.format_label)
 
@@ -153,7 +176,15 @@ class ImportDialog(QDialog):
 
     def perform_import(self, event=None):  # 显式声明事件参数，设置默认值避免调用冲突
         # 定义支持的文件格式和最大文件大小
-        supported_formats = ['doc', 'pdf', 'md', 'xlsx', 'xls', 'pptx', 'epub', 'docx']
+        supported_formats = [
+            'doc',
+            'pdf',
+            'md',
+            'xlsx',
+            'xls',
+            'pptx',
+            'epub',
+            'docx']
         max_size = 30 * 1024 * 1024  # 30MB
 
         # 弹出文件选择对话框
@@ -176,7 +207,8 @@ class ImportDialog(QDialog):
         # 验证文件格式
         file_ext = os.path.splitext(file_path)[1][1:]
         if file_ext not in supported_formats:
-            QMessageBox.warning(self, "格式不支持", "仅支持 md、doc、pdf、md、excel、pptx、epub 格式的文件")
+            QMessageBox.warning(
+                self, "格式不支持", "仅支持 md、doc、pdf、md、excel、pptx、epub 格式的文件")
             return
 
         self.import_area.setEnabled(False)
@@ -191,7 +223,8 @@ class ImportDialog(QDialog):
         self.overlay.raise_()
 
         # 创建并启动导入线程
-        self.import_thread = ImportThread(file_path, self.markdown_manager, self.history_panel)
+        self.import_thread = ImportThread(
+            file_path, self.markdown_manager, self.history_panel)
         self.import_thread.progress_updated.connect(self.update_progress)
         self.import_thread.finished.connect(self.import_finished)
         self.import_thread.error_occurred.connect(self.import_error)
@@ -218,6 +251,7 @@ class ImportDialog(QDialog):
         self.import_area.setEnabled(True)
         self.close()
 
+
 class ImportThread(QtCore.QThread):
     progress_updated = QtCore.Signal(int)
     finished = QtCore.Signal(str)
@@ -238,7 +272,9 @@ class ImportThread(QtCore.QThread):
             # 假设转换过程可分步骤，这里简单模拟
             # step1: 获取文件属性
             size_kb = self.file_size / 1024
-            size_str = f'{size_kb:.2f} KB' if size_kb < 1024 else f'{size_kb / 1024:.2f} MB'
+            size_str = f'{
+                size_kb:.2f} KB' if size_kb < 1024 else f'{
+                size_kb / 1024:.2f} MB'
             title = os.path.splitext(self.file_name)[0]
             tag = self.file_ext
             self.progress_updated.emit(25)
@@ -247,18 +283,23 @@ class ImportThread(QtCore.QThread):
             md_content = self.convert()
             self.progress_updated.emit(50)
             # step3: 写入数据
-            self.markdown_manager.save_markdown(title=title, content=md_content, tags=tag)
-            logger.debug(f"写入数据！文件格式: {self.file_ext} 文件大小: {size_str}, tags: {tag}")
-            self.progress_updated.emit(75)  
+            self.markdown_manager.save_markdown(
+                title=title, content=md_content, tags=tag)
+            logger.debug(
+                f"写入数据！文件格式: {
+                    self.file_ext} 文件大小: {size_str}, tags: {tag}")
+            self.progress_updated.emit(75)
             # step4: 刷新历史记录
             self.history_panel.load_history_items()
             process_time = time.time() - start_time
-            info_text = f"导入成功！\n处理时长: {process_time:.2f} 秒\n文件格式: {self.file_ext}\n文件大小: {size_str}"
+            info_text = f"导入成功！\n处理时长: {
+                process_time:.2f} 秒\n文件格式: {
+                self.file_ext}\n文件大小: {size_str}"
             self.finished.emit(info_text)
             self.progress_updated.emit(100)
         except Exception as e:
             self.error_occurred.emit(f"导入文件时出错: {str(e)}")
-    
+
     def convert(self):
         # 初始化 MarkItDown
         if self.file_ext == 'pdf':
@@ -266,7 +307,7 @@ class ImportThread(QtCore.QThread):
             from marker.models import create_model_dict
             from marker.config.parser import ConfigParser
             from marker.output import save_output
-            base_path =  f"{db_manager.get_user_data_dir()}/output"
+            base_path = f"{db_manager.get_user_data_dir()}/output"
             # base_path = urllib.parse.quote(base_path, safe=':/')
             config = {
                 "output_format": "markdown",
@@ -282,7 +323,9 @@ class ImportThread(QtCore.QThread):
                     llm_service=config_parser.get_llm_service()
                 )
                 rendered = converter(self.file_path)
-                logger.info(f"转换 PDF 成功, 输出路径: {base_path}, 文件名: {self.file_name}")
+                logger.info(
+                    f"转换 PDF 成功, 输出路径: {base_path}, 文件名: {
+                        self.file_name}")
                 save_output(rendered, base_path, self.file_name)
                 return replace_image_paths(rendered.markdown, base_path)
             except Exception as e:
@@ -290,7 +333,7 @@ class ImportThread(QtCore.QThread):
         md = MarkItDown()
         result = md.convert(self.file_path)
         return result.text_content
-        
+
 
 class SidebarManager(QWidget):
     def __init__(self, parent=None):
@@ -298,7 +341,7 @@ class SidebarManager(QWidget):
         self.markdown_manager = MarkdownManager()
         self.parent = parent
         self.init_ui()
-        
+
     def init_ui(self):
         # 创建主布局
         layout = QVBoxLayout(self)
@@ -307,17 +350,24 @@ class SidebarManager(QWidget):
 
         # 创建顶部按钮组
         self.file_browse_btn = QPushButton()
-        self.file_browse_btn.setIcon(QIcon(get_icon_path("folder.svg")))  # 需替换为实际图标路径
+        self.file_browse_btn.setIcon(QIcon(get_icon_path("cast.svg")))
         self.file_browse_btn.setIconSize(QtCore.QSize(22, 22))
         self.file_browse_btn.setFlat(True)
 
+        # 假设在类中已经保存了 HistoryPanel 实例
+        if hasattr(self.parent, 'history_panel'):
+            self.file_browse_btn.clicked.connect(
+                self.parent.history_panel.load_history_items)
+
         self.search_btn = QPushButton()
-        self.search_btn.setIcon(QIcon(get_icon_path("search.svg")))  # 需替换为实际图标路径
+        self.search_btn.setIcon(
+            QIcon(get_icon_path("search.svg")))  # 需替换为实际图标路径
         self.search_btn.setIconSize(QtCore.QSize(22, 22))
         self.search_btn.setFlat(True)
 
         self.import_btn = QPushButton()
-        self.import_btn.setIcon(QIcon(get_icon_path("plus-square.svg")))  # 需替换为实际图标路径
+        self.import_btn.setIcon(
+            QIcon(get_icon_path("plus-square.svg")))  # 需替换为实际图标路径
         self.import_btn.setIconSize(QtCore.QSize(22, 22))
         self.import_btn.setFlat(True)
         self.import_btn.clicked.connect(self.handle_import)
@@ -328,11 +378,17 @@ class SidebarManager(QWidget):
         layout.addWidget(self.import_btn)
 
         # 添加弹性空间，使设置按钮位于底部
-        layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
+        layout.addSpacerItem(
+            QSpacerItem(
+                20,
+                40,
+                QSizePolicy.Minimum,
+                QSizePolicy.Expanding))
 
         # 创建设置按钮
         self.settings_btn = QPushButton()
-        self.settings_btn.setIcon(QIcon(get_icon_path("settings.svg")))  # 需替换为实际图标路径
+        self.settings_btn.setIcon(
+            QIcon(get_icon_path("settings.svg")))  # 需替换为实际图标路径
         self.settings_btn.setIconSize(QtCore.QSize(22, 22))
         self.settings_btn.setFlat(True)
         layout.addWidget(self.settings_btn)
@@ -341,5 +397,8 @@ class SidebarManager(QWidget):
         self.setLayout(layout)
 
     def handle_import(self):
-        import_dialog = ImportDialog(self, self.markdown_manager, self.parent.history_panel if self.parent else None)
+        import_dialog = ImportDialog(
+            self,
+            self.markdown_manager,
+            self.parent.history_panel if self.parent else None)
         import_dialog.exec_()

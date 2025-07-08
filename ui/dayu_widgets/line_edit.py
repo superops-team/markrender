@@ -254,14 +254,14 @@ class MLineEdit(QtWidgets.QLineEdit):
         """Set MLineEdit to small size"""
         from . import dayu_theme
 
-        self.set_dayu_size(dayu_theme.small)    
+        self.set_dayu_size(dayu_theme.small)
         return self
 
     def tiny(self):
         """Set MLineEdit to tiny size"""
         from . import dayu_theme
 
-        self.set_dayu_size(dayu_theme.tiny)     
+        self.set_dayu_size(dayu_theme.tiny)
         return self
 
     def password(self):

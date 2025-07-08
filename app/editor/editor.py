@@ -7,6 +7,7 @@ from PySide6 import QtWebEngineCore  # Add this import
 from PySide6.QtCore import QUrl, QObject, Signal, Property
 from PySide6.QtWebChannel import QWebChannel
 
+
 class MarkdownDocument(QObject):
     def __init__(self, file_id, file_name):
         super().__init__()
@@ -35,9 +36,14 @@ class MarkdownDocument(QObject):
         self._text = text
         self._lines = text.split('\n')
         self.text_changed.emit(text)
-    
+
     def load_more(self):
-        logger.debug(f'load_more, file_id: {self.file_id}, _loaded_lines: {self._loaded_lines}, _page_size: {self._page_size}, _lines: {self._lines}')
+        logger.debug(
+            f'load_more, file_id: {
+                self.file_id}, _loaded_lines: {
+                self._loaded_lines}, _page_size: {
+                self._page_size}, _lines: {
+                    self._lines}')
         start = self._loaded_lines
         end = start + self._page_size
         page_text = '\n'.join(self._lines[start:end])
@@ -54,6 +60,7 @@ class MarkdownDocument(QObject):
 
     text_changed = Signal(str)
     text = Property(str, get_text, set_text, notify=text_changed)
+
 
 class MarkdownEditor(QtWidgets.QWidget):
     def __init__(self, parent=None, file_id="", file_name=""):
@@ -77,11 +84,11 @@ class MarkdownEditor(QtWidgets.QWidget):
         # 设置圆角样式
         self.setStyleSheet('''
             QWidget {  /* 父容器样式 */
-                border: 2px solid #ddd; 
-                padding: 0; 
+                border: 2px solid #ddd;
+                padding: 0;
             }
             QWebEngineView {  /* 预览视图样式 */
-                border: none; 
+                border: none;
                 background-color: transparent; /* 设置透明背景 */
                 margin: 0; /* 移除抵消布局的 margin */
                 padding: 0; /* 移除补充的 padding */
@@ -94,14 +101,22 @@ class MarkdownEditor(QtWidgets.QWidget):
         self.preview.page().setWebChannel(self.channel)
 
         # Load HTML file
-        html_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "resources", "index.html"))
+        html_path = os.path.abspath(
+            os.path.join(
+                os.path.dirname(__file__),
+                "resources",
+                "index.html"))
         self.preview.setUrl(QUrl.fromLocalFile(html_path))
         # Add these settings with corrected import
-        self.preview.page().settings().setAttribute(QtWebEngineCore.QWebEngineSettings.ErrorPageEnabled, True)
+        self.preview.page().settings().setAttribute(
+            QtWebEngineCore.QWebEngineSettings.ErrorPageEnabled, True)
         # 禁用不必要的功能
-        self.preview.page().settings().setAttribute(QtWebEngineCore.QWebEngineSettings.PluginsEnabled, False)
-        self.preview.page().settings().setAttribute(QtWebEngineCore.QWebEngineSettings.JavascriptCanOpenWindows, False)
-        self.preview.page().settings().setAttribute(QtWebEngineCore.QWebEngineSettings.LocalStorageEnabled, True)
+        self.preview.page().settings().setAttribute(
+            QtWebEngineCore.QWebEngineSettings.PluginsEnabled, False)
+        self.preview.page().settings().setAttribute(
+            QtWebEngineCore.QWebEngineSettings.JavascriptCanOpenWindows, False)
+        self.preview.page().settings().setAttribute(
+            QtWebEngineCore.QWebEngineSettings.LocalStorageEnabled, True)
 
     def update_theme(self, theme):
         """Switch the Cherry Markdown theme."""
@@ -111,36 +126,33 @@ class MarkdownEditor(QtWidgets.QWidget):
             }}
         """
         self.preview.page().runJavaScript(js_code)
-    
+
     def reset(self):
         self.document.file_id = ""
         self.document.file_name = ""
         self.document.reset()  # 调用文档的 reset 方法
         # 执行 JavaScript 清空编辑区内容
-        js_code = """ 
+        js_code = """
             if (window.editor) {
                 window.editor.setValue('');
             }
         """
         self.preview.page().runJavaScript(js_code)
-    
+
     def set_file_id(self, file_id):
         self.document.file_id = file_id
-    
+
     def set_file_name(self, file_name):
         self.document.file_name = file_name
 
     def set_text_content(self, text_content):
         self.document.set_text(text_content)
 
-
     def resizeEvent(self, event):
         """窗口大小改变时触发，确保编辑区高度自适应"""
         super().resizeEvent(event)
         # 可以在这里添加额外的调整逻辑
         # 布局管理器会自动处理子部件的大小
-    
+
     def export_to_pdf(self):
         pass
-    
-  

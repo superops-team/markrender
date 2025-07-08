@@ -15,7 +15,7 @@ class StatusBar(QStatusBar):
 
         self.addPermanentWidget(self.file_size_label)
         self.addPermanentWidget(self.word_count_label)
-        
+
         # 设置样式表
         self.setStyleSheet('''
             QStatusBar {

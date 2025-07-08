@@ -12,10 +12,12 @@ from datetime import datetime, timezone, timedelta
 from utils.hash_utils import calculate_md5
 from PySide6.QtGui import QColor, QFont, QPainter, QPen  # 添加 QPen 导入
 
+
 class HistoryItemDelegate(QStyledItemDelegate):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.delete_icon = QIcon(get_icon_path('trash.svg'))  # 假设图标文件名为 trash.svg
+        self.delete_icon = QIcon(
+            get_icon_path('trash.svg'))  # 假设图标文件名为 trash.svg
         self.parent = parent  # 保存父对象引用
 
     def _format_time(self, modified_time):
@@ -42,9 +44,9 @@ class HistoryItemDelegate(QStyledItemDelegate):
 
     def paint(self, painter: QPainter, option: QStyleOptionViewItem, index):
         painter.save()
-        
+
         if option.state & QStyle.State_Selected:
-            painter.setBrush(QColor(25, 144, 255, 38))   
+            painter.setBrush(QColor(25, 144, 255, 38))
             painter.setPen(Qt.NoPen)  # 设置无边框
         elif option.state & QStyle.State_MouseOver:
             painter.setBrush(QColor(25, 144, 255, 25))
@@ -57,7 +59,8 @@ class HistoryItemDelegate(QStyledItemDelegate):
         if item_data:
             title = item_data.get('title', '')
             modified_time = item_data.get('updated_at', '')
-            preview = item_data.get('content', '')[:15] + ('...' if len(item_data.get('content', '')) > 15 else '')
+            preview = item_data.get('content', '')[
+                :15] + ('...' if len(item_data.get('content', '')) > 15 else '')
             formatted_time = self._format_time(modified_time)
 
             # 设置边距
@@ -115,7 +118,9 @@ class HistoryItemDelegate(QStyledItemDelegate):
                 )
                 # 存储删除按钮区域到 index 中，用于 editorEvent 判断
                 index.model().setData(index, delete_button_rect, Qt.UserRole + 1)
-                painter.drawPixmap(button_x, button_y, self.delete_icon.pixmap(button_width, button_height))
+                painter.drawPixmap(
+                    button_x, button_y, self.delete_icon.pixmap(
+                        button_width, button_height))
             else:
                 # 非悬停状态清除存储的删除按钮区域
                 index.model().setData(index, None, Qt.UserRole + 1)
@@ -144,6 +149,7 @@ class HistoryItemDelegate(QStyledItemDelegate):
                                 history_panel.delete_item(item_data['id'])
         return super().editorEvent(event, model, option, index)
 
+
 class HistoryPanel(QWidget):
     file_created = Signal(str)
     file_renamed = Signal(str, str)
@@ -158,11 +164,13 @@ class HistoryPanel(QWidget):
         self.history_list = QListWidget()
         # 设置 sizePolicy 为 Expanding
         from PySide6.QtWidgets import QSizePolicy
-        self.history_list.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.history_list.setSizePolicy(
+            QSizePolicy.Expanding, QSizePolicy.Expanding)
         # 禁用水平滚动条
         from PySide6.QtCore import Qt
         self.history_list.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.history_list.setItemDelegate(HistoryItemDelegate(self.history_list))
+        self.history_list.setItemDelegate(
+            HistoryItemDelegate(self.history_list))
         # 设置列表项可编辑
         self.history_list.setEditTriggers(
             QtWidgets.QAbstractItemView.DoubleClicked
@@ -195,7 +203,7 @@ class HistoryPanel(QWidget):
                 background-color: #EAF3FF;
             }
             QLineEdit:focus {
-                border: 2px solid #e1e1e1; 
+                border: 2px solid #e1e1e1;
                 outline: none;
             }
         ''')
@@ -207,35 +215,35 @@ class HistoryPanel(QWidget):
         # 优化列表项选中样式，与全局风格保持一致
         self.history_list.viewport().setMouseTracking(True)
         self.history_list.setStyleSheet('''
-            QListWidget { 
-                border: 2px solid #ddd; 
-                padding: 0; 
-            } 
-            QListWidget::item { 
-                border: 2px solid transparent; 
-                padding: 5px 10px; 
-                background-color: #f0f0f0; 
-                border-bottom: 1px solid #ddd !important; 
-            } 
-            QListWidget::item:last { 
-                border-bottom: none !important; 
-            } 
-            QListWidget::item:hover { 
-                border: 2px solid rgb(25, 144, 255, 0.1); 
-                background-color: rgb(234, 243, 255, 0.1); 
-            } 
-            QListWidget::item:selected { 
-                border: 2px solid rgb(25, 144, 255, 0.1); 
-                background-color: rgb(234, 243, 255, 0.1); 
-            } 
+            QListWidget {
+                border: 2px solid #ddd;
+                padding: 0;
+            }
+            QListWidget::item {
+                border: 2px solid transparent;
+                padding: 5px 10px;
+                background-color: #f0f0f0;
+                border-bottom: 1px solid #ddd !important;
+            }
+            QListWidget::item:last {
+                border-bottom: none !important;
+            }
+            QListWidget::item:hover {
+                border: 2px solid rgb(25, 144, 255, 0.1);
+                background-color: rgb(234, 243, 255, 0.1);
+            }
+            QListWidget::item:selected {
+                border: 2px solid rgb(25, 144, 255, 0.1);
+                background-color: rgb(234, 243, 255, 0.1);
+            }
         ''')
         main_layout.addWidget(self.history_list)
         # 设置布局后，添加样式表修改底色，这里以浅灰色为例
         self.setLayout(main_layout)
-        
+
         # 设置控件边角样式，与搜索框保持一致，并设置白色背景
         self.setStyleSheet('''
-            QWidget { 
+            QWidget {
                 border: 2px solid #ddd;
                 background-color: white;
             }
@@ -260,7 +268,6 @@ class HistoryPanel(QWidget):
                 logger.warning(f"未找到ID为 {data['id']} 的历史记录项")
         else:
             logger.warning("点击的列表项数据为空或缺少ID字段")
-        
 
     def load_history_items(self):
         """加载所有历史记录"""
@@ -298,7 +305,9 @@ class HistoryPanel(QWidget):
                     list_item.setText(item.get('title', ''))
                     self.history_list.addItem(list_item)
             logger.debug(f"过滤后匹配项数量: {self.history_list.count()}")
-            logger.debug(f"历史列表模型是否设置成功: {self.history_list.model() is not None}")
+            logger.debug(
+                f"历史列表模型是否设置成功: {
+                    self.history_list.model() is not None}")
             logger.debug("历史记录过滤完成。")
         except Exception as e:
             logger.error(f"过滤历史记录时发生错误: {e}", exc_info=True)
@@ -323,7 +332,8 @@ class HistoryPanel(QWidget):
         """保存 Markdown 变更历史"""
         index = self.history_list.currentIndex()
         # 修改获取当前标题的方式
-        current_title = self.history_list.item(index.row()).text() if index.isValid() else "Untitled"
+        current_title = self.history_list.item(
+            index.row()).text() if index.isValid() else "Untitled"
         try:
             histories = self.markdown_manager.get_file_history(current_title)
             if histories:
@@ -453,29 +463,33 @@ class HistoryPanel(QWidget):
         """删除指定ID的历史记录"""
         logger.debug(f"准备删除ID为 {item_id} 的历史记录，显示确认对话框")
         # 获取当前要删除的历史记录项
-        item = next((x for x in self.all_history_items if x['id'] == item_id), None)
+        item = next(
+            (x for x in self.all_history_items if x['id'] == item_id),
+            None)
         if not item:
             logger.warning(f'未找到ID为 {item_id} 的历史记录')
             return
 
         title = item.get('title', '')
-        preview = item.get('content', '')[:50] + ('...' if len(item.get('content', '')) > 50 else '')
+        preview = item.get('content', '')[
+            :50] + ('...' if len(item.get('content', '')) > 50 else '')
 
         # 显示确认对话框
         msg_box = QMessageBox()
         msg_box.setWindowTitle('确认删除')
         msg_box.setText('确定要删除该文件吗？')
         msg_box.setInformativeText(f'文件名: {title}\n文件预览: {preview}')
-        
+
         # 设置按钮
         cancel_btn = msg_box.addButton('取消', QMessageBox.RejectRole)
         delete_btn = msg_box.addButton('删除', QMessageBox.AcceptRole)
-        
+
         # 设置删除按钮为红色
-        delete_btn.setStyleSheet('QPushButton { color: white; background-color: #ff4444; border-radius: 4px; padding: 5px 15px; } QPushButton:hover { background-color: #cc0000; }')
-        
+        delete_btn.setStyleSheet(
+            'QPushButton { color: white; background-color: #ff4444; border-radius: 4px; padding: 5px 15px; } QPushButton:hover { background-color: #cc0000; }')
+
         msg_box.exec_()
-        
+
         if msg_box.clickedButton() != delete_btn:
             return
         logger.debug(f"用户确认删除ID为 {item_id} 的历史记录")
