@@ -1,6 +1,11 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
+import pytz
 
+def now():
+    beijing_tz = pytz.timezone('Asia/Shanghai')  # 设置北京时间时区
+    now = datetime.now(beijing_tz)  # 获取当前北京时间
+    return now
 
 def get_current_timestamp() -> str:
     """获取当前UTC时间戳，格式为ISO 8601
@@ -10,6 +15,8 @@ def get_current_timestamp() -> str:
     """
     return datetime.now(timezone.utc).isoformat()
 
+def get_duration(start: datetime, end: datetime):
+    return end - start
 
 def format_datetime(
         dt: Optional[datetime] = None,
@@ -27,6 +34,27 @@ def format_datetime(
         dt = datetime.now()
     return dt.strftime(fmt)
 
+def get_readable_time(modified_time: datetime):
+    if isinstance(modified_time, datetime):
+        # 确保 now 和 modified_time 时区一致
+        if modified_time.tzinfo is None:
+            now = datetime.now()
+        else:
+            now = datetime.now(timezone.utc)
+        delta = now - modified_time
+        if delta < timedelta(seconds=60):
+            return f'{delta.seconds}秒前'
+        elif delta < timedelta(minutes=60):
+            return f'{delta.seconds // 60}分钟前'
+        elif delta < timedelta(hours=24):
+            return f'{delta.seconds // 3600}小时前'
+        elif delta < timedelta(days=30):
+            return f'{delta.days}天前'
+        elif delta < timedelta(days=365):
+            return f'{delta.days // 30}个月前'
+        else:
+            return f'{delta.days // 365}年前'
+    return str(modified_time)
 
 def parse_datetime(
         datetime_str: str,

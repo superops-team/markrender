@@ -1,6 +1,3 @@
-# from dayu_widgets import dayu_theme
-from ui.dayu_widgets.text_edit import MTextEdit
-from ui.dayu_widgets.message import MMessage
 from PySide6.QtGui import QKeySequence
 from PySide6.QtCore import Qt
 from PySide6 import QtWidgets
@@ -77,7 +74,13 @@ class MarkdownEditor(MTextEdit):
                 title, self.toPlainText(), tags=self.parent.current_file.get(
                     'tags', None), render_style=self.parent.current_file.get(
                     'render_style', None), id=self.parent.current_file.get(
-                    'id', None))
+                    'id', None), file_path=self.parent.current_file.get(
+                    'file_path', None), theme_id=self.parent.current_file.get(
+                    'theme_id', None), converter=self.parent.current_file.get(
+                    'converter', None), converter_start=self.parent.current_file.get(
+                    'converter_start', None), converter_end=self.parent.current_file.get(
+                    'converter_end', None), status=self.parent.current_file.get(
+                    'status', None),)
             file_id = self.parent.current_file.get('id', None)
             self.markdown_manager.save_change_history(
                 file_id, old_content, self.toPlainText())

@@ -13,13 +13,12 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QIcon, QFont, QColor
 from PySide6 import QtCore, QtGui
 from PySide6.QtCore import Qt
-from utils import logger, get_icon_path
+from utils import logger, get_icon_path, time_utils
 from db import db_manager
 from db.markdown_manager import MarkdownManager
 import os
 from markitdown import MarkItDown
 import time
-import sys
 import re
 import urllib.parse
 
@@ -265,10 +264,16 @@ class ImportThread(QtCore.QThread):
         self.history_panel = history_panel
         self.file_size = os.path.getsize(file_path)
         self.file_ext = os.path.splitext(file_path)[1][1:]
+        if self.file_ext == 'pdf':
+            self.converter = 'marker-pdf'
+        else:
+            self.converter = 'markitdown'
+        self.converter_start = None
+        self.converter_end = None
 
     def run(self):
         try:
-            start_time = time.time()
+            self.converter_start = time_utils.now()
             # 假设转换过程可分步骤，这里简单模拟
             # step1: 获取文件属性
             size_kb = self.file_size / 1024
@@ -276,22 +281,35 @@ class ImportThread(QtCore.QThread):
                 size_kb:.2f} KB' if size_kb < 1024 else f'{
                 size_kb / 1024:.2f} MB'
             title = os.path.splitext(self.file_name)[0]
-            tag = self.file_ext
             self.progress_updated.emit(25)
+            last_id = self.markdown_manager.save_markdown(
+                title=title,
+                tags=self.file_ext, 
+                file_path=self.file_path, 
+                converter=self.converter, 
+                converter_start=self.converter_start,
+                status='processing',
+            )
             # step2: 转换格式
             logger.debug(f"开始转换格式！文件格式: {self.file_ext} 文件大小: {size_str}")
             md_content = self.convert()
             self.progress_updated.emit(50)
+            self.converter_end = time_utils.now()
             # step3: 写入数据
             self.markdown_manager.save_markdown(
-                title=title, content=md_content, tags=tag)
+                id=last_id,
+                content=md_content, 
+                converter=self.converter,
+                converter_start=self.converter_start,
+                converter_end=self.converter_end,
+                status='processed',
+            )
             logger.debug(
-                f"写入数据！文件格式: {
-                    self.file_ext} 文件大小: {size_str}, tags: {tag}")
+                f"写入数据！文件格式: {self.file_ext} 文件大小: {size_str} 转换器：{self.converter}")
             self.progress_updated.emit(75)
             # step4: 刷新历史记录
             self.history_panel.load_history_items()
-            process_time = time.time() - start_time
+            process_time = time_utils.get_duration(self.converter_start, self.converter_end).total_seconds()
             info_text = f"导入成功！\n处理时长: {
                 process_time:.2f} 秒\n文件格式: {
                 self.file_ext}\n文件大小: {size_str}"
@@ -307,6 +325,7 @@ class ImportThread(QtCore.QThread):
             from marker.models import create_model_dict
             from marker.config.parser import ConfigParser
             from marker.output import save_output
+            self.converter = 'marker-pdf'
             base_path = f"{db_manager.get_user_data_dir()}/output"
             # base_path = urllib.parse.quote(base_path, safe=':/')
             config = {
@@ -330,6 +349,7 @@ class ImportThread(QtCore.QThread):
                 return replace_image_paths(rendered.markdown, base_path)
             except Exception as e:
                 logger.error(f"转换 PDF 时出错, 降级为markitdown: {str(e)}")
+        self.converter = 'markitdown'
         md = MarkItDown()
         result = md.convert(self.file_path)
         return result.text_content

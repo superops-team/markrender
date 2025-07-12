@@ -6,8 +6,7 @@ from .models import Base, MarkdownFileHistory, MarkdownChangeHistory
 from db.db_manager import SingletonEngine
 from utils.hash_utils import calculate_md5
 from utils.logger_utils import logger  # 添加 logger 导入
-from datetime import datetime
-import pytz  # 导入 pytz 库
+from utils import time_utils
 
 
 class MarkdownManager:
@@ -43,17 +42,22 @@ class MarkdownManager:
             logger.error(f"Error deleting history item: {e}")
             return False
 
-    def load_history(self):
+    def load_history(self, limit=20):
         """加载所有历史记录"""
         session = self.Session()
         try:
-            histories = session.query(MarkdownFileHistory).order_by(MarkdownFileHistory.updated_at.desc()).all()
+            histories = session.query(MarkdownFileHistory).order_by(MarkdownFileHistory.updated_at.desc()).limit(limit).all()
             return [
                 {
                     'title': h.title,
                     'id': h.id,
-                    'content': h.content,
                     'tags': h.tags,
+                    'file_path': h.file_path,
+                    'theme_id': h.theme_id,
+                    'converter': h.converter,
+                    'converter_start': h.converter_start,
+                    'converter_end': h.converter_end,
+                    'status': h.status,
                     'render_style': h.render_style,
                     'updated_at': h.updated_at,
                     'content_md5': h.content_md5,
@@ -63,31 +67,53 @@ class MarkdownManager:
             raise e
         finally:
             session.close()
-
+    
     def save_markdown(
             self,
-            title,
-            content,
-            tags=None,
+            id=None,
+            title='',
+            content='',
+            tags='',
             render_style=None,
-            id=None):
+            file_path='',
+            converter='',
+            theme_id=None,
+            status='',
+            converter_start=None,
+            converter_end=None,
+        ):
         session = self.Session()
         try:
             content_md5 = calculate_md5(content)
-            beijing_tz = pytz.timezone('Asia/Shanghai')  # 设置北京时间时区
-            now = datetime.now(beijing_tz)  # 获取当前北京时间
+            now = time_utils.now()  # 获取当前北京时间
             if id:
                 # 更新现有记录
                 history = session.query(MarkdownFileHistory).filter_by(id=id).first()
                 if history:
-                    history.title = title
-                    history.content = content
-                    history.tags = tags
-                    history.render_style = render_style
-                    history.content_md5 = content_md5
+                    if title and title != history.title:
+                        history.title = title
+                    if content and content != history.content:
+                        history.content = content
+                    if file_path and file_path != history.file_path:
+                        history.file_path = file_path
+                    if theme_id and theme_id != history.theme_id:
+                        history.theme_id = theme_id
+                    if tags and tags != history.tags:
+                        history.tags = tags
+                    if render_style and render_style != history.render_style:
+                        history.render_style = render_style
+                    if content_md5 and content_md5 != history.content_md5:
+                        history.content_md5 = content_md5
                     history.updated_at = now  # 使用北京时间更新
+                    history.converter = converter
+                    if converter_start:
+                        history.converter_start = converter_start
+                    if converter_end:
+                        history.converter_end = converter_end
+                    if status:
+                        history.status = status
                     session.commit()
-                    return history
+                    return history.id
                 else:
                     raise ValueError(f"未找到 ID 为 {id} 的记录")
             else:
@@ -99,13 +125,20 @@ class MarkdownManager:
                     render_style=render_style,
                     content_md5=content_md5,
                     created_at=now,  # 使用北京时间创建
-                    updated_at=now  # 使用北京时间更新
+                    updated_at=now,  # 使用北京时间更新
+                    file_path=file_path,
+                    theme_id=theme_id,
+                    converter=converter,
+                    converter_start=converter_start,
+                    converter_end=converter_end,
+                    status=status,
                 )
                 session.add(new_history)
                 session.commit()
-                return new_history
+                return new_history.id
         except Exception as e:
             session.rollback()
+            logger.error(f"Error saving markdown: {e}")
             raise e
         finally:
             session.close()
@@ -119,6 +152,7 @@ class MarkdownManager:
             else:
                 return session.query(MarkdownFileHistory).all()
         except Exception as e:
+            logger.error(f"Error searching markdown: {e}")
             raise e
         finally:
             session.close()
@@ -129,6 +163,7 @@ class MarkdownManager:
             return session.query(MarkdownFileHistory).filter_by(
                 title=title).all()
         except Exception as e:
+            logger.error(f"Error getting file history: {e}")
             raise e
         finally:
             session.close()
@@ -146,6 +181,7 @@ class MarkdownManager:
             return new_change
         except Exception as e:
             session.rollback()
+            logger.error(f"Error saving change history: {e}")
             raise e
         finally:
             session.close()
@@ -156,6 +192,34 @@ class MarkdownManager:
             return session.query(MarkdownChangeHistory).filter_by(
                 file_id=file_id).all()
         except Exception as e:
+            logger.error(f"Error getting change history: {e}")
+            raise e
+        finally:
+            session.close()
+    
+    def get_detail(self, id):
+        session = self.Session()
+        try:
+            record = session.query(MarkdownFileHistory).filter_by(
+                id=id).first()
+            return {
+                'title': record.title,
+                'content': record.content,
+                'tags': record.tags,
+                'file_path': record.file_path,
+                'theme_id': record.theme_id,
+                'converter': record.converter,
+                'converter_start': record.converter_start,
+                'converter_end': record.converter_end,
+                'status': record.status,
+                'render_style': record.render_style,
+                'updated_at': record.updated_at,
+                'content_md5': record.content_md5,
+                'created_at': record.created_at,
+                'id': record.id
+            }
+        except Exception as e:
+            logger.error(f"Error getting detail: {e}")
             raise e
         finally:
             session.close()

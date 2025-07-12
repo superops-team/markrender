@@ -8,39 +8,33 @@ from utils.logger_utils import logger
 from utils.path import get_icon_path
 from sqlalchemy.orm import Session
 from db.models import MarkdownFileHistory
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from utils.hash_utils import calculate_md5
+from utils.time_utils import get_readable_time, get_duration
 from PySide6.QtGui import QColor, QFont, QPainter, QPen  # 添加 QPen 导入
 
 
 class HistoryItemDelegate(QStyledItemDelegate):
+    # 定义 tag 到颜色的映射表，方便扩展
+    tag_color_map = {
+        'md': QColor(159, 200, 156), 
+        'pdf': QColor(145, 200, 228),
+        'png': QColor(173, 178, 212),  
+        'jpeg': QColor(15, 130, 140), 
+        'csv': QColor(163, 220, 154), 
+        'docx': QColor(151, 176, 103),
+        'xlsx': QColor(67, 112, 87),
+
+    }
+    default_color = QColor(128, 128, 128)    # 默认灰色
+
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.delete_icon = QIcon(
-            get_icon_path('trash.svg'))  # 假设图标文件名为 trash.svg
+        self.delete_icon = QIcon(get_icon_path('trash.svg'))  # 假设图标文件名为 trash.svg
         self.parent = parent  # 保存父对象引用
 
     def _format_time(self, modified_time):
-        if isinstance(modified_time, datetime):
-            # 确保 now 和 modified_time 时区一致
-            if modified_time.tzinfo is None:
-                now = datetime.now()
-            else:
-                now = datetime.now(timezone.utc)
-            delta = now - modified_time
-            if delta < timedelta(seconds=60):
-                return f'{delta.seconds}秒前'
-            elif delta < timedelta(minutes=60):
-                return f'{delta.seconds // 60}分钟前'
-            elif delta < timedelta(hours=24):
-                return f'{delta.seconds // 3600}小时前'
-            elif delta < timedelta(days=30):
-                return f'{delta.days}天前'
-            elif delta < timedelta(days=365):
-                return f'{delta.days // 30}个月前'
-            else:
-                return f'{delta.days // 365}年前'
-        return str(modified_time)
+        return get_readable_time(modified_time)
 
     def paint(self, painter: QPainter, option: QStyleOptionViewItem, index):
         painter.save()
@@ -59,13 +53,34 @@ class HistoryItemDelegate(QStyledItemDelegate):
         if item_data:
             title = item_data.get('title', '')
             modified_time = item_data.get('updated_at', '')
-            preview = item_data.get('content', '')[
-                :15] + ('...' if len(item_data.get('content', '')) > 15 else '')
+            duration = get_duration(item_data.get('converter_start', ''), item_data.get('converter_end', '')).seconds
+            preview = "{} {}s".format(item_data.get('converter', ''), duration)
             formatted_time = self._format_time(modified_time)
+            tag = item_data.get('tags', '')  # 获取 tag 字段
 
             # 设置边距
             margin = 10
             text_rect = option.rect.adjusted(margin, margin, -margin, -margin)
+
+            # 绘制 tag 角标
+            if tag:
+                tag_font = QFont()
+                tag_font.setPointSize(8)
+                painter.setFont(tag_font)
+                painter.setPen(QColor(255, 255, 255))
+
+                # 根据 tag 内容获取对应的颜色，如果没有匹配则使用默认颜色
+                painter.setBrush(self.tag_color_map.get(tag, self.default_color))
+
+                tag_width = painter.fontMetrics().horizontalAdvance(tag) + 8
+                tag_height = 16
+                tag_x = text_rect.x()  # 设置 x 坐标为文本区域左侧
+                tag_y = text_rect.y() + 5
+                painter.drawRoundedRect(tag_x, tag_y, tag_width, tag_height, 4, 4)
+                painter.drawText(tag_x + 4, tag_y + 12, tag)
+
+                # 调整标题的起始位置，避免和 tag 角标重叠
+                text_rect = text_rect.adjusted(tag_width + 5, 0, 0, 0)
 
             # 绘制标题
             title_font = QFont()
@@ -125,6 +140,14 @@ class HistoryItemDelegate(QStyledItemDelegate):
                 # 非悬停状态清除存储的删除按钮区域
                 index.model().setData(index, None, Qt.UserRole + 1)
 
+        # 绘制分割线
+        if option.state & QStyle.State_Selected:
+            painter.setPen(QPen(QColor(25, 144, 255), 1))  # 选中状态使用蓝色
+        else:
+            painter.setPen(QPen(QColor(220, 220, 220), 1))  # 非选中状态使用浅灰色
+        line_y = option.rect.bottom() - 1
+        painter.drawLine(option.rect.left() + margin, line_y, option.rect.right() - margin, line_y)
+
         painter.restore()
 
     def sizeHint(self, option: QStyleOptionViewItem, index):
@@ -176,14 +199,8 @@ class HistoryPanel(QWidget):
             QtWidgets.QAbstractItemView.DoubleClicked
         )
         self.init_ui()
-        # 删除初始化模型及设置模型的代码
-        # self.model = QStandardItemModel()
-        # self.history_list.setModel(self.model)
-        # 将 load_history_items 调用移到 init_ui 之后，确保 search_input 已初始化
         self.load_history_items()
         self.history_list.clicked.connect(self.on_item_clicked)
-        # 删除编辑完成信号连接代码
-        # self.model.itemChanged.connect(self.save_title_edit)
 
     def init_ui(self):
         main_layout = QVBoxLayout()

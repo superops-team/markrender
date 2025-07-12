@@ -121,6 +121,8 @@ class MainWindow(QMainWindow):
             self.current_file = history_item
             # 获取选中历史项的内容
             content = history_item.get('content', '')
+            if content == '':
+                content = self.markdown_manager.get_detail(history_item.get('id', ''))['content']
             # 更新编辑区内容
             self.markdown_editor.set_file_id(history_item.get('id', ''))
             self.markdown_editor.set_file_name(history_item.get('title', ''))
