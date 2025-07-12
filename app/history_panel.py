@@ -1,5 +1,12 @@
 # 修改导入语句，添加 QEvent 导入
-from PySide6.QtWidgets import QVBoxLayout, QListWidget, QListWidgetItem, QLineEdit, QMenu, QStyledItemDelegate, QStyleOptionViewItem, QStyle, QPushButton, QMessageBox
+from PySide6.QtWidgets import (
+    QVBoxLayout,
+    QListWidget,
+    QListWidgetItem, 
+    QLineEdit, 
+    QMenu,
+    QHBoxLayout,
+    QStyledItemDelegate, QStyleOptionViewItem, QStyle, QPushButton, QMessageBox)
 from PySide6.QtGui import QAction, QPainter, QFont, QColor, QIcon
 from PySide6 import QtWidgets
 from PySide6.QtCore import Qt, Signal, QSize, QEvent, QRect  # 添加 QRect 导入
@@ -12,6 +19,7 @@ from datetime import datetime, timezone
 from utils.hash_utils import calculate_md5
 from utils.time_utils import get_readable_time, get_duration
 from PySide6.QtGui import QColor, QFont, QPainter, QPen  # 添加 QPen 导入
+from PySide6.QtWidgets import QDialog, QFormLayout, QLabel, QLineEdit, QVBoxLayout, QPushButton
 
 
 class HistoryItemDelegate(QStyledItemDelegate):
@@ -23,8 +31,12 @@ class HistoryItemDelegate(QStyledItemDelegate):
         'jpeg': QColor(15, 130, 140), 
         'csv': QColor(163, 220, 154), 
         'docx': QColor(151, 176, 103),
+        'doc': QColor(151, 176, 103),
+        'xls': QColor(67, 112, 87),
         'xlsx': QColor(67, 112, 87),
-
+        'ppt': QColor(255, 166, 115),
+        'pptx': QColor(255, 166, 115),
+        'epub': QColor(100, 226, 183),
     }
     default_color = QColor(128, 128, 128)    # 默认灰色
 
@@ -53,8 +65,11 @@ class HistoryItemDelegate(QStyledItemDelegate):
         if item_data:
             title = item_data.get('title', '')
             modified_time = item_data.get('updated_at', '')
-            duration = get_duration(item_data.get('converter_start', ''), item_data.get('converter_end', '')).seconds
-            preview = "{} {}s".format(item_data.get('converter', ''), duration)
+            if item_data.get('status', '') == 'processing':
+                preview_suffix = '后台处理中...'
+            else:
+                preview_suffix = "处理耗时：{}s".format(get_duration(item_data.get('converter_start', ''), item_data.get('converter_end', '')).seconds)
+            preview = "{} {}".format(item_data.get('converter', ''), preview_suffix)
             formatted_time = self._format_time(modified_time)
             tag = item_data.get('tags', '')  # 获取 tag 字段
 
@@ -155,6 +170,15 @@ class HistoryItemDelegate(QStyledItemDelegate):
         return QSize(option.rect.width(), 50)
 
     def editorEvent(self, event, model, option, index):
+        if event.type() == QEvent.MouseButtonDblClick and event.button() == Qt.LeftButton:
+            logger.debug("检测到鼠标双击事件")
+            item_data = index.data(Qt.UserRole)
+            if item_data:
+                if isinstance(self.parent, QListWidget):
+                    history_panel = self.parent.parent()
+                    if hasattr(history_panel, 'edit_item_title'):
+                        # 修改为调用新对话框
+                        history_panel.edit_item_title(index)
         if event.type() == QEvent.MouseButtonRelease and event.button() == Qt.LeftButton:
             logger.debug("检测到鼠标左键释放事件")
             # 从 index 中获取当前项的删除按钮区域
@@ -171,7 +195,6 @@ class HistoryItemDelegate(QStyledItemDelegate):
                             if hasattr(history_panel, 'delete_item'):
                                 history_panel.delete_item(item_data['id'])
         return super().editorEvent(event, model, option, index)
-
 
 class HistoryPanel(QWidget):
     file_created = Signal(str)
@@ -202,9 +225,23 @@ class HistoryPanel(QWidget):
         self.load_history_items()
         self.history_list.clicked.connect(self.on_item_clicked)
 
+    def edit_item_title(self, index):
+        """处理双击编辑标题逻辑"""
+        item_data = index.data(Qt.UserRole)
+        if item_data:
+            dialog = MarkdownEditDialog(item_data, self)
+            if dialog.exec():  # 显示对话框并等待用户操作
+                new_title = dialog.get_new_title()
+                if new_title:
+                    item_data['title'] = new_title
+                    # 更新 index 数据
+                    self.history_list.model().setData(index, item_data, Qt.UserRole)
+                    # 调用数据库更新逻辑，需根据实际情况实现
+                    if 'id' in item_data:
+                        self.markdown_manager.update_title(item_data['id'], new_title)
+
     def init_ui(self):
         main_layout = QVBoxLayout()
-        # 设置上下左右边距均为 5px
         main_layout.setContentsMargins(0, 0, 0, 0)
         # 创建美观的搜索框
         self.search_input = QLineEdit()
@@ -213,7 +250,7 @@ class HistoryPanel(QWidget):
             QLineEdit {
                 border: 2px solid #ddd;
                 padding: 5px 15px;
-                font-size: 20px;
+                font-size: 15px;
             }
             QLineEdit:hover {
                 border: 2px solid #E6F6FF;
@@ -522,3 +559,108 @@ class HistoryPanel(QWidget):
                 logger.warning(f'无法删除历史记录: ID为 {item_id} 的记录')
         except Exception as e:
             logger.error(f"删除历史记录失败: {e}")
+
+class MarkdownEditDialog(QDialog):
+    def __init__(self, markdown_data, parent=None):
+        super().__init__(parent)
+        self.markdown_data = markdown_data
+        self.init_ui()
+        self.setWindowTitle('编辑 Markdown 信息')
+        self.resize(450, 350)
+        self.setStyleSheet("""
+            /* Fluent UI 颜色变量 */
+            QDialog {
+                background-color: #F3F2F1;
+                border-radius: 4px;
+                font-family: 'Segoe UI', 'Segoe UI Web (West European)', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', sans-serif;
+            }
+            
+            QLabel {
+                font-size: 14px;
+                color: #323130;
+                font-weight: 400;
+            }
+            
+            QLineEdit {
+                font-size: 14px;
+                padding: 8px 12px;
+                border: 1px solid #D2D0CE;
+                border-radius: 2px;
+                background-color: #FFFFFF;
+                selection-background-color: #0078D4;
+                selection-color: #FFFFFF;
+            }
+            
+            QLineEdit:focus {
+                border: 1px solid #0078D4;
+                outline: 2px solid #71afe5;
+            }
+            
+            QPushButton {
+                background-color: #0078D4;
+                color: #FFFFFF;
+                border: none;
+                padding: 8px 16px;
+                text-align: center;
+                text-decoration: none;
+                font-size: 14px;
+                border-radius: 2px;
+                min-width: 80px;
+                font-weight: 600;
+            }
+            
+            QPushButton:hover {
+                background-color: #106EBE;
+            }
+            
+            QPushButton:pressed {
+                background-color: #005A9E;
+            }
+            
+            QPushButton:disabled {
+                background-color: #F3F2F1;
+                color: #A19F9D;
+            }
+        """)
+
+    def init_ui(self):
+        layout = QVBoxLayout()
+        form_layout = QFormLayout()
+        form_layout.setVerticalSpacing(16)
+        form_layout.setHorizontalSpacing(20)
+        form_layout.setContentsMargins(24, 24, 24, 0)
+
+        # 标题编辑框
+        self.title_edit = QLineEdit(self.markdown_data.get('title', ''))
+        self.title_edit.setStyleSheet("font-weight: 600;")
+        form_layout.addRow('<b>标题:</b>', self.title_edit)
+
+        # 其他只读属性
+        # 对键进行排序以保证顺序
+        for key in sorted(self.markdown_data.keys()):
+            if key != 'title':
+                value = self.markdown_data[key]
+                label = QLabel(str(value))
+                # 设置左对齐
+                label.setAlignment(Qt.AlignLeft)
+                # 获取对话框底色，这里假设对话框底色为 #FFFFFF，可按需修改
+                bg_color = self.palette().color(self.backgroundRole()).name()
+                label.setStyleSheet(f'color: #605E5C; font-size: 14px; background-color: {bg_color};')
+                form_layout.addRow(f'<b>{key}:</b>', label)
+
+        # 按钮区域
+        button_layout = QHBoxLayout()
+        button_layout.setAlignment(Qt.AlignRight)
+        button_layout.setContentsMargins(24, 0, 24, 24)
+        confirm_button = QPushButton('确认')
+        confirm_button.setDefault(True)
+        confirm_button.clicked.connect(self.accept)
+        button_layout.addWidget(confirm_button)
+
+        layout.addLayout(form_layout)
+        layout.addSpacing(20)
+        layout.addLayout(button_layout)
+        self.setLayout(layout)
+
+    def get_new_title(self):
+        return self.title_edit.text()

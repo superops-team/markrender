@@ -223,3 +223,24 @@ class MarkdownManager:
             raise e
         finally:
             session.close()
+        
+    def update_title(self, id, title):
+        if not id:
+            return
+        if not title:
+            return
+        session = self.Session()
+        try:
+            record = session.query(MarkdownFileHistory).filter_by(
+                id=id).first()
+            if record:
+                record.title = title
+                session.commit()
+            else:
+                raise ValueError(f"未找到 ID 为 {id} 的记录")
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error updating title: {e}")
+            raise e
+        finally:
+            session.close()

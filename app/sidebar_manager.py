@@ -52,6 +52,8 @@ class ImportDialog(QDialog):
         self.parent = parent
         self.history_panel = history_panel
         self.init_ui()
+        # 监听键盘事件以处理粘贴操作
+        self.setFocusPolicy(Qt.StrongFocus)
 
     def init_ui(self):
         self.setWindowTitle("文件导入")
@@ -173,6 +175,33 @@ class ImportDialog(QDialog):
         # 为导入区域添加点击事件
         self.import_area.mousePressEvent = self.perform_import
 
+    def keyPressEvent(self, event):
+        """监听键盘事件，处理粘贴操作"""
+        if event.matches(QtGui.QKeySequence.Paste):
+            self.handle_paste_image()
+        super().keyPressEvent(event)
+
+    def handle_paste_image(self):
+        """处理剪贴板中的图片并上传"""
+        clipboard = QtGui.QGuiApplication.clipboard()
+        mime_data = clipboard.mimeData()
+
+        if mime_data.hasImage():
+            image = mime_data.imageData()
+            # 这里可根据实际需求实现图片上传逻辑，以下为示例
+            # 生成临时文件名
+            timestamp = str(int(time.time()))
+            temp_file = os.path.join(os.getcwd(), f"pasted_image_{timestamp}.png")
+            image.save(temp_file, "PNG")
+            
+            # 调用上传逻辑，这里假设存在一个 upload_file 方法
+            self.do_import(temp_file)
+            
+            logger.info(f"已粘贴图片到 {temp_file}")
+            QMessageBox.information(self, "提示", "图片粘贴成功")
+        else:
+            QMessageBox.warning(self, "警告", "剪贴板中没有图片")
+
     def perform_import(self, event=None):  # 显式声明事件参数，设置默认值避免调用冲突
         # 定义支持的文件格式和最大文件大小
         supported_formats = [
@@ -183,7 +212,8 @@ class ImportDialog(QDialog):
             'xls',
             'pptx',
             'epub',
-            'docx']
+            'docx',
+        ]
         max_size = 30 * 1024 * 1024  # 30MB
 
         # 弹出文件选择对话框
@@ -209,7 +239,10 @@ class ImportDialog(QDialog):
             QMessageBox.warning(
                 self, "格式不支持", "仅支持 md、doc、pdf、md、excel、pptx、epub 格式的文件")
             return
+        self.do_import(file_path)
+       
 
+    def do_import(self, file_path):
         self.import_area.setEnabled(False)
         self.progress_bar.show()
         self.info_label.show()
@@ -220,15 +253,14 @@ class ImportDialog(QDialog):
         self.overlay.resize(self.import_area.size())
         # 将遮罩层置于最上层
         self.overlay.raise_()
-
-        # 创建并启动导入线程
+         # 创建并启动导入线程
         self.import_thread = ImportThread(
             file_path, self.markdown_manager, self.history_panel)
         self.import_thread.progress_updated.connect(self.update_progress)
         self.import_thread.finished.connect(self.import_finished)
         self.import_thread.error_occurred.connect(self.import_error)
         self.import_thread.start()
-
+    
     def update_progress(self, progress):
         self.progress_bar.setValue(progress)
         self.repaint()
@@ -321,39 +353,65 @@ class ImportThread(QtCore.QThread):
     def convert(self):
         # 初始化 MarkItDown
         if self.file_ext == 'pdf':
-            from marker.converters.pdf import PdfConverter
-            from marker.models import create_model_dict
-            from marker.config.parser import ConfigParser
-            from marker.output import save_output
-            self.converter = 'marker-pdf'
-            base_path = f"{db_manager.get_user_data_dir()}/output"
-            # base_path = urllib.parse.quote(base_path, safe=':/')
-            config = {
-                "output_format": "markdown",
-                "output_dir": base_path,
-            }
-            config_parser = ConfigParser(config)
-            try:
-                converter = PdfConverter(
-                    config=config_parser.generate_config_dict(),
-                    artifact_dict=create_model_dict(),
-                    processor_list=config_parser.get_processors(),
-                    renderer=config_parser.get_renderer(),
-                    llm_service=config_parser.get_llm_service()
-                )
-                rendered = converter(self.file_path)
-                logger.info(
-                    f"转换 PDF 成功, 输出路径: {base_path}, 文件名: {
-                        self.file_name}")
-                save_output(rendered, base_path, self.file_name)
-                return replace_image_paths(rendered.markdown, base_path)
-            except Exception as e:
-                logger.error(f"转换 PDF 时出错, 降级为markitdown: {str(e)}")
+            md_content = self.convert_by_markerpdf()
+        elif self.file_ext in ('doc', 'docx', 'png', 'jpg', 'jpeg'):
+            md_content = self.convert_by_docling()
+        if not md_content:
+            md_content = self.convert_by_markitdown()
+        return md_content
+       
+    
+    def convert_by_markerpdf(self):
+        """
+        use marker-pdf to parse pdf
+        """
+        from marker.converters.pdf import PdfConverter
+        from marker.models import create_model_dict
+        from marker.config.parser import ConfigParser
+        from marker.output import save_output
+        self.converter = 'marker-pdf'
+        base_path = f"{db_manager.get_user_data_dir()}/output"
+        # base_path = urllib.parse.quote(base_path, safe=':/')
+        config = {
+            "output_format": "markdown",
+            "output_dir": base_path,
+        }
+        config_parser = ConfigParser(config)
+        try:
+            converter = PdfConverter(
+                config=config_parser.generate_config_dict(),
+                artifact_dict=create_model_dict(),
+                processor_list=config_parser.get_processors(),
+                renderer=config_parser.get_renderer(),
+                llm_service=config_parser.get_llm_service()
+            )
+            rendered = converter(self.file_path)
+            logger.info(
+                f"转换 PDF 成功, 输出路径: {base_path}, 文件名: {
+                    self.file_name}")
+            save_output(rendered, base_path, self.file_name)
+            return replace_image_paths(rendered.markdown, base_path)
+        except Exception as e:
+            logger.error(f"转换 PDF 时出错, 降级为markitdown: {str(e)}")
+
+    def convert_by_markitdown(self):
+        """
+        use markitdown to parse pdf or img
+        """
         self.converter = 'markitdown'
         md = MarkItDown()
         result = md.convert(self.file_path)
         return result.text_content
-
+    
+    def convert_by_docling(self):
+        """
+        use docling to parse pdf or img
+        """
+        from docling.document_converter import DocumentConverter
+        self.converter = 'docling'
+        converter = DocumentConverter()
+        result = converter.convert(self.file_path)
+        return result.document.export_to_markdown()
 
 class SidebarManager(QWidget):
     def __init__(self, parent=None):
