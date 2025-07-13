@@ -1,4 +1,8 @@
-# 生成单文件
+# create icons
+genicon:
+	icon-gen -i ./icon_markrender.png -o icons
+
+# create single file
 onefile:
 	rm -rf build dist
 	pyinstaller --onedir \
@@ -12,7 +16,7 @@ onefile:
 		--hidden-import "PyQt5" \
 		main.py
 
-# 创建 dmg
+# create dmg
 dmg: onefile
 	mkdir -p dist/dmg
 	mv dist/markrender.app dist/dmg
@@ -23,16 +27,16 @@ dmg: onefile
 	  --window-pos 200 120 \
 	  --window-size 600 300 \
 	  --icon-size 90 \
-	  --icon "markrender.app" 175 120 \
+	  --icon "markrender.app" 120 100 \
 	  --hide-extension "markrender.app" \
 	  --app-drop-link 425 120 \
 	  "dist/markrender.dmg" \
 	  "dist/dmg/"
  	  
-# 格式化代码
+# format all python files
 fmt:
 	autopep8 --in-place --recursive --aggressive --aggressive .
 
-# 清理
+# clean no used files
 clean:
 	rm -rf app.log config.db build dist
