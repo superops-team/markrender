@@ -1,0 +1,204 @@
+from PySide6.QtGui import QColor
+from db.settings_manager import SettingsManager
+
+# 颜色常量
+COLOR_SELECTED = QColor(25, 144, 255, 38)
+COLOR_HOVER = QColor(25, 144, 255, 25)
+COLOR_DEFAULT_TEXT = QColor(0, 0, 0)
+COLOR_GRAY_TEXT = QColor(100, 100, 100)
+COLOR_WHITE = QColor(255, 255, 255)
+COLOR_LIGHT_GRAY = QColor(220, 220, 220)
+COLOR_BACKGROUND_LIGHT = '#fafafa'
+COLOR_BACKGROUND_DARK = '#1f1f1f'
+PRIMARY_BUTTON_BACKGROUND = '#0d6efd'
+PRIMARY_BUTTON_HOVER = '#0b5ed7'
+
+# Tag 颜色映射表
+TAG_COLOR_MAP = {
+    'md': QColor(159, 200, 156), 
+    'pdf': QColor(145, 200, 228),
+    'png': QColor(173, 178, 212),  
+    'jpeg': QColor(15, 130, 140), 
+    'csv': QColor(163, 220, 154), 
+    'docx': QColor(151, 176, 103),
+    'doc': QColor(151, 176, 103),
+    'xls': QColor(67, 112, 87),
+    'xlsx': QColor(67, 112, 87),
+    'ppt': QColor(255, 166, 115),
+    'pptx': QColor(255, 166, 115),
+    'epub': QColor(100, 226, 183),
+}
+DEFAULT_COLOR = QColor(128, 128, 128)
+
+# 通用样式
+DIALOG_BORDER_RADIUS = "QDialog { border-radius: 5px; }"
+WIDGET_BACKGROUND_LIGHT = "QWidget { background-color: #fafafa; }"
+WIDGET_BACKGROUND_DARK = "QWidget { background-color: #1f1f1f; }"
+
+# 导入对话框样式
+IMPORT_AREA = """
+QFrame {
+    border: 1px dashed #1990ff;
+    border-radius: 8px;
+    background-color: #f5f5f5;
+    margin: 10px;
+}
+QFrame:hover {
+    border-color: #0d6efd;
+    background-color: #e6e6e6;
+}"""
+
+IMPORT_LABEL = "background-color: #F0F3FF; padding: 10px; border-radius: 4px; color: #343a40;"
+
+# 进度条样式
+PROGRESS_BAR = """
+QProgressBar {
+    border-radius: 4px;
+    text-align: center;
+    height: 8px;
+}
+QProgressBar::chunk {
+    background-color: #0d6efd;
+    border-radius: 4px;
+}"""
+
+CONFIRM_BUTTON = """
+QPushButton {
+    background-color: #0078D4;
+    color: #FFFFFF;
+    border: none;
+    padding: 8px 16px;
+    text-align: center;
+    text-decoration: none;
+    font-size: 14px;
+    border-radius: 2px;
+    min-width: 80px;
+    font-weight: 600;
+}
+QPushButton:hover {
+    background-color: #106EBE;
+}
+        
+QPushButton:pressed {
+    background-color: #005A9E;
+}
+
+QPushButton:disabled {
+    background-color: #F3F2F1;
+    color: #A19F9D;
+}
+"""
+
+# 按钮样式
+CLOSE_BUTTON = """
+QPushButton {
+    background-color: #0d6efd;
+    color: white;
+    border-radius: 5px;
+    padding: 8px 16px;
+    font-size: 14px;
+}
+QPushButton:hover {
+    background-color: #0b5ed7;
+    border-radius: 5px;
+}"""
+
+# 顶部菜单样式
+TOP_MENU_BACKGROUND = "background: #f0f0f0;"
+
+# 编辑器样式
+EDITOR_PARENT = """
+QWidget {  /* 父容器样式 */
+    border: 2px solid #ddd;
+    padding: 0;
+}"""
+
+EDITOR_PREVIEW = """
+QWebEngineView {  /* 预览视图样式 */
+    border: none;
+    background-color: transparent;
+    margin: 0;
+    padding: 0;
+}"""
+
+PRIMARY_BUTTON = """
+    QPushButton {
+        background-color: #0d6efd;
+        color: white;
+        border-radius: 5px;
+        padding: 8px 16px;
+        font-size: 14px;
+    }
+    QPushButton:hover {
+        background-color: #0b5ed7;
+        border-radius: 5px;
+    }
+"""
+
+PROGRESS_BAR = """
+    QProgressBar {
+        border-radius: 4px;
+        text-align: center;
+        height: 8px;
+    }
+    QProgressBar::chunk {
+        background-color: #0d6efd;
+        border-radius: 4px;
+    }
+"""
+
+NEW_FILE_DIALOG = "QDialog { border-radius: 5px; }"
+
+EDITOR = """
+    QWidget {  /* 父容器样式 */
+        border: 2px solid #ddd;
+        padding: 0;
+    }
+    QWebEngineView {  /* 预览视图样式 */
+        border: none;
+        background-color: transparent; /* 设置透明背景 */
+        margin: 0; /* 移除抵消布局的 margin */
+        padding: 0; /* 移除补充的 padding */
+    }
+"""
+
+class AppStyle:
+    '''
+    应用程序样式
+    '''
+    def __init__(self) -> None:
+        self.settings_manager = SettingsManager()
+        self.dark_mode = self.settings_manager.get_setting('theme', 'dark_mode', False)
+
+    def get_background_color(self):
+        return self.WIDGET_BACKGROUND_LIGHT if not self.dark_mode else self.WIDGET_BACKGROUND_DARK
+    
+    def get_editor_preview_background_color(self):
+        return self.WIDGET_BACKGROUND_LIGHT if not self.dark_mode else self.WIDGET_BACKGROUND_DARK
+    
+    def get_confirm_button_style(self):
+        return CONFIRM_BUTTON if not self.dark_mode else CONFIRM_BUTTON.replace('#0078D4', '#005A9E')
+    
+    def get_close_button_style(self):
+        return CLOSE_BUTTON if not self.dark_mode else CLOSE_BUTTON.replace('#0d6efd', '#005A9E')
+    
+    def get_dialog_border_radius(self):
+        return DIALOG_BORDER_RADIUS
+    
+    def get_import_area(self):
+        return IMPORT_AREA
+    
+    def get_import_label(self):
+        return IMPORT_LABEL
+    
+    def get_progress_bar(self):
+        return PROGRESS_BAR
+    
+    def get_top_menu_background(self):
+        return TOP_MENU_BACKGROUND
+    
+    def get_editor_parent(self):
+        return EDITOR_PARENT
+    
+    def get_editor_preview(self):
+        return EDITOR_PREVIEW

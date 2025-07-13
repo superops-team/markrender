@@ -44,14 +44,11 @@ class MarkdownChangeHistory(Base):
     changed_at = Column(DateTime(timezone=True), server_default=func.now())  # 变更时间
 
 
-class MarkdownConverterSettings(Base):
-    __tablename__ = "markdown_converter_settings"
+class Settings(Base):
+    __tablename__ = "settings"
 
     id = Column(Integer, primary_key=True)
-    converter = Column(String, nullable=False)  # 渲染器
-    settings = Column(String, nullable=False)  # 配置, json fmt
-
-
-class Status(Enum):
-    PROCESSING = 'processing'
-    COMPLETED = 'completed'
+    key = Column(String, nullable=False, unique=True)  # 
+    value = Column(Text)  # 配置value, json格式
+    created_at = Column(DateTime(timezone=True), server_default=func.now())  # 创建时间
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())  # 更新时间

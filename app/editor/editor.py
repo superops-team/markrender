@@ -1,11 +1,11 @@
 import os
 from utils import logger
 from PySide6 import QtWidgets
-from PySide6.QtWidgets import QFileDialog
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6 import QtWebEngineCore  # Add this import
 from PySide6.QtCore import QUrl, QObject, Signal, Property
 from PySide6.QtWebChannel import QWebChannel
+from ..app_style import AppStyle
 
 
 class MarkdownDocument(QObject):
@@ -82,18 +82,7 @@ class MarkdownEditor(QtWidgets.QWidget):
         self.setLayout(layout)
 
         # 设置圆角样式
-        self.setStyleSheet('''
-            QWidget {  /* 父容器样式 */
-                border: 2px solid #ddd;
-                padding: 0;
-            }
-            QWebEngineView {  /* 预览视图样式 */
-                border: none;
-                background-color: transparent; /* 设置透明背景 */
-                margin: 0; /* 移除抵消布局的 margin */
-                padding: 0; /* 移除补充的 padding */
-            }
-        ''')
+        self.setStyleSheet(AppStyle().get_editor_parent() + AppStyle().get_editor_preview())
 
         # Setup WebChannel
         self.channel = QWebChannel(self)

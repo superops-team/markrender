@@ -579,6 +579,8 @@ class MarkdownEditDialog(QDialog):
                 font-size: 14px;
                 color: #323130;
                 font-weight: 400;
+                border: none;
+                background: transparent;
             }
             
             QLineEdit {
@@ -624,11 +626,11 @@ class MarkdownEditDialog(QDialog):
         """)
 
     def init_ui(self):
-        layout = QVBoxLayout()
+        # 使用 QFormLayout 作为主布局
         form_layout = QFormLayout()
         form_layout.setVerticalSpacing(16)
         form_layout.setHorizontalSpacing(20)
-        form_layout.setContentsMargins(24, 24, 24, 0)
+        form_layout.setContentsMargins(24, 24, 24, 24)
 
         # 标题编辑框
         self.title_edit = QLineEdit(self.markdown_data.get('title', ''))
@@ -643,24 +645,27 @@ class MarkdownEditDialog(QDialog):
                 label = QLabel(str(value))
                 # 设置左对齐
                 label.setAlignment(Qt.AlignLeft)
-                # 获取对话框底色，这里假设对话框底色为 #FFFFFF，可按需修改
-                bg_color = self.palette().color(self.backgroundRole()).name()
-                label.setStyleSheet(f'color: #605E5C; font-size: 14px; background-color: {bg_color};')
+                # 仅保留文字颜色和大小设置，移除所有可能产生边框的样式
+                label.setStyleSheet('color: #605E5C; font-size: 14px; border: none; background: transparent;')
                 form_layout.addRow(f'<b>{key}:</b>', label)
 
         # 按钮区域
         button_layout = QHBoxLayout()
         button_layout.setAlignment(Qt.AlignRight)
-        button_layout.setContentsMargins(24, 0, 24, 24)
         confirm_button = QPushButton('确认')
         confirm_button.setDefault(True)
         confirm_button.clicked.connect(self.accept)
         button_layout.addWidget(confirm_button)
 
-        layout.addLayout(form_layout)
-        layout.addSpacing(20)
-        layout.addLayout(button_layout)
-        self.setLayout(layout)
+        # 将按钮布局添加到表单布局下方
+        form_layout.addRow(button_layout)
+
+        self.setLayout(form_layout)
 
     def get_new_title(self):
         return self.title_edit.text()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        # 在对话框显示时设置输入框宽度为对话框宽度的 50%
+        self.title_edit.setMaximumWidth(int(self.width() * 0.7))

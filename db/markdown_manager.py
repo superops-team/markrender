@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
-from sqlalchemy import Column, DateTime, Integer, String, Text
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.sql import func
 from .models import Base, MarkdownFileHistory, MarkdownChangeHistory
 from db.db_manager import SingletonEngine
 from utils.hash_utils import calculate_md5

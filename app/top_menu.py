@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from db.models import MarkdownFileHistory
 from datetime import datetime, timezone
 from utils.hash_utils import calculate_md5
+from .app_style import AppStyle
 
 
 class TopMenu(QWidget):
@@ -16,7 +17,7 @@ class TopMenu(QWidget):
         self.main_window = main_window
         self.setup_menu_bar()
         self.setup_tool_buttons()
-        self.setStyleSheet("background: #f0f0f0;")
+        self.setStyleSheet(AppStyle.TOP_MENU_BACKGROUND)
         from PySide6.QtWidgets import QSizePolicy
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 

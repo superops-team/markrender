@@ -9,11 +9,13 @@ from PySide6.QtWidgets import (
     QDialog,
     QLabel,
     QProgressBar,
-    QFrame)
-from PySide6.QtGui import QIcon, QFont, QColor
+    QFrame,
+)
+from PySide6.QtGui import QIcon, QFont
 from PySide6 import QtCore, QtGui
 from PySide6.QtCore import Qt
-from utils import logger, get_icon_path, time_utils
+from app.settings_dialog import SettingsDialog
+from utils import logger, get_icon_path, time_utils, supported_formats
 from db import db_manager
 from db.markdown_manager import MarkdownManager
 import os
@@ -21,6 +23,7 @@ from markitdown import MarkItDown
 import time
 import re
 import urllib.parse
+from .app_style import AppStyle
 
 
 def replace_image_paths(content, base_url):
@@ -113,16 +116,6 @@ class ImportDialog(QDialog):
         # self.import_label.setStyleSheet("color: #343a40;")
         area_layout.addWidget(self.import_label)
 
-        # 支持的导入格式
-        supported_formats = [
-            'doc',
-            'pdf',
-            'md',
-            'xlsx',
-            'xls',
-            'pptx',
-            'epub',
-            'docx']
         self.format_label = QLabel(
             f"支持格式: {', '.join(supported_formats)}", self)
         self.format_label.setStyleSheet("color: #6c757d; font-size: 12px;")
@@ -351,10 +344,10 @@ class ImportThread(QtCore.QThread):
             self.error_occurred.emit(f"导入文件时出错: {str(e)}")
 
     def convert(self):
-        # 初始化 MarkItDown
+        md_content = ''
         if self.file_ext == 'pdf':
             md_content = self.convert_by_markerpdf()
-        elif self.file_ext in ('doc', 'docx', 'png', 'jpg', 'jpeg'):
+        if not md_content:
             md_content = self.convert_by_docling()
         if not md_content:
             md_content = self.convert_by_markitdown()
@@ -410,8 +403,11 @@ class ImportThread(QtCore.QThread):
         from docling.document_converter import DocumentConverter
         self.converter = 'docling'
         converter = DocumentConverter()
-        result = converter.convert(self.file_path)
-        return result.document.export_to_markdown()
+        try:
+            result = converter.convert(self.file_path)
+            return result.document.export_to_markdown()
+        except Exception as e:
+            logger.error(f"转换 PDF 时出错, 降级为markitdown: {str(e)}")
 
 class SidebarManager(QWidget):
     def __init__(self, parent=None):
@@ -466,9 +462,11 @@ class SidebarManager(QWidget):
         # 创建设置按钮
         self.settings_btn = QPushButton()
         self.settings_btn.setIcon(
-            QIcon(get_icon_path("settings.svg")))  # 需替换为实际图标路径
+            QIcon(get_icon_path("settings.svg")))
         self.settings_btn.setIconSize(QtCore.QSize(22, 22))
         self.settings_btn.setFlat(True)
+        # 绑定点击事件
+        self.settings_btn.clicked.connect(self.show_settings_dialog)
         layout.addWidget(self.settings_btn)
 
         # 设置布局策略
@@ -480,3 +478,15 @@ class SidebarManager(QWidget):
             self.markdown_manager,
             self.parent.history_panel if self.parent else None)
         import_dialog.exec_()
+
+    def add_settings_button(self):
+        """添加设置按钮"""
+        self.settings_button = QPushButton("设置")  # 假设使用 QPushButton，根据实际修改
+        self.settings_button.clicked.connect(self.show_settings_dialog)
+        # 将按钮添加到合适的布局中，根据实际情况修改
+        # self.sidebar_layout.addWidget(self.settings_button)
+
+    def show_settings_dialog(self):
+        """显示设置对话框"""
+        self.settings_dialog = SettingsDialog(self)
+        self.settings_dialog.exec()
