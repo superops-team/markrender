@@ -36,8 +36,8 @@ class SettingsDialog(QDialog):
         self.font_family_edit = None
         self.dark_mode_checkbox = None
         self.theme_edit = None
-        self.import_dir_edit = None
-        self.export_dir_edit = None
+        self.import_dir_edit = None  # 修改控件引用名
+        self.import_size = None  # 新增该行
         self.init_ui()
 
     def init_ui(self):
@@ -117,12 +117,14 @@ class SettingsDialog(QDialog):
         import_export_tab = QWidget()
         form_layout = QFormLayout()
 
-        # 添加设置项示例
-        self.import_dir_edit = QLineEdit(self.import_settings.get('import_dir', "默认导入目录"))
-        self.export_dir_edit = QLineEdit(self.import_settings.get('export_dir', "默认导出目录"))
+        # 修改导入设置项
+        # self.import_dir_edit = QLineEdit("默认导入目录")  # 删除该行
+        self.import_size = QSpinBox()  # 新增该行
+        self.import_size.setRange(1, 1024)  # 设置范围为 1 - 1024 MB
+        self.import_size.setValue(self.import_settings.get('import_size', 100))  # 从设置读取或使用默认值 100 MB
+        self.import_size.setSuffix(" MB")  # 设置后缀
 
-        form_layout.addRow("导入目录:", self.import_dir_edit)
-        form_layout.addRow("导出目录:", self.export_dir_edit)
+        form_layout.addRow("最大导入大小:", self.import_size)  # 修改标签
 
         # 添加 PDF 导入方式选择
         pdf_label = QLabel("PDF 导入方式:")
@@ -206,10 +208,9 @@ class SettingsDialog(QDialog):
         }
         settings_manager.create_settings('theme', appearance_settings)
 
-        # 保存导入导出设置
+        # 修改保存的导入导出设置
         import_export_settings = {
-            'import_dir': self.import_dir_edit.text(),
-            'export_dir': self.export_dir_edit.text(),
+            'import_size': self.import_size.value(),  # 新增该行
             'pdf_import_method': self.pdf_import_group.checkedButton().text(),
             'md_import_method': self.md_import_group.checkedButton().text()
         }

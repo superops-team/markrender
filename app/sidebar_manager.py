@@ -67,31 +67,20 @@ class ImportDialog(QDialog):
         # 创建大尺寸导入区域（类似拖拽风格）
         self.import_area = QFrame(self)
         self.import_area.setMinimumSize(400, 200)
-        self.import_area.setStyleSheet("""
-            QFrame {
-                border: 1px dashed #1990ff;
-                border-radius: 8px;
-                background-color: #f5f5f5;
-                margin: 10px;
-            }
-            QFrame:hover {
-                border-color: #0d6efd;
-                background-color: #e6e6e6;
-            }
-        """)
+        self.import_area.setStyleSheet(AppStyle().get_import_area())
         area_layout = QVBoxLayout(self.import_area)
         area_layout.setAlignment(QtCore.Qt.AlignCenter)
 
         # 创建遮罩层和加载状态标签，初始状态隐藏
         self.overlay = QFrame(self.import_area)
         # 修改遮罩层样式，将透明度设为 1 使其不透明
-        self.overlay.setStyleSheet("background-color: rgba(255, 255, 255, 1);")
+        self.overlay.setStyleSheet(AppStyle().get_overlay_style())
         self.overlay.setGeometry(self.import_area.geometry())
         self.overlay.hide()
 
         self.loading_label = QLabel("任务支持后台处理，可关闭此窗口，后台处理中...", self.overlay)
         self.loading_label.setAlignment(Qt.AlignCenter)
-        self.loading_label.setStyleSheet("font-size: 16px; color: #0d6efd;")
+        self.loading_label.setStyleSheet(AppStyle().get_loading_label())
         self.loading_label.setGeometry(self.overlay.geometry())
         self.loading_label.hide()
 
@@ -106,8 +95,7 @@ class ImportDialog(QDialog):
         # 设置标签居中对齐和背景颜色
         self.import_label.setAlignment(Qt.AlignCenter)
         # 合并样式设置，避免被覆盖
-        self.import_label.setStyleSheet(
-            "background-color: #F0F3FF; padding: 10px; border-radius: 4px; color: #343a40;")
+        self.import_label.setStyleSheet(AppStyle().get_import_label())
 
         # 创建布局并将标签居中添加到import_area
         label_layout = QVBoxLayout(self.import_area)
@@ -118,7 +106,7 @@ class ImportDialog(QDialog):
 
         self.format_label = QLabel(
             f"支持格式: {', '.join(supported_formats)}", self)
-        self.format_label.setStyleSheet("color: #6c757d; font-size: 12px;")
+        self.format_label.setStyleSheet(AppStyle().get_format_label())
         area_layout.addWidget(self.format_label)
 
         dialog_layout.addWidget(self.import_area, 0, QtCore.Qt.AlignCenter)
@@ -127,41 +115,19 @@ class ImportDialog(QDialog):
         self.progress_bar = QProgressBar(self)
         self.progress_bar.setRange(0, 100)
         self.progress_bar.hide()
-        self.progress_bar.setStyleSheet("""
-            QProgressBar {
-                border-radius: 4px;
-                text-align: center;
-                height: 8px;
-            }
-            QProgressBar::chunk {
-                background-color: #0d6efd;
-                border-radius: 4px;
-            }
-        """)
+        self.progress_bar.setStyleSheet(AppStyle().get_progress_bar())
         dialog_layout.addWidget(self.progress_bar)
 
         # 文件信息标签
         self.info_label = QLabel(self)
         self.info_label.hide()
-        self.info_label.setStyleSheet("color: #28a745; font-size: 13px;")
+        self.info_label.setStyleSheet(AppStyle().get_info_label())
         dialog_layout.addWidget(self.info_label)
 
         # 关闭按钮
         self.close_button = QPushButton("关闭", self)
         self.close_button.hide()
-        self.close_button.setStyleSheet("""
-            QPushButton {
-                background-color: #0d6efd;
-                color: white;
-                border-radius: 5px;
-                padding: 8px 16px;
-                font-size: 14px;
-            }
-            QPushButton:hover {
-                background-color: #0b5ed7;
-                border-radius: 5px;
-            }
-        """)
+        self.close_button.setStyleSheet(AppStyle().get_close_button_style())
         self.close_button.clicked.connect(self.close)
         dialog_layout.addWidget(self.close_button, 0, QtCore.Qt.AlignCenter)
 
@@ -197,16 +163,7 @@ class ImportDialog(QDialog):
 
     def perform_import(self, event=None):  # 显式声明事件参数，设置默认值避免调用冲突
         # 定义支持的文件格式和最大文件大小
-        supported_formats = [
-            'doc',
-            'pdf',
-            'md',
-            'xlsx',
-            'xls',
-            'pptx',
-            'epub',
-            'docx',
-        ]
+        supported_formats = AppStyle().get_supported_formats()
         max_size = 30 * 1024 * 1024  # 30MB
 
         # 弹出文件选择对话框

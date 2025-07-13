@@ -49,6 +49,13 @@ QFrame:hover {
 }"""
 
 IMPORT_LABEL = "background-color: #F0F3FF; padding: 10px; border-radius: 4px; color: #343a40;"
+INFO_LABEL = "color: #28a745; font-size: 13px;"
+FORMAT_LABEL = "color: #6c757d; font-size: 12px;"
+LOADING_LABEL = "font-size: 16px; color: #0d6efd;"
+
+OVERLAY_STYLE = """
+background-color: rgba(255, 255, 255, 1);
+"""
 
 # 进度条样式
 PROGRESS_BAR = """
@@ -202,3 +209,21 @@ class AppStyle:
     
     def get_editor_preview(self):
         return EDITOR_PREVIEW
+    
+    def get_format_label(self):
+        return FORMAT_LABEL
+    
+    def get_info_label(self):
+        return INFO_LABEL
+    
+    def get_loading_label(self):
+        return LOADING_LABEL
+    
+    def get_primary_button(self):
+        return PRIMARY_BUTTON
+    
+    def get_overlay_style(self):
+        return OVERLAY_STYLE
+    
+    def get_supported_formats(self):
+        return TAG_COLOR_MAP.keys()
