@@ -19,7 +19,8 @@
         }
         #editor {
             width: calc(100% - 20px);
-            height: calc(100vh - 20px);
+            height: auto;
+            /* height: calc(100vh - 20px);*/
             margin: 0px;
             /* 修改：移除禁止编辑器滚动的样式 */
             /* overflow: hidden; 禁止编辑器滚动 */
@@ -57,13 +58,18 @@
                 float: []
             },
             // 启用双栏模式
-            mode: 'edit',
+            mode: 'edit&preview',
             preview: {
                 // 设置预览区域样式
                 style: {
                     height: 'auto',
                     width: '100%'
                 }
+            },
+            syntax: {              
+            },
+            header: {
+                anchorStyle: 'none',
             }
         });
 
@@ -118,10 +124,11 @@
                 console.log('收到 text_changed 信号，文本长度: ', text.length);
                 if (window.editor) {
                     window.editor.setValue('');
-                    totalData = text.split('\n');
+                    // totalData = text.split('\n');
                 }
                 // 仅在第一次加载时初始化 totalData
-                loadFirstPage();
+                // loadFirstPage();
+                window.editor.setValue(text);
             });
         });
 
