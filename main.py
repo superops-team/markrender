@@ -10,7 +10,7 @@ from app.status_bar import StatusBar
 from app.history_panel import HistoryPanel
 from app.sidebar_manager import SidebarManager
 from db.markdown_manager import MarkdownManager
-
+import scipy # just for load package
 
 class MainWindow(QMainWindow):
     def __init__(self):

@@ -16,8 +16,9 @@ from PySide6 import QtCore, QtGui
 from PySide6.QtCore import Qt
 from app.settings_dialog import SettingsDialog
 from utils import logger, get_icon_path, time_utils, supported_formats
-from db import db_manager
+from db import db_manager, settings_manager
 from db.markdown_manager import MarkdownManager
+from db.settings_manager import SettingsManager
 import os
 from markitdown import MarkItDown
 import time
@@ -57,6 +58,8 @@ class ImportDialog(QDialog):
         self.init_ui()
         # 监听键盘事件以处理粘贴操作
         self.setFocusPolicy(Qt.StrongFocus)
+        self.import_settings = SettingsManager().get_settings_dict('import') # 导入导出设置
+
 
     def init_ui(self):
         self.setWindowTitle("文件导入")
@@ -104,8 +107,7 @@ class ImportDialog(QDialog):
         # self.import_label.setStyleSheet("color: #343a40;")
         area_layout.addWidget(self.import_label)
 
-        self.format_label = QLabel(
-            f"支持格式: {', '.join(supported_formats)}", self)
+        self.format_label = QLabel(f"支持格式: {', '.join(supported_formats)}", self)
         self.format_label.setStyleSheet(AppStyle().get_format_label())
         area_layout.addWidget(self.format_label)
 
@@ -164,7 +166,9 @@ class ImportDialog(QDialog):
     def perform_import(self, event=None):  # 显式声明事件参数，设置默认值避免调用冲突
         # 定义支持的文件格式和最大文件大小
         supported_formats = AppStyle().get_supported_formats()
-        max_size = 30 * 1024 * 1024  # 30MB
+        # max_size = 30 * 1024 * 1024  # 30MB
+        import_size = self.import_settings.get('import_size', 30)
+        max_size = int(import_size) * 1024 * 1024
 
         # 弹出文件选择对话框
         file_path, _ = QFileDialog.getOpenFileName(
@@ -180,14 +184,14 @@ class ImportDialog(QDialog):
         # 验证文件大小
         file_size = os.path.getsize(file_path)
         if file_size > max_size:
-            QMessageBox.warning(self, "文件过大", "文件大小不能超过 30MB")
+            QMessageBox.warning(self, f"文件过大", f"文件大小不能超过 {import_size}MB")
             return
 
         # 验证文件格式
         file_ext = os.path.splitext(file_path)[1][1:]
         if file_ext not in supported_formats:
             QMessageBox.warning(
-                self, "格式不支持", "仅支持 md、doc、pdf、md、excel、pptx、epub 格式的文件")
+                self, "格式不支持", f"仅支持 {', '.join(supported_formats)} 格式的文件")
             return
         self.do_import(file_path)
        
@@ -244,6 +248,7 @@ class ImportThread(QtCore.QThread):
         self.file_name = os.path.basename(self.file_path)
         self.markdown_manager = markdown_manager
         self.history_panel = history_panel
+        self.import_settings = SettingsManager().get_settings_dict('import') # 导入导出设置
         self.file_size = os.path.getsize(file_path)
         self.file_ext = os.path.splitext(file_path)[1][1:]
         if self.file_ext == 'pdf':
@@ -303,9 +308,15 @@ class ImportThread(QtCore.QThread):
     def convert(self):
         md_content = ''
         if self.file_ext == 'pdf':
-            md_content = self.convert_by_markerpdf()
-        if not md_content:
-            md_content = self.convert_by_docling()
+            import_method = self.import_settings.get('pdf_import_method', 'marker-pdf')
+            if import_method == 'marker-pdf':
+                md_content = self.convert_by_markerpdf()
+            if import_method == 'markitdown':
+                md_content = self.convert_by_markitdown()
+            if import_method == 'docling':
+                md_content = self.convert_by_docling()
+        if self.file_ext in ('md', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'):
+            md_content = self.convert_by_markitdown()
         if not md_content:
             md_content = self.convert_by_markitdown()
         return md_content
