@@ -39,4 +39,52 @@ Here are some screenshots of the application's graphical user interface:
 
 ![Markdown Preview](./docs/markdown_show.png)
 
-More converters are in development.
+## Installation
+### Python Environment Setup
+1. **Install Homebrew** (if not installed):
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+2. Install python
+
+```
+brew install python3
+```
+
+3. Create and activate a virtual environment (optional but recommended):
+
+```
+python3 -m venv venv
+source venv/bin/activate
+```
+
+4. Install dependencies:
+```
+pip install -r requirements.txt
+```
+
+5. Run the application:
+
+```
+python3 main.py
+```
+
+## Build Mac DMG
+### Using Makefile
+1. Ensure that the Makefile and build.sh files are present in the project root directory.
+2. Build the application using the following command:
+
+```
+make dmg
+```
+3. After the build is complete, you can find the generated DMG file in the appropriate output directory.
+
+## TODO
+
+- [ ] Build Linux AppImage
+- [ ] fix model dir err
+
+```
+model dir not found at /Applications/markrender.app/Contents/Frameworks/magika/models/standard_v3_3
+```

@@ -13,7 +13,10 @@ onefile:
 		--add-data "icons/app.icns:." \
 		--add-data "icons:icons" \
 		--add-data "app/editor/resources:app/editor/resources" \
-		--hidden-import "PyQt5" \
+		--hidden-import "scipy" \
+		--hidden-import "scipy._cyutility" \
+		--hidden-import "numpy" \
+		--noconfirm \
 		main.py
 
 # create dmg

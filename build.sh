@@ -13,7 +13,8 @@ pyinstaller --onedir \
 		--add-data "icons:icons" \
 		--add-data "app/editor/resources:app/editor/resources" \
 		--add-data "ui/assets:ui/assets" \
-		--hidden-import "PyQt5" \
+		--hidden-import "scipy" \
+		--hidden-import "numpy" \
 		main.py
 
 mkdir -p dist/dmg
