@@ -9,13 +9,6 @@ onefile:
 		--add-data "icons/app.icns:." \
 		--add-data "icons:icons" \
 		--add-data "app/editor/resources:app/editor/resources" \
-		--add-data "ui/dayu_widgets/static:ui/dayu_widgets/static" \
-		--add-data "ui/dayu_widgets/qt:ui/dayu_widgets/qt" \
-		--add-data "ui/assets:ui/assets" \
-		--hidden-import "ui.dayu_widgets.splitter" \
-		--hidden-import "ui.dayu_widgets.theme" \
-		--hidden-import "ui.dayu_widgets.tool_button" \
-		--hidden-import "ui.dayu_widgets.toast" \
 		--hidden-import "PyQt5" \
 		main.py
 

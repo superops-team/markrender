@@ -1,13 +1,12 @@
-from PySide6.QtWidgets import QStatusBar
-from ui.dayu_widgets import MLabel
+from PySide6.QtWidgets import QStatusBar, QLabel  # 修改导入语句
 from PySide6.QtCore import Qt
 
 
 class StatusBar(QStatusBar):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.file_size_label = MLabel("大小: 0 KB")
-        self.word_count_label = MLabel("字数: 0")
+        self.file_size_label = QLabel("大小: 0 KB")  # 修改为 QLabel
+        self.word_count_label = QLabel("字数: 0")  # 修改为 QLabel
 
         # 设置标签对齐方式为右对齐
         self.file_size_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
