@@ -6,6 +6,7 @@ from PySide6 import QtWebEngineCore  # Add this import
 from PySide6.QtCore import QUrl, QObject, Signal, Property
 from PySide6.QtWebChannel import QWebChannel
 from ..app_style import AppStyle
+from PySide6.QtWebEngineCore import QWebEnginePage
 
 
 class MarkdownDocument(QObject):
@@ -37,20 +38,6 @@ class MarkdownDocument(QObject):
         self._lines = text.split('\n')
         self.text_changed.emit(text)
 
-    def load_more(self):
-        logger.debug(
-            f'load_more, file_id: {
-                self.file_id}, _loaded_lines: {
-                self._loaded_lines}, _page_size: {
-                self._page_size}, _lines: {
-                    self._lines}')
-        start = self._loaded_lines
-        end = start + self._page_size
-        page_text = '\n'.join(self._lines[start:end])
-        if page_text:
-            self._loaded_lines = end
-            self.text_changed.emit(page_text)
-
     def reset(self):
         """重置文档状态"""
         self._text = ""
@@ -61,6 +48,17 @@ class MarkdownDocument(QObject):
     text_changed = Signal(str)
     text = Property(str, get_text, set_text, notify=text_changed)
 
+
+# 自定义 QWebEnginePage 类，拦截控制台日志
+class CustomWebEnginePage(QWebEnginePage):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+    def javaScriptConsoleMessage(self, level, message, line_number, source_id):
+        # 调用原有的处理方法，可根据需求修改处理逻辑
+        super().javaScriptConsoleMessage(level, message, line_number, source_id)
+        # 可以在这里添加自定义的日志记录逻辑
+        print(f"JS Console: {message} (Line {line_number} in {source_id})", level)
 
 class MarkdownEditor(QtWidgets.QWidget):
     def __init__(self, parent=None, file_id="", file_name=""):
@@ -73,6 +71,9 @@ class MarkdownEditor(QtWidgets.QWidget):
     def setup_ui(self):
         # Web view for Cherry Markdown
         self.preview = QWebEngineView()
+        # 创建自定义的 Page 实例
+        page = CustomWebEnginePage(self.preview)
+        self.preview.setPage(page)
 
         # 创建布局
         layout = QtWidgets.QVBoxLayout()
@@ -143,5 +144,12 @@ class MarkdownEditor(QtWidgets.QWidget):
         # 可以在这里添加额外的调整逻辑
         # 布局管理器会自动处理子部件的大小
 
-    def export_to_pdf(self):
-        pass
+    def handle_js_console_message(self, level, message, line_number, source_id):
+        """处理 JavaScript 控制台消息"""
+        level_map = {
+            QWebEnginePage.InfoMessageLevel: "INFO",
+            QWebEnginePage.WarningMessageLevel: "WARNING",
+            QWebEnginePage.ErrorMessageLevel: "ERROR"
+        }
+        log_level = level_map.get(level, "UNKNOWN")
+        logger.info(f"JS {log_level}: {message} at {source_id}:{line_number}")
