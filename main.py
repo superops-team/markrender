@@ -74,7 +74,7 @@ class MainWindow(QMainWindow):
                 width: 2px;
             }
             QSplitter {
-                padding: 3px;
+                padding: 2px;
             }
             QSplitter > QWidget {
                 margin: 2 2px;

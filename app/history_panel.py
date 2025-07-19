@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QStyledItemDelegate, QStyleOptionViewItem, QStyle, QPushButton, QMessageBox)
 from PySide6.QtGui import QAction, QPainter, QFont, QColor, QIcon
-from PySide6 import QtWidgets
+from PySide6 import QtWidgets, QtCore
 from PySide6.QtCore import Qt, Signal, QSize, QEvent, QRect  # 添加 QRect 导入
 from PySide6.QtWidgets import QWidget, QInputDialog
 from utils.logger_utils import logger
@@ -242,36 +242,77 @@ class HistoryPanel(QWidget):
 
     def init_ui(self):
         main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(0, 0, 0, 0)
+        # 设置主布局内容边距，上右下左均为5px
+        main_layout.setContentsMargins(5, 5, 5, 5)
+        
+        # 创建搜索和新建按钮的水平布局
+        search_layout = QHBoxLayout()
+        search_layout.setSpacing(5)
+        
         # 创建美观的搜索框
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("搜索...")
+        self.search_input.setPlaceholderText("搜索历史记录...")
         self.search_input.setStyleSheet('''
             QLineEdit {
                 border: 2px solid #ddd;
-                padding: 5px 15px;
-                font-size: 15px;
+                border-radius: 15px;
+                padding: 8px 15px;
+                font-size: 14px;
             }
             QLineEdit:hover {
-                border: 2px solid #E6F6FF;
-                background-color: #EAF3FF;
+                border-color: #E6F6FF;
+                background-color: #F5F9FF;
             }
             QLineEdit:focus {
-                border: 2px solid #e1e1e1;
+                border-color: #2591FF;
+                background-color: white;
                 outline: none;
             }
         ''')
-        # #E6F6FF
         self.search_input.textChanged.connect(self.filter_history)
         self.search_input.returnPressed.connect(self.filter_history)
-        main_layout.addWidget(self.search_input)
-
+        
+        # 创建新建按钮
+        self.new_btn = QPushButton()
+        self.new_btn.setIcon(QIcon(get_icon_path("pencil-square.svg")))
+        self.new_btn.setIconSize(QtCore.QSize(20, 20))
+        self.new_btn.setStyleSheet('''
+            QPushButton {
+                border: none;
+                border-radius: 10px;
+                padding: 6px 10px;
+                background-color: #F7F7F7;
+                margin-right: 5px;
+                color: white;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            }
+            QPushButton:hover {
+                background-color: #E6F6FF;
+            }
+            QPushButton:pressed {
+                background-color: #E6F6FF;
+            } 
+        ''')
+        self.new_btn.clicked.connect(self.create_new_markdown)
+        
+        # 添加到水平布局
+        search_layout.addWidget(self.search_input)
+        search_layout.addWidget(self.new_btn)
+        
+        # 添加到主布局
+        main_layout.addLayout(search_layout)
+        
+        # 设置搜索框和历史列表之间的间距为5px
+        main_layout.setSpacing(5)
+        
         # 优化列表项选中样式，与全局风格保持一致
         self.history_list.viewport().setMouseTracking(True)
         self.history_list.setStyleSheet('''
             QListWidget {
                 border: 2px solid #ddd;
+                border-radius: 8px;
                 padding: 0;
+                margin-top: 0px; /* 移除原有的margin-top设置 */
             }
             QListWidget::item {
                 border: 2px solid transparent;
@@ -459,36 +500,25 @@ class HistoryPanel(QWidget):
         except Exception as e:
             logger.error(f"删除历史记录失败: {e}")
 
-    def save_new_markdown(self, title, content):
-        try:
-            logger.debug(f"开始保存新的 Markdown 文件，标题: {title}")
-            theme_names = self.parent.theme_manager_gui.get_theme_names()
-            logger.debug(f"获取到的主题名称列表: {theme_names}")
-            first_theme_style = self.parent.theme_manager_gui.get_current_style() if theme_names else ''
-            logger.debug(f"当前使用的主题样式: {first_theme_style}")
-            new_file = MarkdownFileHistory(
-                title=title,
-                content=content,
-                tags='',
-                render_style=first_theme_style,
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-                content_md5=calculate_md5(content)
-            )
-            logger.debug(f"创建的新文件对象: {new_file}")
-
-            logger.debug("尝试将新文件添加到数据库...")
-            save_result = self.markdown_manager.add_history_item(new_file)
-            if save_result:
-                logger.info(f"成功保存Markdown文件到数据库，标题: {title}，内容: {content}")
-                logger.debug("调用 load_history_items 方法刷新历史记录...")
-                self.load_history_items()
-                logger.debug("发射 file_created 信号...")
-                self.file_created.emit(title)
-            else:
-                logger.warning(f"将文件添加到数据库失败，标题: {title}")
-        except Exception as e:
-            logger.error(f"保存新文件失败: {e}", exc_info=True)
+    def create_new_markdown(self):
+        """创建新的markdown文档"""
+        from utils import time_utils
+        timestamp = time_utils.now().strftime('%Y%m%d%H%M%S')
+        new_item = {
+            'title': 'manual-{}'.format(timestamp),
+            'content': '',
+            'tags': 'md',
+            'status': 'processed',
+            'converter': 'manual',
+        }
+        # 保存到数据库
+        self.markdown_manager.save_markdown(**new_item)
+        # 刷新历史列表
+        self.load_history_items()
+        # 选择新创建的项目
+        if self.history_list.count() > 0:
+            self.history_list.setCurrentRow(0)
+            self.on_item_clicked(self.history_list.model().index(0, 0))
 
     def toggle_visibility(self):
         """切换面板可见性"""
@@ -508,10 +538,6 @@ class HistoryPanel(QWidget):
             if data and data.get('id') == current_file['id']:
                 self.history_list.setCurrentItem(item)
                 break
-
-    def save_title_edit(self, item):
-        # 此方法暂时不需要，可删除
-        pass
 
     def delete_item(self, item_id):
         """删除指定ID的历史记录"""
@@ -535,7 +561,6 @@ class HistoryPanel(QWidget):
         msg_box.setInformativeText(f'文件名: {title}\n文件预览: {preview}')
 
         # 设置按钮
-        cancel_btn = msg_box.addButton('取消', QMessageBox.RejectRole)
         delete_btn = msg_box.addButton('删除', QMessageBox.AcceptRole)
 
         # 设置删除按钮为红色

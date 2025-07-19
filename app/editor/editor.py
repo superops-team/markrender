@@ -78,7 +78,7 @@ class MarkdownEditor(QtWidgets.QWidget):
         # 创建布局
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self.preview)
-        layout.setContentsMargins(2, 2, 2, 2)
+        layout.setContentsMargins(5, 5, 5, 5)
         layout.setSpacing(0)
         self.setLayout(layout)
 
