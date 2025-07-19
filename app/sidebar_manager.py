@@ -16,7 +16,7 @@ from PySide6 import QtCore, QtGui
 from PySide6.QtCore import Qt
 from app.settings_dialog import SettingsDialog
 from utils import logger, get_icon_path, time_utils, supported_formats
-from db import db_manager, settings_manager
+from db import db_manager
 from db.markdown_manager import MarkdownManager
 from db.settings_manager import SettingsManager
 import os
@@ -377,8 +377,8 @@ class SidebarManager(QWidget):
 
         # 创建顶部按钮组
         self.file_browse_btn = QPushButton()
-        self.file_browse_btn.setIcon(QIcon(get_icon_path("cast.svg")))
-        self.file_browse_btn.setIconSize(QtCore.QSize(22, 22))
+        self.file_browse_btn.setIcon(QIcon(get_icon_path("home.svg")))
+        self.file_browse_btn.setIconSize(QtCore.QSize(25, 25))
         self.file_browse_btn.setFlat(True)
 
         # 假设在类中已经保存了 HistoryPanel 实例
@@ -386,22 +386,15 @@ class SidebarManager(QWidget):
             self.file_browse_btn.clicked.connect(
                 self.parent.history_panel.load_history_items)
 
-        self.search_btn = QPushButton()
-        self.search_btn.setIcon(
-            QIcon(get_icon_path("search.svg")))  # 需替换为实际图标路径
-        self.search_btn.setIconSize(QtCore.QSize(22, 22))
-        self.search_btn.setFlat(True)
-
         self.import_btn = QPushButton()
         self.import_btn.setIcon(
             QIcon(get_icon_path("plus-square.svg")))  # 需替换为实际图标路径
-        self.import_btn.setIconSize(QtCore.QSize(22, 22))
+        self.import_btn.setIconSize(QtCore.QSize(25, 25))
         self.import_btn.setFlat(True)
         self.import_btn.clicked.connect(self.handle_import)
 
         # 将顶部按钮添加到布局
         layout.addWidget(self.file_browse_btn)
-        layout.addWidget(self.search_btn)
         layout.addWidget(self.import_btn)
 
         # 添加弹性空间，使设置按钮位于底部
@@ -416,7 +409,7 @@ class SidebarManager(QWidget):
         self.settings_btn = QPushButton()
         self.settings_btn.setIcon(
             QIcon(get_icon_path("settings.svg")))
-        self.settings_btn.setIconSize(QtCore.QSize(22, 22))
+        self.settings_btn.setIconSize(QtCore.QSize(25, 25))
         self.settings_btn.setFlat(True)
         # 绑定点击事件
         self.settings_btn.clicked.connect(self.show_settings_dialog)
@@ -431,13 +424,6 @@ class SidebarManager(QWidget):
             self.markdown_manager,
             self.parent.history_panel if self.parent else None)
         import_dialog.exec_()
-
-    def add_settings_button(self):
-        """添加设置按钮"""
-        self.settings_button = QPushButton("设置")  # 假设使用 QPushButton，根据实际修改
-        self.settings_button.clicked.connect(self.show_settings_dialog)
-        # 将按钮添加到合适的布局中，根据实际情况修改
-        # self.sidebar_layout.addWidget(self.settings_button)
 
     def show_settings_dialog(self):
         """显示设置对话框"""

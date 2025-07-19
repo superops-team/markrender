@@ -10,7 +10,6 @@ from app.status_bar import StatusBar
 from app.history_panel import HistoryPanel
 from app.sidebar_manager import SidebarManager
 from db.markdown_manager import MarkdownManager
-import scipy # just for load package
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -66,10 +65,6 @@ class MainWindow(QMainWindow):
 
         # 修改为创建主分割器，使用 PySide6 原生的 QSplitter
         main_splitter = QSplitter(Qt.Horizontal)
-        # 禁止分割条调整大小
-        main_splitter.setOpaqueResize(False)
-        main_splitter.setHandleWidth(0)
-
         # 创建右侧内容分割器，同样使用 QSplitter
         right_splitter = QSplitter(Qt.Horizontal)
         # 设置分割器样式，统一边距和圆角
@@ -85,19 +80,28 @@ class MainWindow(QMainWindow):
                 margin: 2 2px;
             }
         ''')
+        # 隐藏分割条并禁用拖拽功能
+        right_splitter.setHandleWidth(0)        
+        # 设置主分割器样式，显示分隔线，鼠标悬停时不改变光标样式
+        main_splitter.setStyleSheet('''
+            QSplitter::handle {
+                background: #c0c0c0;
+                width: 2px;
+            }
+        ''')
+        
         right_splitter.addWidget(self.history_panel)
         right_splitter.addWidget(self.markdown_editor)
-        initial_right_sizes = [
-            int(self.width() * 0.2), int(self.width() * 0.8)]
+        initial_right_sizes = [int(self.width() * 0.2), int(self.width() * 0.8)]
         right_splitter.setSizes(initial_right_sizes)
 
         # 将侧边栏和右侧内容添加到主分割器，侧边栏放在左侧
         main_splitter.addWidget(self.sidebar)
         main_splitter.addWidget(right_splitter)
 
-        # 设置侧边栏宽度为 30，并禁止调整大小
-        main_splitter.setSizes([32, int(self.width() - 32)])
-        self.sidebar.setFixedWidth(32)
+        # 设置侧边栏宽度为 60，并禁止调整大小
+        main_splitter.setSizes([40, int(self.width() - 40)])
+        self.sidebar.setFixedWidth(40)
 
         self.main_layout.addWidget(main_splitter)
 
