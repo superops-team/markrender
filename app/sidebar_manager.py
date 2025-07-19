@@ -313,8 +313,6 @@ class ImportThread(QtCore.QThread):
                 md_content = self.convert_by_markerpdf()
             if import_method == 'markitdown':
                 md_content = self.convert_by_markitdown()
-            if import_method == 'docling':
-                md_content = self.convert_by_docling()
         if self.file_ext in ('md', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'):
             md_content = self.convert_by_markitdown()
         if not md_content:
@@ -363,19 +361,6 @@ class ImportThread(QtCore.QThread):
         md = MarkItDown()
         result = md.convert(self.file_path)
         return result.text_content
-    
-    def convert_by_docling(self):
-        """
-        use docling to parse pdf or img
-        """
-        from docling.document_converter import DocumentConverter
-        self.converter = 'docling'
-        converter = DocumentConverter()
-        try:
-            result = converter.convert(self.file_path)
-            return result.document.export_to_markdown()
-        except Exception as e:
-            logger.error(f"转换 PDF 时出错, 降级为markitdown: {str(e)}")
 
 class SidebarManager(QWidget):
     def __init__(self, parent=None):
