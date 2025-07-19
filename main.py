@@ -100,8 +100,8 @@ class MainWindow(QMainWindow):
         main_splitter.addWidget(right_splitter)
 
         # 设置侧边栏宽度为 60，并禁止调整大小
-        main_splitter.setSizes([40, int(self.width() - 40)])
-        self.sidebar.setFixedWidth(40)
+        main_splitter.setSizes([45, int(self.width() - 45)])
+        self.sidebar.setFixedWidth(45)
 
         self.main_layout.addWidget(main_splitter)
 
@@ -141,16 +141,6 @@ class MainWindow(QMainWindow):
         self.history_panel.load_history_items()
         if self.current_file:
             self.history_panel.select_history_item(self.current_file)
-
-    def export_pdf(self):
-        """导出PDF功能"""
-        logger.info('触发导出PDF功能')
-        try:
-            # 假设 self.markdown_editor 是 Markdown 编辑器实例
-            self.markdown_editor.export_to_pdf()
-            logger.info('PDF导出成功')
-        except Exception as e:
-            logger.error(f'PDF导出失败: {str(e)}')
 
 
 if __name__ == "__main__":

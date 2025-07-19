@@ -9,15 +9,15 @@ from PySide6.QtWidgets import (
     QStyledItemDelegate, QStyleOptionViewItem, QStyle, QPushButton, QMessageBox)
 from PySide6.QtGui import QAction, QPainter, QFont, QColor, QIcon
 from PySide6 import QtWidgets, QtCore
-from PySide6.QtCore import Qt, Signal, QSize, QEvent, QRect  # 添加 QRect 导入
+from PySide6.QtCore import Qt, Signal, QSize, QEvent, QRect, QTimer  # 添加 QRect 导入
 from PySide6.QtWidgets import QWidget, QInputDialog
 from utils.logger_utils import logger
 from utils.path import get_icon_path
 from sqlalchemy.orm import Session
 from db.models import MarkdownFileHistory
-from datetime import datetime, timezone
-from utils.hash_utils import calculate_md5
+from datetime import datetime
 from utils.time_utils import get_readable_time, get_duration
+from app.app_style import AppStyle
 from PySide6.QtGui import QColor, QFont, QPainter, QPen  # 添加 QPen 导入
 from PySide6.QtWidgets import QDialog, QFormLayout, QLabel, QLineEdit, QVBoxLayout, QPushButton
 
@@ -42,7 +42,8 @@ class HistoryItemDelegate(QStyledItemDelegate):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.delete_icon = QIcon(get_icon_path('trash.svg'))  # 假设图标文件名为 trash.svg
+        self.delete_icon = QIcon(get_icon_path('trash-selected'))  # 假设图标文件名为 trash
+        #self.delete_selected_icon = QIcon(get_icon_path('trash-selected'))
         self.parent = parent  # 保存父对象引用
 
     def _format_time(self, modified_time):
@@ -54,9 +55,12 @@ class HistoryItemDelegate(QStyledItemDelegate):
         if option.state & QStyle.State_Selected:
             painter.setBrush(QColor(25, 144, 255, 38))
             painter.setPen(Qt.NoPen)  # 设置无边框
+            # 添加绘制背景矩形的代码
+            painter.drawRect(option.rect)  # 绘制完整项的背景
         elif option.state & QStyle.State_MouseOver:
             painter.setBrush(QColor(25, 144, 255, 25))
             painter.setPen(Qt.NoPen)  # 设置无边框
+            painter.drawRect(option.rect)  # 绘制完整项的背景
         else:
             painter.setPen(Qt.NoPen)  # 设置无边框
 
@@ -274,25 +278,14 @@ class HistoryPanel(QWidget):
         
         # 创建新建按钮
         self.new_btn = QPushButton()
-        self.new_btn.setIcon(QIcon(get_icon_path("pencil-square.svg")))
+        # 设置可选中状态
+        self.new_btn.setCheckable(True)
+        # 初始图标（默认状态）
+        self.new_btn.setIcon(QIcon(get_icon_path("pencil-square", selected=False)))
         self.new_btn.setIconSize(QtCore.QSize(20, 20))
-        self.new_btn.setStyleSheet('''
-            QPushButton {
-                border: none;
-                border-radius: 10px;
-                padding: 6px 10px;
-                background-color: #F7F7F7;
-                margin-right: 5px;
-                color: white;
-                box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            }
-            QPushButton:hover {
-                background-color: #E6F6FF;
-            }
-            QPushButton:pressed {
-                background-color: #E6F6FF;
-            } 
-        ''')
+        # 应用统一侧边栏按钮样式
+        self.new_btn.setStyleSheet(AppStyle().get_sidebar_button_style())
+        # 连接状态切换信号
         self.new_btn.clicked.connect(self.create_new_markdown)
         
         # 添加到水平布局
@@ -499,7 +492,7 @@ class HistoryPanel(QWidget):
                 logger.warning(f'无法删除历史记录: {data}')
         except Exception as e:
             logger.error(f"删除历史记录失败: {e}")
-
+            
     def create_new_markdown(self):
         """创建新的markdown文档"""
         from utils import time_utils
@@ -596,7 +589,6 @@ class MarkdownEditDialog(QDialog):
             /* Fluent UI 颜色变量 */
             QDialog {
                 background-color: #F3F2F1;
-                border-radius: 4px;
                 font-family: 'Segoe UI', 'Segoe UI Web (West European)', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', sans-serif;
             }
             

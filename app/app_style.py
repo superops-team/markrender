@@ -12,6 +12,8 @@ COLOR_BACKGROUND_LIGHT = '#fafafa'
 COLOR_BACKGROUND_DARK = '#1f1f1f'
 PRIMARY_BUTTON_BACKGROUND = '#0d6efd'
 PRIMARY_BUTTON_HOVER = '#0b5ed7'
+# 添加选中状态图标颜色
+SIDEBAR_ICON_SELECTED = '#2591FF'
 
 # Tag 颜色映射表
 TAG_COLOR_MAP = {
@@ -108,7 +110,12 @@ QPushButton {
 QPushButton:hover {
     background-color: #0b5ed7;
     border-radius: 5px;
-}"""
+}
+# 添加选中状态样式
+QPushButton:checked {
+    background-color: #2591FF;
+}
+"""
 
 # 顶部菜单样式
 TOP_MENU_BACKGROUND = "background: #f0f0f0;"
@@ -140,6 +147,27 @@ PRIMARY_BUTTON = """
         background-color: #0b5ed7;
         border-radius: 5px;
     }
+"""
+
+# 添加侧边栏按钮样式
+SIDEBAR_BUTTON = """
+QPushButton {
+    color: white;
+    border-radius: 5px;
+    padding: 8px;
+    font-size: 14px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #E6F6FF;
+}
+QPushButton:pressed {
+    background-color: #F7F7F7;
+}
+// 添加选中状态样式
+QPushButton:checked {
+    background-color: #2591FF;
+}
 """
 
 PROGRESS_BAR = """
@@ -189,6 +217,9 @@ class AppStyle:
     def get_close_button_style(self):
         return CLOSE_BUTTON if not self.dark_mode else CLOSE_BUTTON.replace('#0d6efd', '#005A9E')
     
+    def get_sidebar_button_style(self):
+        return SIDEBAR_BUTTON
+    
     def get_dialog_border_radius(self):
         return DIALOG_BORDER_RADIUS
     
@@ -227,3 +258,6 @@ class AppStyle:
     
     def get_supported_formats(self):
         return TAG_COLOR_MAP.keys()
+    
+    def get_sidebar_icon_selected(self):
+        return SIDEBAR_ICON_SELECTED
