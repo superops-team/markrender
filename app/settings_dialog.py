@@ -71,7 +71,7 @@ class SettingsDialog(QDialog):
         self.auto_save_interval = QSpinBox()
         self.auto_save_interval.setRange(1, 60)
         self.auto_save_interval.setValue(self.general_settings.get('auto_save_interval', 5))
-        self.auto_save_interval.setSuffix(" 分钟")
+        self.auto_save_interval.setSuffix(" 秒")
 
         form_layout.addRow("自动保存频率:", self.auto_save_interval)
         form_layout.addRow("", self.auto_save_checkbox)
