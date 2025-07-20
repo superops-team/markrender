@@ -14,7 +14,7 @@
             padding: 0;
             box-sizing: border-box;
             /* 修改：移除禁止页面滚动的样式 */
-            /* overflow: hidden; 禁止页面滚动 */
+            overflow: hidden; /* 禁止页面滚动 */
             background-color: transparent; /* 新增透明背景 */
         }
         #editor {
@@ -23,8 +23,8 @@
             /* height: calc(100vh - 20px);*/
             margin: 0px;
             /* 修改：移除禁止编辑器滚动的样式 */
-            /* overflow: hidden; 禁止编辑器滚动 */
-            overflow: auto; /* 新增：确保元素可滚动 */
+            overflow: hidden; /* 禁止编辑器滚动 */
+            /* overflow: hidden; /* 新增：确保元素可滚动 */
         }
     </style>
 </head>
@@ -52,7 +52,7 @@
             toolbars: {
                 theme: 'light',
                 toolbar: ['bold','italic','strikethrough','|','color','header','ruby','|','quote','list','panel','detail', 'justify', 'checklist', '|', 'formula', 'image', 'link', 'hr', 'graph'],
-                sidebar: ['copy', 'mobilePreview'],
+                sidebar: ['mobilePreview'],
                 toolbarRight: ['undo', 'redo', 'togglePreview', 'codeTheme'],
                 bubble: false,
                 float: ['table', 'code']
