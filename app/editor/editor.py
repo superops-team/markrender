@@ -102,6 +102,10 @@ class MarkdownEditor(QtWidgets.QWidget):
         # 添加上次保存内容跟踪
         self.last_saved_text = None
         
+        # 假设 history_panel 是 HistoryPanel 实例
+        if hasattr(self.parent, 'history_panel'):
+            self.parent.history_panel.history_item_selected.connect(self.update_markdown_content)
+        
         # Setup GUI
         self.setup_ui()
         
@@ -281,4 +285,15 @@ class MarkdownEditor(QtWidgets.QWidget):
                 }
             """
             self.preview.page().runJavaScript(js_code)
+
+    def update_markdown_content(self, item):
+        """更新 Markdown 内容"""
+        try:
+            content = self.markdown_manager.get_markdown_content(item['id'])
+            self.document.set_text(content)
+            self.last_saved_text = content
+            self.document_modified = False
+            logger.info(f"成功更新 Markdown 内容，ID: {item['id']}")
+        except Exception as e:
+            logger.error(f"更新 Markdown 内容失败: {str(e)}")
 

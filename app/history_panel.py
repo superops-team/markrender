@@ -200,7 +200,118 @@ class HistoryItemDelegate(QStyledItemDelegate):
                                 history_panel.delete_item(item_data['id'])
         return super().editorEvent(event, model, option, index)
 
+class MarkdownEditDialog(QDialog):
+    def __init__(self, markdown_data, parent=None):
+        super().__init__(parent)
+        self.markdown_data = markdown_data
+        self.init_ui()
+        self.setWindowTitle('编辑 Markdown 信息')
+        self.resize(450, 350)
+        self.setStyleSheet("""
+            /* Fluent UI 颜色变量 */
+            QDialog {
+                background-color: #F3F2F1;
+                font-family: 'Segoe UI', 'Segoe UI Web (West European)', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', sans-serif;
+            }
+            
+            QLabel {
+                font-size: 14px;
+                color: #323130;
+                font-weight: 400;
+                border: none;
+                background: transparent;
+            }
+            
+            QLineEdit {
+                font-size: 14px;
+                padding: 8px 12px;
+                border: 1px solid #D2D0CE;
+                border-radius: 2px;
+                background-color: #FFFFFF;
+                selection-background-color: #0078D4;
+                selection-color: #FFFFFF;
+            }
+            
+            QLineEdit:focus {
+                border: 1px solid #0078D4;
+                outline: 2px solid #71afe5;
+            }
+            
+            QPushButton {
+                background-color: #0078D4;
+                color: #FFFFFF;
+                border: none;
+                padding: 8px 16px;
+                text-align: center;
+                text-decoration: none;
+                font-size: 14px;
+                border-radius: 2px;
+                min-width: 80px;
+                font-weight: 600;
+            }
+            
+            QPushButton:hover {
+                background-color: #106EBE;
+            }
+            
+            QPushButton:pressed {
+                background-color: #005A9E;
+            }
+            
+            QPushButton:disabled {
+                background-color: #F3F2F1;
+                color: #A19F9D;
+            }
+        """)
+
+    def init_ui(self):
+        # 使用 QFormLayout 作为主布局
+        form_layout = QFormLayout()
+        form_layout.setVerticalSpacing(16)
+        form_layout.setHorizontalSpacing(20)
+        form_layout.setContentsMargins(24, 24, 24, 24)
+
+        # 标题编辑框
+        self.title_edit = QLineEdit(self.markdown_data.get('title', ''))
+        self.title_edit.setStyleSheet("font-weight: 600;")
+        form_layout.addRow('<b>标题:</b>', self.title_edit)
+
+        # 其他只读属性
+        # 对键进行排序以保证顺序
+        for key in sorted(self.markdown_data.keys()):
+            if key != 'title':
+                value = self.markdown_data[key]
+                label = QLabel(str(value))
+                # 设置左对齐
+                label.setAlignment(Qt.AlignLeft)
+                # 仅保留文字颜色和大小设置，移除所有可能产生边框的样式
+                label.setStyleSheet('color: #605E5C; font-size: 14px; border: none; background: transparent;')
+                form_layout.addRow(f'<b>{key}:</b>', label)
+
+        # 按钮区域
+        button_layout = QHBoxLayout()
+        button_layout.setAlignment(Qt.AlignRight)
+        confirm_button = QPushButton('确认')
+        confirm_button.setDefault(True)
+        confirm_button.clicked.connect(self.accept)
+        button_layout.addWidget(confirm_button)
+
+        # 将按钮布局添加到表单布局下方
+        form_layout.addRow(button_layout)
+
+        self.setLayout(form_layout)
+
+    def get_new_title(self):
+        return self.title_edit.text()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        # 在对话框显示时设置输入框宽度为对话框宽度的 50%
+        self.title_edit.setMaximumWidth(int(self.width() * 0.7))
+
 class HistoryPanel(QWidget):
+    # 定义保存完成信号
+    save_complete = Signal()
     file_created = Signal(str)
     file_renamed = Signal(str, str)
     # 修改信号，传递完整的历史记录项
@@ -227,22 +338,9 @@ class HistoryPanel(QWidget):
         )
         self.init_ui()
         self.load_history_items()
+        self.switch_pending = None  # 存储待切换的项数据
+        self.save_complete.connect(self._complete_item_switch)
         self.history_list.clicked.connect(self.on_item_clicked)
-
-    def edit_item_title(self, index):
-        """处理双击编辑标题逻辑"""
-        item_data = index.data(Qt.UserRole)
-        if item_data:
-            dialog = MarkdownEditDialog(item_data, self)
-            if dialog.exec():  # 显示对话框并等待用户操作
-                new_title = dialog.get_new_title()
-                if new_title:
-                    item_data['title'] = new_title
-                    # 更新 index 数据
-                    self.history_list.model().setData(index, item_data, Qt.UserRole)
-                    # 调用数据库更新逻辑，需根据实际情况实现
-                    if 'id' in item_data:
-                        self.markdown_manager.update_title(item_data['id'], new_title)
 
     def init_ui(self):
         main_layout = QVBoxLayout()
@@ -337,6 +435,22 @@ class HistoryPanel(QWidget):
             }
         ''')
 
+    def edit_item_title(self, index):
+        """处理双击编辑标题逻辑"""
+        item_data = index.data(Qt.UserRole)
+        if not item_data:
+            return
+        dialog = MarkdownEditDialog(item_data, self)
+        if dialog.exec():  # 显示对话框并等待用户操作
+            new_title = dialog.get_new_title()
+            if new_title:
+                item_data['title'] = new_title
+                # 更新 index 数据
+                self.history_list.model().setData(index, item_data, Qt.UserRole)
+                # 调用数据库更新逻辑，需根据实际情况实现
+                if 'id' in item_data:
+                    self.markdown_manager.update_title(item_data['id'], new_title)
+
     def on_item_clicked(self, index):
         # 修改获取数据的方式
         item = self.history_list.itemFromIndex(index)
@@ -345,15 +459,18 @@ class HistoryPanel(QWidget):
             return
         data = item.data(Qt.UserRole)
         if data and 'id' in data:
-            logger.debug(f"点击的列表项ID: {data['id']}")
-            # 找到对应的完整历史记录项
-            selected_item = next(
-                (x for x in self.all_history_items if x['id'] == data['id']), None)
-            if selected_item:
-                logger.debug(f"找到匹配的历史记录项: {selected_item}")
-                self.history_item_selected.emit(selected_item)
-            else:
-                logger.warning(f"未找到ID为 {data['id']} 的历史记录项")
+            # 确保 parent 和 current_file 属性存在
+            if hasattr(self.parent, 'current_file'):
+                current_id = self.parent.current_file.get('id') if self.parent.current_file else None
+                # 检查当前点击项是否和 current_file 是同一项目
+                if current_id == data['id']:
+                    logger.debug(f"点击的是当前正在查看的历史记录项: {data['id']}，跳过处理")
+                    return
+            
+            # 存储待切换的项数据
+            self.switch_pending = data
+            # 在切换前保存当前 markdown 内容
+            self.save_current_file()
         else:
             logger.warning("点击的列表项数据为空或缺少ID字段")
 
@@ -381,7 +498,6 @@ class HistoryPanel(QWidget):
             logger.debug(f"搜索关键字: {search_text}")
 
             from PySide6.QtCore import Qt
-
             logger.debug(f"当前所有历史项数量: {len(self.all_history_items)}")
             for item in self.all_history_items:
                 if search_text in item['title'].lower():
@@ -400,65 +516,72 @@ class HistoryPanel(QWidget):
         except Exception as e:
             logger.error(f"过滤历史记录时发生错误: {e}", exc_info=True)
 
-    def show_context_menu(self, position):
-        """显示上下文菜单"""
-        index = self.history_list.currentIndex()
-        if not index.isValid():
-            return
-
-        # 替换 MMenu 为 QMenu
-        menu = QMenu()
-        rename_action = QAction('重命名', self.history_list)
-        rename_action.triggered.connect(self.rename_selected_file)
-        delete_action = QAction('删除', self.history_list)
-        delete_action.triggered.connect(self.delete_selected_history)
-        menu.addAction(rename_action)
-        menu.addAction(delete_action)
-        menu.exec_(self.history_list.mapToGlobal(position))
-
-    def save_history(self):
-        """保存 Markdown 变更历史"""
-        index = self.history_list.currentIndex()
-        # 修改获取当前标题的方式
-        current_title = self.history_list.item(
-            index.row()).text() if index.isValid() else "Untitled"
+    def save_current_file(self):
+        """保存选中的文件"""
         try:
-            histories = self.markdown_manager.get_file_history(current_title)
-            if histories:
-                old_content = histories[0].content
-                new_content = self.parent.markdown_editor.get_text_content()
-                if old_content != new_content:
-                    self.markdown_manager.save_change_history(
-                        histories[0].id, old_content, new_content)
-                    histories[0].content = new_content
+            # 获取当前内容，使用异步回调确保获取到最新内容
+            def handle_content(content):
+                if self.parent.current_file and self.parent.current_file.get('id'):
+                    self.markdown_manager.save_markdown(
+                        id=self.parent.current_file['id'], 
+                        content=content
+                    )
+                    logger.info(f"成功保存 ID 为 {self.parent.current_file['id']} 的内容")
+                # 添加保存完成信号发射
+                self.save_complete.emit()
+
+            js_code = """
+                    if (window.editor) {
+                        window.editor.getMarkdown();
+                    } else {
+                        '';
+                    }
+            """
+            self.parent.markdown_editor.preview.page().runJavaScript(js_code, handle_content)
         except Exception as e:
-            logger.error(f"保存历史记录失败: {e}")
+            logger.error(f"保存内容失败: {str(e)}")
+            self.save_complete.emit()  # 出错时也发射信号，避免阻塞
+
+    def _complete_item_switch(self):
+        """完成历史项切换"""
+        if self.switch_pending:
+            data = self.switch_pending
+            logger.debug(f"点击的列表项ID: {data['id']}")
+            # 找到对应的完整历史记录项
+            selected_item = next(
+                (x for x in self.all_history_items if x['id'] == data['id']), None)
+            self.parent.current_file = selected_item
+            if selected_item:
+                logger.debug(f"找到匹配的历史记录项: {selected_item}")
+                self.history_item_selected.emit(selected_item)
+            else:
+                logger.warning(f"未找到ID为 {data['id']} 的历史记录项")
+            self.switch_pending = None
 
     def rename_selected_file(self):
         """重命名选中的文件"""
-        index = self.history_list.currentIndex()
-        if index.isValid():
-            # 修改获取项的方式
-            item = self.history_list.item(index.row())
-            old_title = item.text()
-            new_title, ok = QInputDialog.getText(
-                self, '重命名标题', '请输入新标题:', text=old_title)
-            if ok and new_title and new_title != old_title:
-                try:
-                    with Session(self.markdown_manager.engine) as session:
-                        item_id = item.data(Qt.UserRole)
-                        history = session.query(MarkdownFileHistory).filter(
-                            MarkdownFileHistory.id == item_id).first()
-                        if history:
-                            history.title = new_title
-                            history.updated_at = datetime.now()
-                            session.commit()
-                            self.load_history_items()
-                            self.file_renamed.emit(old_title, new_title)
-                except Exception as e:
-                    logger.error(f"重命名文件失败: {e}")
+        current_file = self.parent.current_file
+        if not current_file:
+            return
+        # 修改获取项的方式
+        old_title = current_file['title']
+        new_title, ok = QInputDialog.getText(self, '重命名标题', '请输入新标题:', text=old_title)
+        if ok and new_title and new_title != old_title:
+            try:
+                # 使用 save_markdown 方法更新标题
+                self.markdown_manager.save_markdown(
+                    id=current_file['id'],
+                    title=new_title
+                )
+                self.load_history_items()
+                logger.debug(f"重命名后历史记录数量: {len(self.all_history_items)}")
+                # 新增刷新搜索结果逻辑
+                self.filter_history()
+                self.file_renamed.emit(old_title, new_title)
+            except Exception as e:
+                logger.error(f"重命名文件失败: {e}")
 
-    def delete_selected_history(self):
+    def delete_selected_file(self):
         """删除选中的历史记录"""
         index = self.history_list.currentIndex()
         if not index.isValid():
@@ -577,112 +700,3 @@ class HistoryPanel(QWidget):
                 logger.warning(f'无法删除历史记录: ID为 {item_id} 的记录')
         except Exception as e:
             logger.error(f"删除历史记录失败: {e}")
-
-class MarkdownEditDialog(QDialog):
-    def __init__(self, markdown_data, parent=None):
-        super().__init__(parent)
-        self.markdown_data = markdown_data
-        self.init_ui()
-        self.setWindowTitle('编辑 Markdown 信息')
-        self.resize(450, 350)
-        self.setStyleSheet("""
-            /* Fluent UI 颜色变量 */
-            QDialog {
-                background-color: #F3F2F1;
-                font-family: 'Segoe UI', 'Segoe UI Web (West European)', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', sans-serif;
-            }
-            
-            QLabel {
-                font-size: 14px;
-                color: #323130;
-                font-weight: 400;
-                border: none;
-                background: transparent;
-            }
-            
-            QLineEdit {
-                font-size: 14px;
-                padding: 8px 12px;
-                border: 1px solid #D2D0CE;
-                border-radius: 2px;
-                background-color: #FFFFFF;
-                selection-background-color: #0078D4;
-                selection-color: #FFFFFF;
-            }
-            
-            QLineEdit:focus {
-                border: 1px solid #0078D4;
-                outline: 2px solid #71afe5;
-            }
-            
-            QPushButton {
-                background-color: #0078D4;
-                color: #FFFFFF;
-                border: none;
-                padding: 8px 16px;
-                text-align: center;
-                text-decoration: none;
-                font-size: 14px;
-                border-radius: 2px;
-                min-width: 80px;
-                font-weight: 600;
-            }
-            
-            QPushButton:hover {
-                background-color: #106EBE;
-            }
-            
-            QPushButton:pressed {
-                background-color: #005A9E;
-            }
-            
-            QPushButton:disabled {
-                background-color: #F3F2F1;
-                color: #A19F9D;
-            }
-        """)
-
-    def init_ui(self):
-        # 使用 QFormLayout 作为主布局
-        form_layout = QFormLayout()
-        form_layout.setVerticalSpacing(16)
-        form_layout.setHorizontalSpacing(20)
-        form_layout.setContentsMargins(24, 24, 24, 24)
-
-        # 标题编辑框
-        self.title_edit = QLineEdit(self.markdown_data.get('title', ''))
-        self.title_edit.setStyleSheet("font-weight: 600;")
-        form_layout.addRow('<b>标题:</b>', self.title_edit)
-
-        # 其他只读属性
-        # 对键进行排序以保证顺序
-        for key in sorted(self.markdown_data.keys()):
-            if key != 'title':
-                value = self.markdown_data[key]
-                label = QLabel(str(value))
-                # 设置左对齐
-                label.setAlignment(Qt.AlignLeft)
-                # 仅保留文字颜色和大小设置，移除所有可能产生边框的样式
-                label.setStyleSheet('color: #605E5C; font-size: 14px; border: none; background: transparent;')
-                form_layout.addRow(f'<b>{key}:</b>', label)
-
-        # 按钮区域
-        button_layout = QHBoxLayout()
-        button_layout.setAlignment(Qt.AlignRight)
-        confirm_button = QPushButton('确认')
-        confirm_button.setDefault(True)
-        confirm_button.clicked.connect(self.accept)
-        button_layout.addWidget(confirm_button)
-
-        # 将按钮布局添加到表单布局下方
-        form_layout.addRow(button_layout)
-
-        self.setLayout(form_layout)
-
-    def get_new_title(self):
-        return self.title_edit.text()
-
-    def showEvent(self, event):
-        super().showEvent(event)
-        # 在对话框显示时设置输入框宽度为对话框宽度的 50%
-        self.title_edit.setMaximumWidth(int(self.width() * 0.7))
