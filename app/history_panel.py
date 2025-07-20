@@ -519,14 +519,19 @@ class HistoryPanel(QWidget):
     def save_current_file(self):
         """保存选中的文件"""
         try:
+            # 在调用异步方法前保存当前文件的 ID
+            current_file_id = None
+            if self.parent.current_file and self.parent.current_file.get('id'):
+                current_file_id = self.parent.current_file['id']
+
             # 获取当前内容，使用异步回调确保获取到最新内容
             def handle_content(content):
-                if self.parent.current_file and self.parent.current_file.get('id'):
+                if current_file_id:
                     self.markdown_manager.save_markdown(
-                        id=self.parent.current_file['id'], 
+                        id=current_file_id,
                         content=content
                     )
-                    logger.info(f"成功保存 ID 为 {self.parent.current_file['id']} 的内容")
+                    logger.info(f"成功保存 ID 为 {current_file_id} 的内容")
                 # 添加保存完成信号发射
                 self.save_complete.emit()
 

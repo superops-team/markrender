@@ -142,6 +142,24 @@ class MainWindow(QMainWindow):
         if self.current_file:
             self.history_panel.select_history_item(self.current_file)
 
+    def closeEvent(self, event):
+        """在窗口关闭前保存未保存的笔记"""
+        try:
+            current_file_id = self.markdown_editor.document.file_id
+            if current_file_id:
+                # 获取当前笔记内容
+                def save_current_content(content):
+                    self.markdown_editor.markdown_manager.save_markdown(
+                        id=current_file_id,
+                        content=content
+                    )
+                    logger.info(f"退出前保存笔记成功，ID: {current_file_id}")
+                self.markdown_editor.get_markdown(save_current_content)
+        except Exception as e:
+            logger.error(f"退出前保存笔记失败: {str(e)}")
+        
+        # 调用父类的关闭事件处理
+        super().closeEvent(event)
 
 if __name__ == "__main__":
     logger.info("应用启动")

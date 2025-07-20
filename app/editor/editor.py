@@ -1,9 +1,10 @@
 import os
 from utils import logger
+from db import db_manager
 from PySide6 import QtWidgets
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6 import QtWebEngineCore  # Add this import
-from PySide6.QtCore import QUrl, QObject, Signal, Property, QThread, QTimer, Slot
+from PySide6.QtCore import QUrl, QObject, Signal, Property, QThread, QTimer, Slot, QStandardPaths
 from PySide6.QtWebChannel import QWebChannel
 from ..app_style import AppStyle
 from PySide6.QtWebEngineCore import QWebEnginePage
@@ -113,75 +114,21 @@ class MarkdownEditor(QtWidgets.QWidget):
         self.document_modified = False
         self.init_auto_save()
 
-    def init_auto_save(self):
-        """初始化自动保存功能"""
-        # 创建后台线程
-        self.auto_save_thread = QThread()
-        self.auto_save_worker = AutoSaveWorker()
-        
-        # 移动工作对象到线程
-        self.auto_save_worker.moveToThread(self.auto_save_thread)
-        
-        # 连接信号槽
-        self.auto_save_worker.save_requested.connect(self.auto_save_document)
-        
-        # 启动线程
-        self.auto_save_thread.start()
-
-    @Slot(str)
-    def on_document_modified(self, text):
-        """标记文档为已修改"""
-        # 修改：添加初始状态检查
-        if self.last_saved_text is None:
-            self.last_saved_text = text
-            return
-        
-        # 比较新内容与上次保存内容
-        if text != self.last_saved_text:
-            self.document_modified = True
-    
-    def get_markdown(self):
-        js_code = """
-                if (window.editor) {
-                    window.editor.getMarkdown();
-                } else {
-                    '';
-                }
-        """
-        def handle_markdown_content(content):
-            self.document.set_text(content)
-        self.preview.page().runJavaScript(js_code, handle_markdown_content)
-        return self.document.get_text()
-
-    @Slot()
-    def auto_save_document(self):
-        """自动保存文档内容"""
-        logger.info(f"Auto-save triggered: {self.document.file_id}, modified: {self.document_modified}")
-        if self.document.file_id:
-            try:
-                 # 保存成功后更新上次保存内容
-                self.last_saved_text = self.get_markdown()
-                self.markdown_manager.save_markdown(id=self.document.file_id, content=self.last_saved_text)
-                self.document_modified = False
-                logger.info(f"Auto-saved document: {self.document.file_id}, last: {self.last_saved_text[-20:-1]}")
-            except Exception as e:
-                logger.error(f"Auto-save failed: {str(e)}")
-                # 新增：保存失败时仍标记为已修改
-                self.document_modified = True
-
-    def closeEvent(self, event):
-        """窗口关闭时清理线程"""
-        self.auto_save_thread.quit()
-        self.auto_save_thread.wait()
-        super().closeEvent(event)
-
     def setup_ui(self):
         # Web view for Cherry Markdown
         self.preview = QWebEngineView()
         # 创建自定义的 Page 实例
         page = CustomWebEnginePage(self.preview)
         self.preview.setPage(page)
-        
+
+        # 添加缓存设置
+        profile = self.preview.page().profile()
+        # cache_path = os.path.join(QStandardPaths.writableLocation(QStandardPaths.CacheLocation), "web_cache")
+        cache_path = db_manager.get_user_data_dir() + '/web_cache'
+        profile.setCachePath(cache_path)
+        profile.setPersistentStoragePath(db_manager.get_user_data_dir() + '/web_storage')
+        profile.setHttpCacheType(QtWebEngineCore.QWebEngineProfile.DiskHttpCache)
+
         # 添加页面加载完成信号绑定
         self.preview.loadFinished.connect(self.on_page_loaded)
 
@@ -212,11 +159,84 @@ class MarkdownEditor(QtWidgets.QWidget):
             QtWebEngineCore.QWebEngineSettings.ErrorPageEnabled, True)
         # 禁用不必要的功能
         self.preview.page().settings().setAttribute(
-            QtWebEngineCore.QWebEngineSettings.PluginsEnabled, False)
+            QtWebEngineCore.QWebEngineSettings.PluginsEnabled, True)
         self.preview.page().settings().setAttribute(
-            QtWebEngineCore.QWebEngineSettings.JavascriptCanOpenWindows, False)
+            QtWebEngineCore.QWebEngineSettings.JavascriptCanOpenWindows, True)
         self.preview.page().settings().setAttribute(
             QtWebEngineCore.QWebEngineSettings.LocalStorageEnabled, True)
+
+    def init_auto_save(self):
+        """初始化自动保存功能"""
+        # 创建后台线程
+        self.auto_save_thread = QThread()
+        self.auto_save_worker = AutoSaveWorker()
+        
+        # 移动工作对象到线程
+        self.auto_save_worker.moveToThread(self.auto_save_thread)
+        
+        # 连接信号槽
+        self.auto_save_worker.save_requested.connect(self.auto_save_document)
+        
+        # 启动线程
+        self.auto_save_thread.start()
+
+    @Slot(str)
+    def on_document_modified(self, text):
+        """标记文档为已修改"""
+        # 修改：添加初始状态检查
+        if self.last_saved_text is None:
+            self.last_saved_text = text
+            return
+        
+        # 比较新内容与上次保存内容
+        if text != self.last_saved_text:
+            self.document_modified = True
+    
+    def get_markdown(self, callback):
+        js_code = """
+                if (window.editor) {
+                    window.editor.getMarkdown();
+                } else {
+                    '';
+                }
+        """
+        def handle_markdown_content(content):
+            self.last_saved_text = content
+            self.document.set_text(content)
+            callback(content)
+        self.preview.page().runJavaScript(js_code, handle_markdown_content)
+        return self.document.get_text()
+
+    @Slot()
+    def auto_save_document(self):
+        """自动保存文档内容"""
+        logger.info(f"Auto-save triggered: {self.document.file_id}, modified: {self.document_modified}")
+        if self.document.file_id:
+            try:
+                 # 保存成功后更新上次保存内容
+                self.last_saved_text = self.get_markdown()
+                self.markdown_manager.save_markdown(id=self.document.file_id, content=self.last_saved_text)
+                self.document_modified = False
+                logger.info(f"Auto-saved document: {self.document.file_id}, last: {self.last_saved_text[-20:-1]}")
+            except Exception as e:
+                logger.error(f"Auto-save failed: {str(e)}")
+                # 新增：保存失败时仍标记为已修改
+                self.document_modified = True
+
+    def closeEvent(self, event):
+        """窗口关闭时清理线程"""
+        self.auto_save_thread.quit()
+        self.auto_save_thread.wait()
+        super().closeEvent(event)
+
+    def export_to_browser(self):
+        """导出当前内容到浏览器"""
+        html_content = self.get_html_content()
+        if html_content:
+            temp_file = os.path.join(QStandardPaths.writableLocation(QStandardPaths.TempLocation), "export.html")
+            with open(temp_file, 'w', encoding='utf-8') as f:
+                f.write(html_content)
+            self.preview.setUrl(QUrl.fromLocalFile(temp_file))
 
     def update_theme(self, theme):
         """Switch the Cherry Markdown theme."""

@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <link rel="stylesheet" type="text/css" href="cherry-markdown.min.css">
-    <script src="cherry-markdown.min.js"></script>
+    <script src="cherry-markdown.js"></script>
     <script src="echarts.min.js"></script>
     <script src="jspdf.umd.min.js"></script>
     <script src="qrc:/qtwebchannel/qwebchannel.js"></script>
@@ -51,11 +51,11 @@
             value: '',
             toolbars: {
                 theme: 'light',
-                toolbar: ['bold','italic','strikethrough','|','color','header','ruby','|','list','panel','detail', '|', 'formula', 'image', 'link'],
-                //sidebar: [],
-                toolbarRight: ['undo', 'redo', 'togglePreview'],
+                toolbar: ['bold','italic','strikethrough','|','color','header','ruby','|','quote','list','panel','detail', 'justify', 'checklist', '|', 'formula', 'image', 'link', 'hr', 'graph'],
+                sidebar: ['copy', 'mobilePreview'],
+                toolbarRight: ['undo', 'redo', 'togglePreview', 'codeTheme'],
                 bubble: false,
-                float: []
+                float: ['table', 'code']
             },
             // 启用双栏模式
             mode: 'edit&preview',
@@ -73,107 +73,20 @@
             }
         });
 
-        // 修改为每页 500 行
-        var pageSize = 500;
-        var currentPage = 1;
-        var totalData = []; // 存储全部数据
-        var loadedLines = 0; // 记录已加载的行数
-        var fileID = '';
-        var fileName = '';
-
-        // 定义 updateContent 函数，根据实际需求更新页面内容
-        function updateContent(data) { 
-            if (window.editor) { 
-                // 将数据拼接成字符串并设置到编辑器中 
-                var content = data.join('\n'); 
-                window.editor.setValue(content); 
-            } 
-        } 
-
-        function loadPage(page) { 
-            var start = (page - 1) * pageSize; 
-            var end = start + pageSize; 
-            // 直接使用已加载的行数据，避免从编辑器获取内容可能产生的问题
-            var newContent = totalData.slice(0, end); 
-            updateContent(newContent); 
-            loadedLines = end > totalData.length ? totalData.length : end; 
-        } 
-
-        // 向上翻页时触发增量加载
-        function appendPage() { 
-            if (loadedLines < totalData.length) { 
-                currentPage++; 
-                loadPage(currentPage); 
-            } 
-        } 
-
-        // 加载前 500 行内容
-        function loadFirstPage() {
-            currentPage = 1;
-            loadPage(currentPage);
-        }
-
         // 在 QWebChannel 接收数据时初始化
         // 确保 QWebChannel 初始化完成
         new QWebChannel(qt.webChannelTransport, function(channel) {
             var document = channel.objects.document;
             console.log('QWebChannel 初始化完成，已获取 document 对象');
             // 立即设置滚动监听
-            setupScrollListener();
             document.text_changed.connect(function(text) {
                 console.log('收到 text_changed 信号，文本长度: ', text.length);
                 if (window.editor) {
                     window.editor.setValue('');
-                    // totalData = text.split('\n');
                 }
-                // 仅在第一次加载时初始化 totalData
-                // loadFirstPage();
                 window.editor.setValue(text);
             });
         });
-
-        function setupScrollListener() {
-            try {
-                // 重新获取 #editor 元素
-                const editorElement = document.getElementById('editor');
-                if (!editorElement) {
-                    console.error('无法获取 #editor 元素');
-                    return;
-                }
-                // 移除旧的滚动事件监听（如果有）
-                editorElement.removeEventListener('scroll', handleScroll);
-                // 添加新的滚动事件监听
-                editorElement.addEventListener('scroll', handleScroll);
-                
-                // 打印元素基本信息，确认元素状态
-                console.log('编辑器元素:', editorElement);
-                console.log('内容高度:', editorElement.scrollHeight);
-                console.log('可视高度:', editorElement.clientHeight);
-                console.log('滚动事件绑定成功');
-            } catch (error) {
-                console.error('设置滚动监听时出错:', error);
-            }
-        }
-
-        function handleScroll() {
-            try {
-                const editorElement = document.getElementById('editor');
-                if (!editorElement) {
-                    console.error('无法获取 #editor 元素');
-                    return;
-                }
-                console.log('滚动高度: ', editorElement.clientHeight);
-                console.log('滚动位置: ', editorElement.scrollTop);
-                console.log('内容高度: ', editorElement.scrollHeight);
-                // 使用 editorElement 的滚动高度和滚动位置来判断
-                if ((editorElement.clientHeight + editorElement.scrollTop) >= editorElement.scrollHeight - 50) {
-                    console.log('滚动到底部，尝试加载更多内容');
-                    appendPage();
-                }
-            } catch (error) {
-                console.error('执行滚动事件时出错:', error);
-            }
-        }
     </script>
 </body>
 </html>
