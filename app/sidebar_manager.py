@@ -24,7 +24,7 @@ from markitdown import MarkItDown
 import time
 import re
 import urllib.parse
-from .app_style import AppStyle
+from .app_style import AppStyle, COLOR_BACKGROUND_LIGHT  # 新增导入 COLOR_BACKGROUND_LIGHT
 
 
 def replace_image_paths(content, base_url):
@@ -369,6 +369,12 @@ class SidebarManager(QWidget):
         self.parent = parent
         self.app_style = AppStyle()  # 添加样式实例
         self.init_ui()
+        # 设置侧边栏背景色
+        self.setStyleSheet(f'''
+            QWidget {{
+                background-color: {COLOR_BACKGROUND_LIGHT};
+            }}
+        ''')
 
     def init_ui(self):
         # 创建主布局

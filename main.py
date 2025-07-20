@@ -2,7 +2,7 @@
 import sys
 import traceback
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout)
+from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QFrame)
 from utils.logger_utils import logger
 from PySide6.QtWidgets import QSplitter
 from app.editor import MarkdownEditor
@@ -10,14 +10,36 @@ from app.status_bar import StatusBar
 from app.history_panel import HistoryPanel
 from app.sidebar_manager import SidebarManager
 from db.markdown_manager import MarkdownManager
+from app.button_controller import ButtonController
+from app.macos_button import MacOSButton
+from app.app_style import AppStyle  # 新增导入
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.setWindowFlags(Qt.FramelessWindowHint)  # 设置无边框窗口
         self.setWindowTitle("MarkRender")
-        self.showMaximized()
+        self.showMaximized()  # 恢复启动最大化
         self.setup_ui()
         self.current_file = None
+        # 设置基础样式表
+        self.setStyleSheet(AppStyle().get_main_style())
+
+    def showEvent(self, event):
+        """窗口显示时根据窗口状态设置样式"""
+        super().showEvent(event)
+        if not self.isMaximized(): 
+            self.setStyleSheet(AppStyle().get_main_style())
+        else: 
+            self.setStyleSheet(AppStyle().get_main_style_color())
+
+    def toggle_maximize(self):
+        if self.isMaximized():
+            self.showNormal()
+        else:
+            self.showMaximized()
+        # 调用 showEvent 更新样式
+        self.showEvent(None)
 
     def setup_ui(self):
         """设置UI界面"""
@@ -63,32 +85,59 @@ class MainWindow(QMainWindow):
         self.markdown_editor = MarkdownEditor(self, '', '')
         self.sidebar = SidebarManager(self)
 
+        # 创建自定义标题栏
+        title_bar = QWidget()
+        title_bar_layout = QHBoxLayout(title_bar)
+        title_bar_layout.setContentsMargins(10, 5, 10, 5)  # 调整上下边距
+        title_bar.setFixedHeight(30)  # 固定标题栏高度
+        title_bar.setStyleSheet(AppStyle().get_title_bar())
+
+        # 添加最小化、最大化、关闭按钮
+        self.minimize_btn = MacOSButton("minimize", self)
+        self.maximize_btn = MacOSButton("maximize", self)
+        self.close_btn =  MacOSButton("close", self)
+
+        self.minimize_btn.clicked.connect(self.showMinimized)
+        self.maximize_btn.clicked.connect(self.toggle_maximize)
+        self.close_btn.clicked.connect(self.close)
+
+        # 将按钮添加到标题栏左侧
+        title_bar_layout.addWidget(self.close_btn)
+        title_bar_layout.addWidget(self.minimize_btn)
+        title_bar_layout.addWidget(self.maximize_btn)
+        title_bar_layout.addStretch()
+
+        # 添加按钮控制区域
+        self.button_controller = ButtonController(self, self.history_panel, self.markdown_editor)
+        self.button_controller.setFixedHeight(20)  # 固定按钮区域高度
+        title_bar_layout.addWidget(self.button_controller)
+
+        # 添加边框容器
+        border_frame = QFrame()
+        border_frame.setFixedHeight(1)
+        border_frame.setFixedWidth(45)
+        border_frame.setStyleSheet("background-color: {};".format(AppStyle().get_line_color()))
+        self.main_layout.addWidget(border_frame)
+
+        # 主布局
+        central_widget = QWidget()
+        # 为中央部件添加圆角样式和统一背景色
+        central_widget.setStyleSheet(AppStyle().get_central_widget())
+        self.main_layout = QVBoxLayout(central_widget)
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.setSpacing(0)
+
+        self.main_layout.addWidget(title_bar)
+        
         # 修改为创建主分割器，使用 PySide6 原生的 QSplitter
         main_splitter = QSplitter(Qt.Horizontal)
+        main_splitter.setStyleSheet(AppStyle().get_main_splitter())
         # 创建右侧内容分割器，同样使用 QSplitter
         right_splitter = QSplitter(Qt.Horizontal)
         # 设置分割器样式，统一边距和圆角
-        right_splitter.setStyleSheet('''
-            QSplitter::handle {
-                background: transparent;
-                width: 2px;
-            }
-            QSplitter {
-                padding: 2px;
-            }
-            QSplitter > QWidget {
-                margin: 2 2px;
-            }
-        ''')
+        right_splitter.setStyleSheet(AppStyle().get_right_splitter())
         # 隐藏分割条并禁用拖拽功能
-        right_splitter.setHandleWidth(0)        
-        # 设置主分割器样式，显示分隔线，鼠标悬停时不改变光标样式
-        main_splitter.setStyleSheet('''
-            QSplitter::handle {
-                background: #c0c0c0;
-                width: 2px;
-            }
-        ''')
+        right_splitter.setHandleWidth(0)
         
         right_splitter.addWidget(self.history_panel)
         right_splitter.addWidget(self.markdown_editor)
@@ -103,8 +152,9 @@ class MainWindow(QMainWindow):
         main_splitter.setSizes([45, int(self.width() - 45)])
         self.sidebar.setFixedWidth(45)
 
+        # 修改为使用 self.main_layout 添加组件
         self.main_layout.addWidget(main_splitter)
-
+        
         self.setCentralWidget(central_widget)
 
         # 连接历史列表项选中信号
@@ -114,6 +164,7 @@ class MainWindow(QMainWindow):
         # 设置状态栏
         self.status_bar = StatusBar()
         self.setStatusBar(self.status_bar)
+        self.status_bar.setStyleSheet(AppStyle().get_status_bar())
 
     def update_theme(self, theme):
         """切换主题"""
@@ -160,6 +211,18 @@ class MainWindow(QMainWindow):
         
         # 调用父类的关闭事件处理
         super().closeEvent(event)
+
+    # 实现窗口拖动功能
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.drag_start_position = event.globalPos() - self.frameGeometry().topLeft()
+            event.accept()
+
+    def mouseMoveEvent(self, event):
+        if hasattr(self, 'drag_start_position'):
+            if event.buttons() & Qt.LeftButton:
+                self.move(event.globalPos() - self.drag_start_position)
+                event.accept()
 
 if __name__ == "__main__":
     logger.info("应用启动")

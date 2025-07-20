@@ -14,6 +14,7 @@ PRIMARY_BUTTON_BACKGROUND = '#0d6efd'
 PRIMARY_BUTTON_HOVER = '#0b5ed7'
 # 添加选中状态图标颜色
 SIDEBAR_ICON_SELECTED = '#2591FF'
+LINE_COLOR = '#F2F2F2'
 
 # Tag 颜色映射表
 TAG_COLOR_MAP = {
@@ -99,21 +100,62 @@ QPushButton:disabled {
 """
 
 # 按钮样式
-CLOSE_BUTTON = """
+MAIN_CLOSE_BUTTON = """
 QPushButton {
-    background-color: #0d6efd;
-    color: white;
-    border-radius: 5px;
-    padding: 8px 16px;
-    font-size: 14px;
+    background-color: #ff5f56;
+    border-radius: 10px;
+    border: 1px solid #e14239;
+    qproperty-flat: true;
 }
 QPushButton:hover {
-    background-color: #0b5ed7;
-    border-radius: 5px;
+    background-color: #e2443a;
+    border: 1px solid #c03a2f;
 }
-# 添加选中状态样式
-QPushButton:checked {
-    background-color: #2591FF;
+QPushButton:hover::after {
+    font-size: 12px;
+    font-weight: 500;
+    position: absolute;
+}
+"""
+
+MINIMIZE_BUTTON = """
+QPushButton {
+    background-color: #ffbd2e;
+    border-radius: 10px;
+    border: 1px solid #e09e24;
+    qproperty-flat: true;
+}
+QPushButton:hover {
+    background-color: #e09e24;
+    border: 1px solid #c28a20;
+}
+QPushButton:hover::after {
+    content: "-";
+    color: rgba(0, 0, 0, 0.8);
+    position: absolute;
+}
+"""
+
+MAXIMIZE_BUTTON = """
+QPushButton {
+    background-color: #27c93f;
+    border-radius: 10px;
+    border: 1px solid #22a535;
+    qproperty-flat: true;
+}
+QPushButton:hover {
+    background-color: #22a535;
+    border: 1px solid #1e8f2f;
+}
+QPushButton:hover::after {
+    content: "+";
+    color: rgba(0, 0, 0, 0.8);
+    font-family: "SF Pro Text", "Helvetica Neue", sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    position: absolute;
+    top: 50%;
+    left: 50%;
 }
 """
 
@@ -136,23 +178,39 @@ QWebEngineView {  /* 预览视图样式 */
 }"""
 
 PRIMARY_BUTTON = """
-    QPushButton {
-        background-color: #0d6efd;
-        color: white;
-        border-radius: 5px;
-        padding: 8px 16px;
-        font-size: 14px;
-    }
-    QPushButton:hover {
-        background-color: #0b5ed7;
-        border-radius: 5px;
-    }
+QPushButton {
+    background-color: #0d6efd;
+    color: white;
+    border-radius: 5px;
+    padding: 8px 16px;
+    font-size: 14px;
+}
+QPushButton:hover {
+    background-color: #0b5ed7;
+    border-radius: 5px;
+}
+"""
+
+MAIN_WINDOW = """
+QMainWindow {{
+    background-color: {}; 
+    overflow: hidden; 
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+}}
+"""
+
+MAIN_WINDOW_COLOR = """
+QMainWindow {{
+    background-color: {}; 
+}}
 """
 
 # 添加侧边栏按钮样式
 SIDEBAR_BUTTON = """
 QPushButton {
     color: white;
+    background-color: transparent;
     border-radius: 5px;
     padding: 8px;
     font-size: 14px;
@@ -171,30 +229,137 @@ QPushButton:checked {
 """
 
 PROGRESS_BAR = """
-    QProgressBar {
-        border-radius: 4px;
-        text-align: center;
-        height: 8px;
-    }
-    QProgressBar::chunk {
-        background-color: #0d6efd;
-        border-radius: 4px;
-    }
+QProgressBar {
+    border-radius: 4px;
+    text-align: center;
+    height: 8px;
+}
+QProgressBar::chunk {
+    background-color: #0d6efd;
+    border-radius: 4px;
+}
+"""
+
+# 新增样式定义
+TITLE_BAR = """
+QWidget {{
+    background-color: #f0f0f0;
+    font-size: 14px;
+    font-weight: bold;
+    border-bottom: 1px solid {};  /* 底部内侧边框 */
+}}
+"""
+
+SIDEBAR = """
+QWidget {{
+    background-color: #fafafa;
+    border-right: 1px solid {};  /* 右侧内侧边框 */
+}}
+"""
+
+STATUS_BAR = f"""
+QStatusBar {{
+    background-color: #fafafa;
+    border-top: 1px solid {LINE_COLOR};  /* 顶部内侧边框 */
+}}
+"""
+
+MINIMIZE_BUTTON = """ 
+QPushButton {
+    background-color: #fdbc40;
+    border-radius: 10px;
+    min-width: 12px;
+    min-height: 12px;
+    max-width: 12px;
+    max-height: 12px;
+    border: 1px solid #e2a137;
+    margin-right: 6px;
+}
+QPushButton:hover {
+    background-color: #e2a137;
+}
+"""
+
+MAXIMIZE_BUTTON = """ 
+QPushButton {
+    background-color: #34c84a;
+    border-radius: 10px;
+    min-width: 12px;
+    min-height: 12px;
+    max-width: 12px;
+    max-height: 12px;
+    border: 1px solid #2da03f;
+    margin-right: 6px;
+}
+QPushButton:hover {
+    background-color: #2da03f;
+}
+"""
+
+CLOSE_BUTTON = """ 
+QPushButton {
+    background-color: #0d6efd;
+    color: white;
+    border-radius: 5px;
+    padding: 8px 16px;
+    font-size: 14px;
+    margin-right: 5px;  # 添加右侧间距
+}
+QPushButton:hover {
+    background-color: #0b5ed7;
+    border-radius: 5px;
+}
+# 添加选中状态样式
+QPushButton:checked {
+    background-color: #2591FF;
+}
 """
 
 NEW_FILE_DIALOG = "QDialog { border-radius: 5px; }"
 
 EDITOR = """
-    QWidget {  /* 父容器样式 */
-        border: 2px solid #ddd;
-        padding: 0;
-    }
-    QWebEngineView {  /* 预览视图样式 */
-        border: none;
-        background-color: transparent; /* 设置透明背景 */
-        margin: 0; /* 移除抵消布局的 margin */
-        padding: 0; /* 移除补充的 padding */
-    }
+QWidget {  /* 父容器样式 */
+    border: 2px solid #ddd;
+    padding: 0;
+}
+QWebEngineView {  /* 预览视图样式 */
+    border: none;
+    background-color: transparent; /* 设置透明背景 */
+    margin: 0; /* 移除抵消布局的 margin */
+    padding: 0; /* 移除补充的 padding */
+}
+"""
+
+MAIN_SPLITTER = """
+QSplitter {{
+    background-color: {};
+}}
+QSplitter::handle {{
+    background: #c0c0c0;
+    width: 2px;
+}}
+"""
+
+RIGHT_SPLITTER = """
+QSplitter::handle {{
+    background: transparent;
+    width: 2px;
+}}
+QSplitter {{
+    padding: 2px;
+    background-color: {};
+}}
+QSplitter > QWidget {{
+    margin: 2 2px;
+}}
+"""
+
+CENTRAL_WIDGET = """
+QWidget {{
+    border-radius: 10px;
+    background-color: {};
+    border: 1px solid #F0F0F0;  /* 添加边框 */
+}}
 """
 
 class AppStyle:
@@ -206,10 +371,10 @@ class AppStyle:
         self.dark_mode = self.settings_manager.get_setting('theme', 'dark_mode', False)
 
     def get_background_color(self):
-        return self.WIDGET_BACKGROUND_LIGHT if not self.dark_mode else self.WIDGET_BACKGROUND_DARK
+        return WIDGET_BACKGROUND_LIGHT if not self.dark_mode else self.WIDGET_BACKGROUND_DARK
     
     def get_editor_preview_background_color(self):
-        return self.WIDGET_BACKGROUND_LIGHT if not self.dark_mode else self.WIDGET_BACKGROUND_DARK
+        return WIDGET_BACKGROUND_LIGHT if not self.dark_mode else self.WIDGET_BACKGROUND_DARK
     
     def get_confirm_button_style(self):
         return CONFIRM_BUTTON if not self.dark_mode else CONFIRM_BUTTON.replace('#0078D4', '#005A9E')
@@ -261,3 +426,51 @@ class AppStyle:
     
     def get_sidebar_icon_selected(self):
         return SIDEBAR_ICON_SELECTED
+    
+    def get_main_style(self):
+        return MAIN_WINDOW.format(self.get_background_color())
+    
+    def get_main_style_color(self):
+        return MAIN_WINDOW_COLOR.format(self.get_background_color())
+
+    def get_title_bar(self):
+        return TITLE_BAR.format('#c0c0c0')
+    
+    def get_sidebar(self):
+        bg_color = COLOR_BACKGROUND_LIGHT if not self.dark_mode else COLOR_BACKGROUND_DARK
+        return f"""
+QWidget {{
+    background-color: {bg_color};
+    border-right: 1px solid {LINE_COLOR};  /* 右侧内侧边框 */
+}}
+"""
+
+    def get_status_bar(self):
+        bg_color = COLOR_BACKGROUND_LIGHT if not self.dark_mode else COLOR_BACKGROUND_DARK
+        return f"""
+QStatusBar {{
+    background-color: {bg_color};
+    border-top: 1px solid {LINE_COLOR};  /* 顶部内侧边框 */
+}}
+"""
+    
+    def get_minimize_button(self):
+        return MINIMIZE_BUTTON
+    
+    def get_maximize_button(self):
+        return MAXIMIZE_BUTTON
+    
+    def get_main_close_button(self):
+        return MAIN_CLOSE_BUTTON
+    
+    def get_line_color(self):
+        return LINE_COLOR
+    
+    def get_main_splitter(self):
+        return MAIN_SPLITTER.format(self.get_line_color())
+    
+    def get_right_splitter(self):
+        return RIGHT_SPLITTER.format(self.get_line_color())
+    
+    def get_central_widget(self):
+        return CENTRAL_WIDGET.format(self.get_line_color())
