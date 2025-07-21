@@ -73,11 +73,11 @@ class SettingsManager:
                     return json.loads(settings_obj.value)
                 except json.JSONDecodeError:
                     logger.error(f"Error parsing JSON settings for key {key}")
-                    return None
-            return None
+                    return {}
+            return {}
         except Exception as e:
             logger.error(f"Error getting settings: {e}")
-            return None
+            return {}
         finally:
             session.close()
 
