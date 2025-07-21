@@ -10,6 +10,7 @@ from ..app_style import AppStyle
 from PySide6.QtWebEngineCore import QWebEnginePage
 from db.settings_manager import SettingsManager
 from db.markdown_manager import MarkdownManager
+import threading  # 在文件开头添加导入
 
 
 class MarkdownDocument(QObject):
@@ -65,6 +66,8 @@ class CustomWebEnginePage(QWebEnginePage):
 
 class AutoSaveWorker(QObject):
     save_requested = Signal()
+    cleanup_requested = Signal()
+    cleanup_finished = Signal()  # 新增清理完成信号
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -72,6 +75,7 @@ class AutoSaveWorker(QObject):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.check_save_condition)
         self.init_timer()
+        self.cleanup_requested.connect(self.cleanup)  # 连接信号和清理方法
 
     def init_timer(self):
         """根据设置初始化定时器"""
@@ -92,6 +96,10 @@ class AutoSaveWorker(QObject):
         """更新设置并重启定时器"""
         self.init_timer()
 
+    def cleanup(self):
+        """清理定时器"""
+        self.timer.stop()
+        self.cleanup_finished.emit()  # 发射清理完成信号
 
 class MarkdownEditor(QtWidgets.QWidget):
     def __init__(self, parent=None, file_id="", file_name=""):
@@ -225,18 +233,45 @@ class MarkdownEditor(QtWidgets.QWidget):
 
     def closeEvent(self, event):
         """窗口关闭时清理线程"""
+        cleanup_finished = threading.Event()  # 新增事件用于同步
+        
+        def on_cleanup_finished():
+            cleanup_finished.set()
+        
+        self.auto_save_worker.cleanup_requested.connect(on_cleanup_finished)  # 连接完成信号
+        self.auto_save_worker.cleanup_requested.emit()  # 发射清理信号
+        
+        # 等待清理完成，设置超时防止无限等待
+        cleanup_finished.wait(timeout=5)
+        
         self.auto_save_thread.quit()
         self.auto_save_thread.wait()
         super().closeEvent(event)
 
     def export_to_browser(self):
         """导出当前内容到浏览器"""
-        html_content = self.get_html_content()
+        self.get_html_content(lambda html_content: self.export_html_to_browser(html_content))
+    
+    def export_html_to_browser(self, html_content):
+        """导出 HTML 内容到浏览器"""
         if html_content:
             temp_file = os.path.join(QStandardPaths.writableLocation(QStandardPaths.TempLocation), "export.html")
             with open(temp_file, 'w', encoding='utf-8') as f:
                 f.write(html_content)
             self.preview.setUrl(QUrl.fromLocalFile(temp_file))
+    
+    def get_html_content(self, callback):
+        """获取当前 HTML 内容"""
+        js_code = """
+            if (window.editor) {
+                return window.editor.getValue();
+            } else {
+                return '';
+            }
+        """
+        def handle_html_content(content):
+            callback(content)
+        self.preview.page().runJavaScript(js_code, handle_html_content)
 
     def update_theme(self, theme):
         """Switch the Cherry Markdown theme."""
