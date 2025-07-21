@@ -71,7 +71,7 @@ class AutoSaveWorker(QObject):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.general_settings = SettingsManager().get_settings_dict('general') # 通用设置
+        self.general_settings = SettingsManager().get_settings_dict('general') or {}  # 通用设置，添加空字典回退
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.check_save_condition)
         self.init_timer()
