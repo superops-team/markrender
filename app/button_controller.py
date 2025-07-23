@@ -54,7 +54,7 @@ class ButtonController(QWidget):
 
         # 导出控制按钮
         self.export_btn = QToolButton()
-        self.export_btn.setIcon(QIcon(get_icon_path('cast')))
+        self.export_btn.setIcon(QIcon(get_icon_path('download')))
         self.export_btn.setToolTip('导出')
         self.export_btn.clicked.connect(self.export_content)
         self.export_btn.setStyleSheet('''

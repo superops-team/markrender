@@ -42,7 +42,7 @@ WIDGET_BACKGROUND_DARK = "QWidget { background-color: #1f1f1f; }"
 IMPORT_AREA = """
 QFrame {
     border: 1px dashed #1990ff;
-    border-radius: 8px;
+    border-radius: 5px;
     background-color: #f5f5f5;
     margin: 10px;
 }
