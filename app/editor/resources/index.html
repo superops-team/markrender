@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <link rel="stylesheet" type="text/css" href="cherry-markdown.min.css">
+    <link rel="stylesheet" type="text/css" href="cherry-markdown.css">
     <script src="cherry-markdown.js"></script>
     <script src="echarts.min.js"></script>
     <script src="jspdf.umd.min.js"></script>
@@ -51,7 +51,13 @@
             value: '',
             toolbars: {
                 theme: 'light',
-                toolbar: ['bold','italic','strikethrough','|','color','header','ruby','|','quote','list','panel','detail', 'justify', 'checklist', '|', 'formula', 'image', 'link', 'hr', 'graph'],
+                toolbar: [
+                    'bold','italic','strikethrough','|',
+                    'color','header','ruby','|',
+                    'quote','list','panel','detail', 'justify', 'checklist', '|',
+                    {insert: ['image', 'audio', 'video', 'link', 'hr', 'br', 'code', 'formula', 'toc', 'table']},
+                    'graph'
+                ],
                 //sidebar: [],
                 toolbarRight: ['undo', 'redo', 'togglePreview', 'codeTheme'],
                 bubble: false,
@@ -75,17 +81,29 @@
 
         // 在 QWebChannel 接收数据时初始化
         // 确保 QWebChannel 初始化完成
+        // 在QWebChannel初始化完成后添加
         new QWebChannel(qt.webChannelTransport, function(channel) {
             var document = channel.objects.document;
             console.log('QWebChannel 初始化完成，已获取 document 对象');
-            // 立即设置滚动监听
+            
+            // 原有的内容加载逻辑
             document.text_changed.connect(function(text) {
                 console.log('收到 text_changed 信号，文本长度: ', text.length);
                 if (window.editor) {
-                    window.editor.setValue('');
+                    window.editor.setValue(text);
                 }
-                window.editor.setValue(text);
             });
+            
+            // 新增：监听编辑器内容变化
+            if (window.editor) {
+                window.editor.on('change', function() {
+                    var currentContent = window.editor.getMarkdown();
+                    // 通知Python端内容已变化
+                    if (document && document.content_changed) {
+                        document.content_changed(currentContent);
+                    }
+                });
+            }
         });
     </script>
 </body>

@@ -3,14 +3,15 @@ from utils import logger
 from db import db_manager
 from PySide6 import QtWidgets
 from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6 import QtWebEngineCore  # Add this import
+from PySide6 import QtWebEngineCore
 from PySide6.QtCore import QUrl, QObject, Signal, Property, QThread, QTimer, Slot, QStandardPaths
 from PySide6.QtWebChannel import QWebChannel
 from ..app_style import AppStyle
 from PySide6.QtWebEngineCore import QWebEnginePage
 from db.settings_manager import SettingsManager
 from db.markdown_manager import MarkdownManager
-import threading  # 在文件开头添加导入
+import threading
+from ..shortcut_manager import ShortcutManager  # 添加快捷键管理器导入
 
 
 class MarkdownDocument(QObject):
@@ -19,6 +20,24 @@ class MarkdownDocument(QObject):
         self._file_id = file_id
         self.file_name = file_name
         self._text = ""
+        self._suppress_change_notification = False  # 防止循环触发
+
+    # 新增信号
+    content_changed = Signal(str)  # Web端内容变化时触发
+    
+    @Slot(str)
+    def on_content_changed(self, text):
+        """Web端内容变化时的处理"""
+        if not self._suppress_change_notification:
+            self._text = text
+            self.text_changed.emit(text)
+
+    def set_text(self, text):
+        """设置文本，避免循环触发"""
+        self._suppress_change_notification = True
+        self._text = text
+        self.text_changed.emit(text)
+        self._suppress_change_notification = False
         self._lines = []  # 存储按行分割后的文本
         self._page_size = 500  # 每页行数
         self._loaded_lines = 0  # 已加载的行数
@@ -111,6 +130,10 @@ class MarkdownEditor(QtWidgets.QWidget):
         # 添加上次保存内容跟踪
         self.last_saved_text = None
         
+        # 初始化快捷键管理器
+        self.shortcut_manager = ShortcutManager(self)
+        self.init_shortcuts()
+        
         # 假设 history_panel 是 HistoryPanel 实例
         if hasattr(self.parent, 'history_panel'):
             self.parent.history_panel.history_item_selected.connect(self.update_markdown_content)
@@ -154,7 +177,10 @@ class MarkdownEditor(QtWidgets.QWidget):
         self.channel = QWebChannel(self)
         self.channel.registerObject("document", self.document)
         self.preview.page().setWebChannel(self.channel)
-
+        
+        # 连接文档变化信号
+        self.document.text_changed.connect(self.on_document_modified)
+        
         # Load HTML file
         html_path = os.path.abspath(
             os.path.join(
@@ -191,57 +217,148 @@ class MarkdownEditor(QtWidgets.QWidget):
     @Slot(str)
     def on_document_modified(self, text):
         """标记文档为已修改"""
-        # 修改：添加初始状态检查
         if self.last_saved_text is None:
             self.last_saved_text = text
             return
         
-        # 比较新内容与上次保存内容
-        if text != self.last_saved_text:
+        # 使用更智能的比较，避免空格等微小变化
+        if text.strip() != self.last_saved_text.strip():
             self.document_modified = True
     
-    def get_markdown(self, callback):
+    def init_shortcuts(self):
+        """初始化快捷键连接"""
+        # 连接保存快捷键
+        self.shortcut_manager.save_requested.connect(self.save_document)
+        
+        # 连接其他快捷键
+        self.shortcut_manager.new_file_requested.connect(self.create_new_file)
+        self.shortcut_manager.open_file_requested.connect(self.open_file)
+        self.shortcut_manager.find_requested.connect(self.show_find_dialog)
+        
+        # 注册默认快捷键
+        self.shortcut_manager.register_default_shortcuts()
+
+    def save_document(self):
+        """手动保存当前文档"""
+        if not self.document.file_id:
+            logger.warning("无法保存：文档未关联文件ID")
+            return False
+        logger.info("快捷键触发保存动作")
+        try:
+            # 获取当前编辑内容
+            def handle_save_content(content):
+                if content:
+                    # 保存到数据库
+                    success = self.markdown_manager.save_markdown(
+                        id=self.document.file_id, 
+                        content=content
+                    )
+                    
+                    if success:
+                        self.last_saved_text = content
+                        self.document_modified = False
+                        logger.info(f"手动保存成功: {self.document.file_name}")
+                        
+                        # 发送保存成功信号（如果需要）
+                        if hasattr(self.parent(), 'on_file_saved'):
+                            self.parent().on_file_saved(self.document.file_id)
+                    else:
+                        logger.error("保存到数据库失败")
+                        
+            # 获取当前内容并保存
+            self.get_markdown(handle_save_content)
+            return True
+            
+        except Exception as e:
+            logger.error(f"保存文档失败: {str(e)}")
+            return False
+
+    def create_new_file(self):
+        """创建新文件（快捷键响应）"""
+        if hasattr(self.parent(), 'create_new_file'):
+            self.parent().create_new_file()
+
+    def open_file(self):
+        """打开文件（快捷键响应）"""
+        if hasattr(self.parent(), 'open_file_dialog'):
+            self.parent().open_file_dialog()
+
+    def show_find_dialog(self):
+        """显示查找对话框（快捷键响应）"""
         js_code = """
-                if (window.editor) {
-                    window.editor.getMarkdown();
-                } else {
-                    '';
-                }
+            if (window.editor && window.editor.codemirror) {
+                window.editor.codemirror.execCommand('find');
+            }
+        """
+        self.preview.page().runJavaScript(js_code)
+
+    @Slot()
+    def auto_save_document(self):
+        """自动保存文档内容（修复光标重置问题）"""
+        logger.info(f"Auto-save triggered: {self.document.file_id}, modified: {self.document_modified}")
+        if self.document.file_id and self.document_modified:
+            try:
+                # 直接获取内容保存，不重新设置document
+                js_code = """
+                    if (window.editor) {
+                        window.editor.getMarkdown();
+                    } else {
+                        '';
+                    }
+                """
+                def handle_auto_save(content):
+                    if content and content != self.last_saved_text:
+                        # 直接保存到数据库，不触发编辑器重载
+                        success = self.markdown_manager.save_markdown(
+                            id=self.document.file_id, 
+                            content=content
+                        )
+                        if success:
+                            self.last_saved_text = content
+                            self.document_modified = False
+                            logger.info(f"Auto-saved document: {self.document.file_id}")
+                        else:
+                            logger.error("自动保存到数据库失败")
+                    else:
+                        # 内容未变化，直接重置标记
+                        self.document_modified = False
+                        
+                self.preview.page().runJavaScript(js_code, handle_auto_save)
+            except Exception as e:
+                logger.error(f"Auto-save failed: {str(e)}")
+                self.document_modified = True
+
+    def get_markdown(self, callback):
+        """获取markdown内容（保持光标位置）"""
+        js_code = """
+            if (window.editor) {
+                window.editor.getMarkdown();
+            } else {
+                '';
+            }
         """
         def handle_markdown_content(content):
+            # 只更新跟踪变量，不设置document内容
             self.last_saved_text = content
-            self.document.set_text(content)
             callback(content)
         self.preview.page().runJavaScript(js_code, handle_markdown_content)
         return self.document.get_text()
 
-    @Slot()
-    def auto_save_document(self):
-        """自动保存文档内容"""
-        logger.info(f"Auto-save triggered: {self.document.file_id}, modified: {self.document_modified}")
-        if self.document.file_id:
-            try:
-                 # 保存成功后更新上次保存内容
-                self.last_saved_text = self.get_markdown()
-                self.markdown_manager.save_markdown(id=self.document.file_id, content=self.last_saved_text)
-                self.document_modified = False
-                logger.info(f"Auto-saved document: {self.document.file_id}, last: {self.last_saved_text[-20:-1]}")
-            except Exception as e:
-                logger.error(f"Auto-save failed: {str(e)}")
-                # 新增：保存失败时仍标记为已修改
-                self.document_modified = True
-
     def closeEvent(self, event):
-        """窗口关闭时清理线程"""
-        cleanup_finished = threading.Event()  # 新增事件用于同步
+        """窗口关闭时清理"""
+        # 先清理快捷键
+        if hasattr(self, 'shortcut_manager'):
+            self.shortcut_manager.clear_all_global_shortcuts()
+            
+        # 清理自动保存线程
+        cleanup_finished = threading.Event()
         
         def on_cleanup_finished():
             cleanup_finished.set()
         
-        self.auto_save_worker.cleanup_requested.connect(on_cleanup_finished)  # 连接完成信号
-        self.auto_save_worker.cleanup_requested.emit()  # 发射清理信号
+        self.auto_save_worker.cleanup_requested.connect(on_cleanup_finished)
+        self.auto_save_worker.cleanup_requested.emit()
         
-        # 等待清理完成，设置超时防止无限等待
         cleanup_finished.wait(timeout=5)
         
         self.auto_save_thread.quit()

@@ -21,6 +21,7 @@ from app.app_style import AppStyle
 from PySide6.QtGui import QColor, QFont, QPainter, QPen  # 添加 QPen 导入
 from PySide6.QtWidgets import QDialog, QFormLayout, QLabel, QLineEdit, QVBoxLayout, QPushButton
 
+MANUAL_CONVERTER = 'manual'
 
 class HistoryItemDelegate(QStyledItemDelegate):
     # 定义 tag 到颜色的映射表，方便扩展
@@ -69,13 +70,17 @@ class HistoryItemDelegate(QStyledItemDelegate):
         if item_data:
             title = item_data.get('title', '')
             modified_time = item_data.get('updated_at', '')
-            if item_data.get('status', '') == 'processing':
-                preview_suffix = '后台处理中...'
-            else:
-                preview_suffix = "处理耗时：{}s".format(get_duration(item_data.get('converter_start', ''), item_data.get('converter_end', '')).seconds)
-            preview = "{} {}".format(item_data.get('converter', ''), preview_suffix)
             formatted_time = self._format_time(modified_time)
             tag = item_data.get('tags', '')  # 获取 tag 字段
+            if tag != 'md':
+                if item_data.get('status', '') == 'processing':
+                    preview_suffix = '后台处理中...'
+                else:
+                    preview_suffix = "处理耗时：{}s".format(get_duration(item_data.get('converter_start', ''), item_data.get('converter_end', '')).seconds)
+            else:
+                item_created_at = item_data.get('created_at', '')
+                preview_suffix = f'创建时间：{item_created_at}'
+            preview = "{} {}".format(item_data.get('converter', ''), preview_suffix)
 
             # 设置边距
             margin = 10

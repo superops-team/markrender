@@ -44,7 +44,7 @@ class MarkdownManager:
         """加载所有历史记录"""
         session = self.Session()
         try:
-            histories = session.query(MarkdownFileHistory).order_by(MarkdownFileHistory.updated_at.desc()).limit(limit).all()
+            histories = session.query(MarkdownFileHistory).order_by(MarkdownFileHistory.created_at.desc()).limit(limit).all()
             return [
                 {
                     'title': h.title,
@@ -103,13 +103,14 @@ class MarkdownManager:
                     if content_md5 and content_md5 != history.content_md5:
                         history.content_md5 = content_md5
                     history.updated_at = now  # 使用北京时间更新
-                    history.converter = converter
                     if converter_start:
                         history.converter_start = converter_start
                     if converter_end:
                         history.converter_end = converter_end
                     if status:
                         history.status = status
+                    if converter:
+                        history.converter = converter
                     session.commit()
                     return history.id
                 else:
