@@ -38,9 +38,6 @@ class MarkdownDocument(QObject):
         self._text = text
         self.text_changed.emit(text)
         self._suppress_change_notification = False
-        self._lines = []  # 存储按行分割后的文本
-        self._page_size = 500  # 每页行数
-        self._loaded_lines = 0  # 已加载的行数
 
     @property
     def file_id(self):
@@ -54,13 +51,6 @@ class MarkdownDocument(QObject):
 
     def get_text(self):
         return self._text
-
-    def set_text(self, text):
-        # 仅在文件 ID 变化时才 reset，这里调用 set_text 时应先设置正确的 file_id
-        self._text = text
-        # 添加调试日志确认数据更新
-        logger.debug(f"MarkdownDocument text updated, length: {len(text)}, first 20 chars: {text[:20]}")
-        self.text_changed.emit(text)
 
     def reset(self):
         """重置文档状态"""
