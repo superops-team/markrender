@@ -35,7 +35,7 @@ dmg: onefile
 	  --app-drop-link 425 120 \
 	  "dist/markrender.dmg" \
 	  "dist/dmg/"
- 	  
+
 # format all python files
 fmt:
 	autopep8 --in-place --recursive --aggressive --aggressive .
