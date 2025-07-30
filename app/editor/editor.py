@@ -72,6 +72,28 @@ class CustomWebEnginePage(QWebEnginePage):
         # 可以在这里添加自定义的日志记录逻辑
         print(f"JS Console: {message} (Line {line_number} in {source_id})", level)
 
+    def acceptNavigationRequest(self, url, nav_type, is_main_frame):
+        """
+        重写导航请求方法，限制 URL 打开
+        :param url: 请求的 URL
+        :param nav_type: 导航类型
+        :param is_main_frame: 是否为主框架
+        :return: 是否允许导航
+        """
+        # 这里可以添加你的 URL 限制逻辑，以下是示例：
+        # 只允许打开本地文件和特定域名的链接
+        allowed_schemes = ['file']  # 允许 file 协议
+        allowed_domains = ['example.com']  # 允许的域名列表
+
+        if url.scheme() in allowed_schemes:
+            return True
+        if url.host() in allowed_domains:
+            return True
+        
+        # 打印被阻止的 URL，方便调试
+        print(f"Blocked navigation to: {url.toString()}")
+        return False
+
 class AutoSaveWorker(QObject):
     save_requested = Signal()
     cleanup_requested = Signal()
