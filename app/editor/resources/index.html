@@ -31,20 +31,6 @@
 <body>
     <div id="editor"></div>
     <script>
-        // 添加全局错误监听
-        window.onerror = function(message, source, lineno, colno, error) {
-            console.error('捕获到 JavaScript 错误:');
-            console.error('错误信息:', message);
-            console.error('错误文件:', source);
-            console.error('错误行号:', lineno);
-            console.error('错误列号:', colno);
-            if (error && error.stack) {
-                console.error('错误堆栈:', error.stack);
-            }
-            // 返回 true 阻止错误默认行为
-            return true;
-        };
-
         'use strict';
         var editor = new Cherry({
             id: 'editor',
@@ -81,10 +67,32 @@
 
         // 在 QWebChannel 接收数据时初始化
         // 确保 QWebChannel 初始化完成
-        // 在QWebChannel初始化完成后添加
+        // 在QWebChannel初始化完成后添加错误同步逻辑
         new QWebChannel(qt.webChannelTransport, function(channel) {
             var document = channel.objects.document;
             console.log('QWebChannel 初始化完成，已获取 document 对象');
+        
+            // 修改错误处理函数，添加错误同步逻辑
+            window.onerror = function(message, source, lineno, colno, error) {
+                const errorInfo = {
+                    message: message,
+                    source: source,
+                    lineno: lineno,
+                    colno: colno,
+                    stack: error ? error.stack : null
+                };
+        
+                // 打印详细错误信息
+                console.error('捕获到 JavaScript 错误:', errorInfo);
+        
+                // 同步错误信息到 Python 侧
+                if (document && document.reportJSError) {
+                    document.reportJSError(JSON.stringify(errorInfo));
+                }
+        
+                // 返回 true 阻止错误默认行为
+                return true;
+            };
             
             // 原有的内容加载逻辑
             document.text_changed.connect(function(text) {

@@ -32,13 +32,6 @@ class MarkdownDocument(QObject):
             self._text = text
             self.text_changed.emit(text)
 
-    def set_text(self, text):
-        """设置文本，避免循环触发"""
-        self._suppress_change_notification = True
-        self._text = text
-        self.text_changed.emit(text)
-        self._suppress_change_notification = False
-
     @property
     def file_id(self):
         return self._file_id
@@ -52,6 +45,13 @@ class MarkdownDocument(QObject):
     def get_text(self):
         return self._text
 
+    def set_text(self, text):
+        # 仅在文件 ID 变化时才 reset，这里调用 set_text 时应先设置正确的 file_id
+        self._text = text
+        # 添加调试日志确认数据更新
+        logger.debug(f"MarkdownDocument text updated, length: {len(text)}, first 20 chars: {text[:20]}")
+        self.text_changed.emit(text)
+
     def reset(self):
         """重置文档状态"""
         self._text = ""
@@ -61,7 +61,7 @@ class MarkdownDocument(QObject):
     text = Property(str, get_text, set_text, notify=text_changed)
 
 
-# 自定义 QWebEnginePage 类，拦截控制台日志
+# 自定义 QWebEnginePage 类，拦截控制台日志和链接打开请求
 class CustomWebEnginePage(QWebEnginePage):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -71,7 +71,6 @@ class CustomWebEnginePage(QWebEnginePage):
         super().javaScriptConsoleMessage(level, message, line_number, source_id)
         # 可以在这里添加自定义的日志记录逻辑
         print(f"JS Console: {message} (Line {line_number} in {source_id})", level)
-
 
 class AutoSaveWorker(QObject):
     save_requested = Signal()
@@ -458,4 +457,14 @@ class MarkdownEditor(QtWidgets.QWidget):
             logger.info(f"成功更新 Markdown 内容，ID: {item['id']}")
         except Exception as e:
             logger.error(f"更新 Markdown 内容失败: {str(e)}")
+    
+    @Slot(str)
+    def reportJSError(self, error_info):
+        """接收并处理 JS 侧的错误信息"""
+        try:
+            import json
+            error_data = json.loads(error_info)
+            logger.error(f'收到 JS 错误: {error_data}')
+        except json.JSONDecodeError:
+            logger.error(f'解析 JS 错误信息失败: {error_info}')
 
