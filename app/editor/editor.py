@@ -201,14 +201,16 @@ class MarkdownEditor(QtWidgets.QWidget):
         self.preview.setUrl(QUrl.fromLocalFile(html_path))
         # Add these settings with corrected import
         self.preview.page().settings().setAttribute(
-            QtWebEngineCore.QWebEngineSettings.ErrorPageEnabled, True)
+            QtWebEngineCore.QWebEngineSettings.ErrorPageEnabled, False)
         # 禁用不必要的功能
         self.preview.page().settings().setAttribute(
-            QtWebEngineCore.QWebEngineSettings.PluginsEnabled, True)
+            QtWebEngineCore.QWebEngineSettings.PluginsEnabled, False)
         self.preview.page().settings().setAttribute(
-            QtWebEngineCore.QWebEngineSettings.JavascriptCanOpenWindows, True)
+            QtWebEngineCore.QWebEngineSettings.JavascriptCanOpenWindows, False)
         self.preview.page().settings().setAttribute(
             QtWebEngineCore.QWebEngineSettings.LocalStorageEnabled, True)
+        self.preview.page().settings().setAttribute(
+            QtWebEngineCore.QWebEngineSettings.LocalContentCanAccessRemoteUrls, False)
 
     def init_auto_save(self):
         """初始化自动保存功能"""

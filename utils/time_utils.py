@@ -1,10 +1,11 @@
 from datetime import datetime, timezone, timedelta
 from typing import Optional
-import pytz
 
 def now():
-    beijing_tz = pytz.timezone('Asia/Shanghai')  # 设置北京时间时区
-    now = datetime.now(beijing_tz)  # 获取当前北京时间
+    # 创建北京时间时区（UTC+8）
+    beijing_tz = timezone(timedelta(hours=8))
+    # 获取当前北京时间
+    now = datetime.now(beijing_tz)
     return now
 
 def get_current_timestamp() -> str:
@@ -13,7 +14,7 @@ def get_current_timestamp() -> str:
     Returns:
         ISO 8601格式的UTC时间字符串，如'2023-11-15T12:30:45.123456+00:00'
     """
-    return datetime.now(timezone.utc).isoformat()
+    return now().isoformat()
 
 def get_duration(start: datetime, end: datetime):
     return end - start
