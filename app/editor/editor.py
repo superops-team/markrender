@@ -12,6 +12,8 @@ from db.settings_manager import SettingsManager
 from db.markdown_manager import MarkdownManager
 import threading
 from ..shortcut_manager import ShortcutManager  # 添加快捷键管理器导入
+from PySide6.QtCore import QTimer
+
 
 
 class MarkdownDocument(QObject):
@@ -20,17 +22,28 @@ class MarkdownDocument(QObject):
         self._file_id = file_id
         self.file_name = file_name
         self._text = ""
-        self._suppress_change_notification = False  # 防止循环触发
+        self._suppress_change_notification = False
+        # 新增防抖定时器，默认 500 毫秒
+        self._debounce_timer = QTimer(self)
+        self._debounce_timer.setSingleShot(True)
+        self._debounce_timer.timeout.connect(self._emit_delayed_change)
+        self._debounce_interval = 500
+
+    @Slot(str)
+    def on_content_changed(self, text):
+        """Web 端内容变化时的处理"""
+        if not self._suppress_change_notification:
+            self._text = text
+            self._debounce_timer.start(self._debounce_interval)
+
+    def _emit_delayed_change(self):
+        """延迟发射内容变化信号"""
+        logger.debug(f"MarkdownDocument text updated, length: {len(self._text)}, first 20 chars: {self._text[:20]}")
+        self.content_changed.emit(self._text)
 
     # 新增信号
     content_changed = Signal(str)  # Web端内容变化时触发
     
-    @Slot(str)
-    def on_content_changed(self, text):
-        """Web端内容变化时的处理"""
-        if not self._suppress_change_notification:
-            self._text = text
-            self.text_changed.emit(text)
 
     @property
     def file_id(self):
@@ -106,6 +119,8 @@ class AutoSaveWorker(QObject):
         self.timer.timeout.connect(self.check_save_condition)
         self.init_timer()
         self.cleanup_requested.connect(self.cleanup)  # 连接信号和清理方法
+        self.pending_saves = []  # 新增待保存队列
+        self.markdown_manager = MarkdownManager()
 
     def init_timer(self):
         """根据设置初始化定时器"""
@@ -117,10 +132,19 @@ class AutoSaveWorker(QObject):
         else:
             self.timer.stop()
 
+    def add_save_task(self, file_id, content):
+        """添加保存任务到队列"""
+        self.pending_saves.append((file_id, content))
+
+    def _perform_batch_save(self):
+        """执行批量保存操作"""
+        for file_id, content in self.pending_saves:
+            self.markdown_manager.save_content(file_id, content)
+        self.pending_saves.clear()
+
     def check_save_condition(self):
-        """检查是否需要触发保存"""
-        if self.auto_save_enabled:
-            self.save_requested.emit()
+        if self.auto_save_enabled and self.pending_saves:
+            self._perform_batch_save()
 
     def update_settings(self):
         """更新设置并重启定时器"""
@@ -130,6 +154,19 @@ class AutoSaveWorker(QObject):
         """清理定时器"""
         self.timer.stop()
         self.cleanup_finished.emit()  # 发射清理完成信号
+
+
+class ContentLoader(QThread):
+    content_loaded = Signal(str)
+
+    def __init__(self, file_id, markdown_manager):
+        super().__init__()
+        self.file_id = file_id
+        self.markdown_manager = markdown_manager
+
+    def run(self):
+        content = self.markdown_manager.get_content(self.file_id)
+        self.content_loaded.emit(content)
 
 class MarkdownEditor(QtWidgets.QWidget):
     def __init__(self, parent=None, file_id="", file_name=""):
@@ -165,11 +202,12 @@ class MarkdownEditor(QtWidgets.QWidget):
 
         # 添加缓存设置
         profile = self.preview.page().profile()
-        # cache_path = os.path.join(QStandardPaths.writableLocation(QStandardPaths.CacheLocation), "web_cache")
         cache_path = db_manager.get_user_data_dir() + '/web_cache'
         profile.setCachePath(cache_path)
         profile.setPersistentStoragePath(db_manager.get_user_data_dir() + '/web_storage')
         profile.setHttpCacheType(QtWebEngineCore.QWebEngineProfile.DiskHttpCache)
+        # 设置缓存大小为 100MB
+        profile.setHttpCacheMaximumSize(100 * 1024 * 1024)
 
         # 添加页面加载完成信号绑定
         self.preview.loadFinished.connect(self.on_page_loaded)
@@ -217,17 +255,11 @@ class MarkdownEditor(QtWidgets.QWidget):
         # 创建后台线程
         self.auto_save_thread = QThread()
         self.auto_save_worker = AutoSaveWorker()
-        
-        # 移动工作对象到线程
-        self.auto_save_worker.moveToThread(self.auto_save_thread)
-        
-        # 连接信号槽
-        self.auto_save_worker.save_requested.connect(self.auto_save_document)
-        
-        # 启动线程
-        self.auto_save_thread.start()
+        self.document.content_changed.connect(self._on_content_changed)
 
-    @Slot(str)
+    def _on_content_changed(self, content):
+        self.auto_save_worker.add_save_task(self.document.file_id, content)
+
     def on_document_modified(self, text):
         """标记文档为已修改"""
         if self.last_saved_text is None:
