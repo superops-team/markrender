@@ -362,6 +362,32 @@ QWidget {{
 }}
 """
 
+HISTORY_PANEL = """
+QListWidget {
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    padding: 0;
+    margin-top: 0px; /* 移除原有的margin-top设置 */
+}
+QListWidget::item {
+    border: 2px solid transparent;
+    padding: 5px 10px;
+    background-color: #f0f0f0;
+    border-bottom: 1px solid #ddd !important;
+}
+QListWidget::item:last {
+    border-bottom: none !important;
+}
+QListWidget::item:hover {
+    border: 2px solid rgb(25, 144, 255, 0.1);
+    background-color: rgb(234, 243, 255, 0.1);
+}
+QListWidget::item:selected {
+    border: 2px solid rgb(25, 144, 255, 0.1);
+    background-color: rgb(234, 243, 255, 0.1);
+}
+"""
+
 class AppStyle:
     '''
     应用程序样式
@@ -406,6 +432,9 @@ class AppStyle:
     def get_editor_preview(self):
         return EDITOR_PREVIEW
     
+    def get_history_panel(self):
+        return HISTORY_PANEL
+
     def get_format_label(self):
         return FORMAT_LABEL
     

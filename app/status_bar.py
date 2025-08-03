@@ -37,3 +37,6 @@ class StatusBar(QStatusBar):
 
     def update_word_count(self, count):
         self.word_count_label.setText(f"字数: {count}")
+
+    def show_message(self, message):
+        self.showMessage(message, 3000)  # 显示消息 3 秒

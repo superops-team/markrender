@@ -1,22 +1,28 @@
 import os
-from utils import logger
-from db import db_manager
+import json  # 添加json导入
+import time
+
 from PySide6 import QtWidgets
+from PySide6.QtWidgets import QWidget
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6 import QtWebEngineCore
-from PySide6.QtCore import QUrl, QObject, Signal, Property, QThread, QTimer, Slot, QStandardPaths
-from PySide6.QtWebChannel import QWebChannel
-from ..app_style import AppStyle
+from PySide6.QtCore import QUrl, QObject, Signal, Property, QTimer, Slot
 from PySide6.QtWebEngineCore import QWebEnginePage
+
 from db.settings_manager import SettingsManager
 from db.markdown_manager import MarkdownManager
-import threading
-from ..shortcut_manager import ShortcutManager  # 添加快捷键管理器导入
-from PySide6.QtCore import QTimer
-
+from app.editor.background import ThreadPoolManager, AutoSaveWorker, ContentLoader
+from app.shortcut_manager import ShortcutManager  # 添加快捷键管理器导入
+from app.app_style import AppStyle
+from app.editor.channel import WebCommunicationManager
+from utils import logger
+from db import db_manager
 
 
 class MarkdownDocument(QObject):
+    text_changed = Signal(str)  # 文档内容变更信号
+    content_changed = Signal(str)  # Web端内容变化时触发
+
     def __init__(self, file_id, file_name):
         super().__init__()
         self._file_id = file_id
@@ -41,10 +47,6 @@ class MarkdownDocument(QObject):
         logger.debug(f"MarkdownDocument text updated, length: {len(self._text)}, first 20 chars: {self._text[:20]}")
         self.content_changed.emit(self._text)
 
-    # 新增信号
-    content_changed = Signal(str)  # Web端内容变化时触发
-    
-
     @property
     def file_id(self):
         return self._file_id
@@ -59,18 +61,14 @@ class MarkdownDocument(QObject):
         return self._text
 
     def set_text(self, text):
-        # 仅在文件 ID 变化时才 reset，这里调用 set_text 时应先设置正确的 file_id
         self._text = text
-        # 添加调试日志确认数据更新
-        logger.debug(f"MarkdownDocument text updated, length: {len(text)}, first 20 chars: {text[:20]}")
-        self.text_changed.emit(text)
+        self.text_changed.emit(text)  # 触发文档内部变更
 
     def reset(self):
         """重置文档状态"""
         self._text = ""
         self.text_changed.emit("")  # 发射清空内容的信号
 
-    text_changed = Signal(str)
     text = Property(str, get_text, set_text, notify=text_changed)
 
 
@@ -83,7 +81,7 @@ class CustomWebEnginePage(QWebEnginePage):
         # 调用原有的处理方法，可根据需求修改处理逻辑
         super().javaScriptConsoleMessage(level, message, line_number, source_id)
         # 可以在这里添加自定义的日志记录逻辑
-        print(f"JS Console: {message} (Line {line_number} in {source_id})", level)
+        logger.debug(f"JS Console: {message} (Line {line_number} in {source_id})", level)
 
     def acceptNavigationRequest(self, url, nav_type, is_main_frame):
         """
@@ -104,75 +102,30 @@ class CustomWebEnginePage(QWebEnginePage):
             return True
         
         # 打印被阻止的 URL，方便调试
-        print(f"Blocked navigation to: {url.toString()}")
+        logger.debug(f"Blocked navigation to: {url.toString()}")
         return False
 
-class AutoSaveWorker(QObject):
-    save_requested = Signal()
-    cleanup_requested = Signal()
-    cleanup_finished = Signal()  # 新增清理完成信号
 
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.general_settings = SettingsManager().get_settings_dict('general') or {}  # 通用设置，添加空字典回退
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.check_save_condition)
-        self.init_timer()
-        self.cleanup_requested.connect(self.cleanup)  # 连接信号和清理方法
-        self.pending_saves = []  # 新增待保存队列
-        self.markdown_manager = MarkdownManager()
-
-    def init_timer(self):
-        """根据设置初始化定时器"""
-        self.auto_save_enabled = self.general_settings.get('auto_save_enabled', True)
-        self.check_interval = self.general_settings.get('auto_save_interval', 30) * 1000  # 转换为毫秒
-
-        if self.auto_save_enabled:
-            self.timer.start(self.check_interval)
-        else:
-            self.timer.stop()
-
-    def add_save_task(self, file_id, content):
-        """添加保存任务到队列"""
-        self.pending_saves.append((file_id, content))
-
-    def _perform_batch_save(self):
-        """执行批量保存操作"""
-        for file_id, content in self.pending_saves:
-            self.markdown_manager.save_content(file_id, content)
-        self.pending_saves.clear()
-
-    def check_save_condition(self):
-        if self.auto_save_enabled and self.pending_saves:
-            self._perform_batch_save()
-
-    def update_settings(self):
-        """更新设置并重启定时器"""
-        self.init_timer()
-
-    def cleanup(self):
-        """清理定时器"""
-        self.timer.stop()
-        self.cleanup_finished.emit()  # 发射清理完成信号
-
-
-class ContentLoader(QThread):
-    content_loaded = Signal(str)
-
-    def __init__(self, file_id, markdown_manager):
-        super().__init__()
-        self.file_id = file_id
-        self.markdown_manager = markdown_manager
-
-    def run(self):
-        content = self.markdown_manager.get_content(self.file_id)
-        self.content_loaded.emit(content)
-
-class MarkdownEditor(QtWidgets.QWidget):
+class MarkdownEditor(QWidget):
     def __init__(self, parent=None, file_id="", file_name=""):
         super().__init__(parent)
+        # 首先初始化web_comm
+        self.web_comm = WebCommunicationManager.instance()
+        # 然后再调用init_web_handlers()
+        self.init_web_handlers()
+        # 初始化线程池管理器
+        self.thread_pool = ThreadPoolManager()
+        # 连接线程池信号
+        self.thread_pool.task_completed.connect(self.on_task_completed)
+        self.thread_pool.task_failed.connect(self.on_task_failed)
         # Initialize document for WebChannel
         self.document = MarkdownDocument(file_id, file_name)
+        # 注册文档到通信管理器
+        if file_id:  # 确保file_id存在
+            self.web_comm.document_map[file_id] = self.document
+            self.file_id = file_id
+        # 建立信号连接
+        self.document.text_changed.connect(self.web_comm.on_document_text_changed)
         self.markdown_manager = MarkdownManager()
         
         # 添加上次保存内容跟踪
@@ -223,9 +176,7 @@ class MarkdownEditor(QtWidgets.QWidget):
         self.setStyleSheet(AppStyle().get_editor_parent() + AppStyle().get_editor_preview())
 
         # Setup WebChannel
-        self.channel = QWebChannel(self)
-        self.channel.registerObject("document", self.document)
-        self.preview.page().setWebChannel(self.channel)
+        self.web_comm.attach_to_page(self.preview.page())
         
         # 连接文档变化信号
         self.document.text_changed.connect(self.on_document_modified)
@@ -250,22 +201,64 @@ class MarkdownEditor(QtWidgets.QWidget):
         self.preview.page().settings().setAttribute(
             QtWebEngineCore.QWebEngineSettings.LocalContentCanAccessRemoteUrls, False)
 
+    @property
+    def file_id(self):
+        return self.document.file_id
+
+    @file_id.setter
+    def file_id(self, value):
+        if value != self.document.file_id:
+            if self.document.file_id:
+                del self.web_comm.document_map[self.document.file_id]
+            if value:
+                self.document.file_id = value
+                self.web_comm.document_map[value] = self.document
+
+    
     def init_auto_save(self):
         """初始化自动保存功能"""
-        # 创建后台线程
-        self.auto_save_thread = QThread()
-        self.auto_save_worker = AutoSaveWorker()
-        self.document.content_changed.connect(self._on_content_changed)
+        self.general_settings = SettingsManager().get_settings_dict('general') or {}
+        self.auto_save_enabled = self.general_settings.get('auto_save_enabled', True)
+        self.auto_save_interval = self.general_settings.get('auto_save_interval', 30) * 1000
+        
+        if self.auto_save_enabled:
+            self.auto_save_timer = QTimer(self)
+            self.auto_save_timer.timeout.connect(self.submit_auto_save_task)
+            self.auto_save_timer.start(self.auto_save_interval)
 
-    def _on_content_changed(self, content):
-        self.auto_save_worker.add_save_task(self.document.file_id, content)
+    def submit_auto_save_task(self):
+        """提交自动保存任务"""
+        if self.document_modified and self.document.file_id:
+            task_id = f"auto_save_{self.document.file_id}_{int(time.time())}"
+            save_worker = AutoSaveWorker(
+                file_id=self.document.file_id,
+                content=self.document.get_text()
+            )
+            self.thread_pool.submit_task(
+                task_id=task_id,
+                worker=save_worker,
+                callback=self.on_auto_save_completed
+            )
+            logger.info(f"提交自动保存任务: {task_id}")
 
-    def on_document_modified(self, text):
-        """标记文档为已修改"""
+    def on_auto_save_completed(self, task_id, result):
+        """自动保存完成回调"""
+        if result:
+            self.last_saved_text = self.document.get_text()
+            self.document_modified = False
+            logger.info(f"自动保存成功: {task_id}")
+
+    def on_document_modified(self, text, source="user"):
+        """标记文档为已修改，source: user/program"""
         if self.last_saved_text is None:
             self.last_saved_text = text
             return
         
+        # 程序更新不触发修改标记
+        if source == "program":
+            self.last_saved_text = text
+            return
+            
         # 使用更智能的比较，避免空格等微小变化
         if text.strip() != self.last_saved_text.strip():
             self.document_modified = True
@@ -282,6 +275,10 @@ class MarkdownEditor(QtWidgets.QWidget):
         
         # 注册默认快捷键
         self.shortcut_manager.register_default_shortcuts()
+
+    # 添加带装饰器的保存方法
+    def save_markdown_content(self, file_id, content):
+        return self.markdown_manager.save_markdown(id=file_id, content=content)
 
     def save_document(self):
         """手动保存当前文档"""
@@ -329,129 +326,25 @@ class MarkdownEditor(QtWidgets.QWidget):
             self.parent().open_file_dialog()
 
     def show_find_dialog(self):
-        """显示查找对话框（快捷键响应）"""
-        js_code = """
-            if (window.editor && window.editor.codemirror) {
-                window.editor.codemirror.execCommand('find');
-            }
-        """
-        self.preview.page().runJavaScript(js_code)
-
-    @Slot()
-    def auto_save_document(self):
-        """自动保存文档内容（修复光标重置问题）"""
-        logger.info(f"Auto-save triggered: {self.document.file_id}, modified: {self.document_modified}")
-        if self.document.file_id and self.document_modified:
-            try:
-                # 直接获取内容保存，不重新设置document
-                js_code = """
-                    if (window.editor) {
-                        window.editor.getMarkdown();
-                    } else {
-                        '';
-                    }
-                """
-                def handle_auto_save(content):
-                    if content and content != self.last_saved_text:
-                        # 直接保存到数据库，不触发编辑器重载
-                        success = self.markdown_manager.save_markdown(
-                            id=self.document.file_id, 
-                            content=content
-                        )
-                        if success:
-                            self.last_saved_text = content
-                            self.document_modified = False
-                            logger.info(f"Auto-saved document: {self.document.file_id}")
-                        else:
-                            logger.error("自动保存到数据库失败")
-                    else:
-                        # 内容未变化，直接重置标记
-                        self.document_modified = False
-                        
-                self.preview.page().runJavaScript(js_code, handle_auto_save)
-            except Exception as e:
-                logger.error(f"Auto-save failed: {str(e)}")
-                self.document_modified = True
-
-    def get_markdown(self, callback):
-        """获取markdown内容（保持光标位置）"""
-        js_code = """
-            if (window.editor) {
-                window.editor.getMarkdown();
-            } else {
-                '';
-            }
-        """
-        def handle_markdown_content(content):
-            # 只更新跟踪变量，不设置document内容
-            self.last_saved_text = content
-            callback(content)
-        self.preview.page().runJavaScript(js_code, handle_markdown_content)
-        return self.document.get_text()
-
-    def closeEvent(self, event):
-        """窗口关闭时清理"""
-        # 先清理快捷键
-        if hasattr(self, 'shortcut_manager'):
-            self.shortcut_manager.clear_all_global_shortcuts()
-            
-        # 清理自动保存线程
-        cleanup_finished = threading.Event()
-        
-        def on_cleanup_finished():
-            cleanup_finished.set()
-        
-        self.auto_save_worker.cleanup_requested.connect(on_cleanup_finished)
-        self.auto_save_worker.cleanup_requested.emit()
-        
-        cleanup_finished.wait(timeout=5)
-        
-        self.auto_save_thread.quit()
-        self.auto_save_thread.wait()
-        super().closeEvent(event)
-
-    def export_to_browser(self):
-        """导出当前内容到浏览器"""
-        self.get_html_content(lambda html_content: self.export_html_to_browser(html_content))
-    
-    def export_html_to_browser(self, html_content):
-        """导出 HTML 内容到浏览器"""
-        if html_content:
-            temp_file = os.path.join(QStandardPaths.writableLocation(QStandardPaths.TempLocation), "export.html")
-            with open(temp_file, 'w', encoding='utf-8') as f:
-                f.write(html_content)
-            self.preview.setUrl(QUrl.fromLocalFile(temp_file))
-    
-    def get_html_content(self, callback):
-        """获取当前 HTML 内容"""
-        js_code = """
-            if (window.editor) {
-                return window.editor.getValue();
-            } else {
-                return '';
-            }
-        """
-        def handle_html_content(content):
-            callback(content)
-        self.preview.page().runJavaScript(js_code, handle_html_content)
+        # 通过channel发送命令，而非直接调用runJavaScript
+        self.web_comm.send_message("executeCommand", {
+            "command": "find"
+        })
 
     def update_theme(self, theme):
-        """Switch the Cherry Markdown theme."""
-        js_code = f"""
-            if (window.editor) {
-                window.editor.setTheme('{theme}')
-            }
-        """
-        self.preview.page().runJavaScript(js_code)
-        
-    def update_auto_save_settings(self):
-        """更新自动保存设置"""
-        if hasattr(self, 'auto_save_worker'):
-            self.auto_save_worker.update_settings()
+        # 通过channel发送主题更新请求
+        self.web_comm.send_message("setTheme", {
+            "theme": theme
+        })
 
     def reset(self):
         self.document.file_id = ""
         self.document.file_name = ""
+        self.document.reset()  # 调用文档的 reset 方法
+        # 通过channel发送清空内容请求
+        self.web_comm.send_message("setValue", {
+            "content": ""
+        })
         self.document.reset()  # 调用文档的 reset 方法
         # 执行 JavaScript 清空编辑区内容
         js_code = """
@@ -463,13 +356,63 @@ class MarkdownEditor(QtWidgets.QWidget):
 
     def set_file_id(self, file_id):
         self.document.file_id = file_id
+        # 通知前端当前文件ID
+        if hasattr(self, 'web_comm') and self.web_comm:
+            # 发送文件ID变更通知到前端
+            self.web_comm.send_message('setCurrentFileId', {
+                'file_id': file_id
+            })
+            logger.debug(f"已通知前端当前文件ID: {file_id}")
+        else:
+            logger.warning("web_comm未初始化，无法通知前端当前文件ID变更")
 
     def set_file_name(self, file_name):
         self.document.file_name = file_name
 
+    def get_markdown(self, callback):
+        """获取markdown内容"""
+        # 设置5秒超时
+        timeout_timer = QTimer()
+        timeout_timer.setSingleShot(True)
+        timeout_timer.timeout.connect(lambda: callback({
+            'success': False,
+            'error': '获取内容超时'
+        }))
+        timeout_timer.start(5000)
+
+        # 发送获取请求
+        self.web_comm.send_message(
+            'getMarkdown',
+            callback=lambda response: (
+                timeout_timer.stop(),
+                callback(response)
+            )
+        )
+
     def set_text_content(self, text_content):
-        self.document.set_text(text_content)
-        # 新增：同步初始内容到last_saved_text
+        # 通过channel设置内容
+        if not self.web_comm or not self.web_comm.page:
+            logger.error("web_comm未初始化或页面未加载，无法设置内容")
+            return
+
+        # 检查页面是否已加载
+        if not hasattr(self, 'page_loaded') or not self.page_loaded:
+            # 页面未加载，延迟发送
+            logger.warning("页面未加载，延迟设置内容")
+            self.initial_content = text_content
+            return
+
+        # 添加回调机制确认消息发送状态
+        def handle_set_value(response):
+            if response.get('success'):
+                self.last_saved_text = text_content
+                logger.debug("内容已成功设置到前端")
+            else:
+                logger.error(f"设置内容失败: {response.get('error')}")
+
+        self.web_comm.send_message("setValue", {
+            "content": text_content
+        }, handle_set_value)
         self.last_saved_text = text_content
 
     def resizeEvent(self, event):
@@ -488,39 +431,105 @@ class MarkdownEditor(QtWidgets.QWidget):
         log_level = level_map.get(level, "UNKNOWN")
         logger.info(f"JS {log_level}: {message} at {source_id}:{line_number}")
     
-    def on_page_loaded(self, ok):
-        """页面加载完成后初始化编辑器事件监听"""
-        if ok:
-            # 设置编辑器内容变化监听
-            js_code = """
-                if (window.editor) {
-                    // 监听内容变化事件
-                    window.editor.on('change', function() {
-                        // 将编辑器内容同步到Python端document对象
-                        document.text = window.editor.getValue();
-                    });
-                }
-            """
-            self.preview.page().runJavaScript(js_code)
+    def on_page_loaded(self, success):
+        """页面加载完成回调"""
+        if success:
+            self.page_loaded = True
+            logger.debug("预览页面加载完成")
+            # 如果有延迟发送的初始内容
+            if hasattr(self, 'initial_content'):
+                self.set_text_content(self.initial_content)
+                del self.initial_content
+        else:
+            logger.error("预览页面加载失败")
+            
+            # 通过channel注册web端事件
+            self.web_comm.send_message("registerEditorEvents", {})
+            
+            # 通过channel设置内容变化监听
+            self.web_comm.send_message("setupContentChangeListener", {
+                "callback": "contentChanged"
+            })
 
     def update_markdown_content(self, item):
         """更新 Markdown 内容"""
         try:
-            content = self.markdown_manager.get_markdown_content(item['id'])
-            self.document.set_text(content)
-            self.last_saved_text = content
-            self.document_modified = False
-            logger.info(f"成功更新 Markdown 内容，ID: {item['id']}")
+            # 使用线程池提交内容加载任务
+            loader = ContentLoader(item.file_id, self.markdown_manager)
+            self.thread_pool.submit_task(f"load_{item.file_id}", loader, self.on_content_loaded)
         except Exception as e:
             logger.error(f"更新 Markdown 内容失败: {str(e)}")
+
+    def on_content_loaded(self, content):
+        """内容加载完成回调"""
+        self.document.set_text(content)
+        self.last_saved_text = content
+        self.document_modified = False
+
+    @Slot(str, object)
+    def on_task_completed(self, task_id, result):
+        """线程任务完成处理"""
+        if task_id.startswith("load_content_"):
+            self.on_content_loaded(result)
+        elif task_id.startswith("auto_save_"):
+            self.on_auto_save_completed(task_id, result)
+
+    @Slot(str, str)
+    def on_task_failed(self, task_id, error):
+        """线程任务失败处理"""
+        logger.error(f"任务 {task_id} 执行失败: {error}")
     
-    @Slot(str)
+    # 修改on_web_content_changed方法
+    @Slot()
+    def on_web_content_changed(self, data):
+        if 'content' in data:
+            # 直接触发修改标记，跳过document中间层
+            self.on_document_modified(data['content'], source="web")
+    
+    @Slot()
+    def on_web_save_request(self):
+        """处理Web端保存请求"""
+        self.save_document()
+
+    @Slot(str)    
     def reportJSError(self, error_info):
         """接收并处理 JS 侧的错误信息"""
         try:
-            import json
             error_data = json.loads(error_info)
             logger.error(f'收到 JS 错误: {error_data}')
         except json.JSONDecodeError:
             logger.error(f'解析 JS 错误信息失败: {error_info}')
 
+    def closeEvent(self, event):
+        # 1. 停止自动保存定时器
+        if hasattr(self, 'auto_save_timer'):
+            self.auto_save_timer.stop()
+            logger.info("Auto-save timer stopped")
+
+        # 2. 注销文档关联
+        if hasattr(self, 'web_comm') and self.document and self.document.file_id:
+            self.web_comm.unregister_document(self.document.file_id)
+            logger.info(f"Unregistered document: {self.document.file_id}")
+
+        # 3. 清理线程池资源
+        if hasattr(self, 'thread_pool'):
+            # 取消所有未完成任务
+            self.thread_pool.cancel_all_tasks()
+            # 等待当前任务完成（最多等待2秒）
+            self.thread_pool.wait_for_completion(2000)
+            logger.info("Thread pool resources cleaned up")
+
+        # 4. 释放Web通信资源
+        if hasattr(self, 'web_comm'):
+            self.web_comm.cleanup()
+
+        super().closeEvent(event)
+
+
+    def init_web_handlers(self):
+        """延迟初始化Web处理器，避免类定义阶段竞争"""
+        # 所有装饰器移至此处动态注册
+        self.web_comm.register_python_handler('autoSave', self.save_markdown_content, is_async=True)
+        self.web_comm.register_python_handler('contentChanged', self.on_web_content_changed)
+        self.web_comm.register_python_handler('requestSave', self.on_web_save_request)
+        self.web_comm.register_python_handler('reportError', self.reportJSError)

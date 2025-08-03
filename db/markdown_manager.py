@@ -88,6 +88,8 @@ class MarkdownManager:
                 # 更新现有记录
                 history = session.query(MarkdownFileHistory).filter_by(id=id).first()
                 if history:
+                    if content_md5 and content_md5 != history.content_md5:
+                        history.content_md5 = content_md5
                     if title and title != history.title:
                         history.title = title
                     if content and content != history.content:
@@ -100,8 +102,6 @@ class MarkdownManager:
                         history.tags = tags
                     if render_style and render_style != history.render_style:
                         history.render_style = render_style
-                    if content_md5 and content_md5 != history.content_md5:
-                        history.content_md5 = content_md5
                     history.updated_at = now  # 使用北京时间更新
                     if converter_start:
                         history.converter_start = converter_start

@@ -2,7 +2,7 @@
 import sys
 import traceback
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QFrame)
+from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QFrame, QMessageBox)
 from utils.logger_utils import logger
 from PySide6.QtWidgets import QSplitter
 from app.editor import MarkdownEditor
@@ -22,6 +22,7 @@ class MainWindow(QMainWindow):
         self.showMaximized()  # 恢复启动最大化
         self.setup_ui()
         self.current_file = None
+        self.web_comm = None
         # 设置基础样式表
         self.setStyleSheet(AppStyle().get_main_style())
 
@@ -199,13 +200,21 @@ class MainWindow(QMainWindow):
             current_file_id = self.markdown_editor.document.file_id
             if current_file_id:
                 # 获取当前笔记内容
-                def save_current_content(content):
-                    self.markdown_editor.markdown_manager.save_markdown(
-                        id=current_file_id,
-                        content=content
-                    )
-                    logger.info(f"退出前保存笔记成功，ID: {current_file_id}")
+                def save_current_content(data):
+                    try:
+                        # 修复：正确访问嵌套在result中的content字段
+                        content = data['result']['content']
+                        self.markdown_editor.save_markdown_content(current_file_id, content)
+                        self.status_bar.show_message("笔记已保存")
+                    except Exception as e:
+                        logger.error(f"保存笔记失败: {str(e)}")
+                        QMessageBox.critical(self, "保存失败", f"无法保存笔记内容: {str(e)}")
+                # 修复：使用get_markdown方法获取内容
                 self.markdown_editor.get_markdown(save_current_content)
+            # 调用编辑器的关闭事件处理线程
+            self.markdown_editor.closeEvent(event)
+        except Exception as e:
+            logger.error(f"退出前保存笔记失败: {str(e)}")
             # 调用编辑器的关闭事件处理线程
             self.markdown_editor.closeEvent(event)
         except Exception as e:

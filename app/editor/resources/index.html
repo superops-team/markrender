@@ -8,111 +8,261 @@
     <script src="jspdf.umd.min.js"></script>
     <script src="qrc:/qtwebchannel/qwebchannel.js"></script>
     <style>
-        body {
-            margin: 0px;
-            height: 100vh;
-            padding: 0;
-            box-sizing: border-box;
-            /* 修改：移除禁止页面滚动的样式 */
-            overflow: hidden; /* 禁止页面滚动 */
-            background-color: transparent; /* 新增透明背景 */
-        }
-        #editor {
-            width: calc(100% - 20px);
-            height: auto;
-            /* height: calc(100vh - 20px);*/
-            margin: 0px;
-            /* 修改：移除禁止编辑器滚动的样式 */
-            overflow: hidden; /* 禁止编辑器滚动 */
-            /* overflow: hidden; /* 新增：确保元素可滚动 */
-        }
+        body { margin: 0; height: 100vh; padding: 0; box-sizing: border-box; overflow: hidden; background-color: transparent; }
+        #editor { width: calc(100% - 20px); height: auto; margin: 0; overflow: hidden; }
+        /* 新增历史记录样式 */
+        #historyList { position: absolute; top: 10px; right: 10px; max-width: 300px; background: white; border: 1px solid #ccc; border-radius: 4px; padding: 10px; }
+        .history-item { padding: 8px; margin: 5px 0; border: 1px solid #eee; border-radius: 3px; cursor: pointer; }
+        .history-item:hover { background-color: #f5f5f5; }
     </style>
 </head>
 <body>
     <div id="editor"></div>
     <script>
         'use strict';
-        var editor = new Cherry({
-            id: 'editor',
-            value: '',
-            toolbars: {
-                theme: 'light',
-                toolbar: [
-                    'bold','italic','strikethrough','|',
-                    'color','header','ruby','|',
-                    'quote','list','panel','detail', 'justify', 'checklist', '|',
-                    {insert: ['image', 'audio', 'video', 'link', 'hr', 'br', 'code', 'formula', 'toc', 'table']},
-                    'graph'
-                ],
-                //sidebar: [],
-                toolbarRight: ['undo', 'redo', 'togglePreview', 'codeTheme'],
-                bubble: false,
-                float: ['table', 'code']
-            },
-            // 启用双栏模式
-            mode: 'edit&preview',
-            preview: {
-                // 设置预览区域样式
-                style: {
-                    height: 'auto',
-                    width: '100%'
-                }
-            },
-            syntax: {              
-            },
-            header: {
-                anchorStyle: 'none',
-            }
-        });
+        // 全局状态管理
+        const appState = {
+            editor: null,
+            backendInterface: null,
+            currentDocumentId: null,
+            isChannelReady: false,
+            callbackMap: new Map(),
+            requestCounter: 0
+        };
 
-        // 在 QWebChannel 接收数据时初始化
-        // 确保 QWebChannel 初始化完成
-        // 在QWebChannel初始化完成后添加错误同步逻辑
-        new QWebChannel(qt.webChannelTransport, function(channel) {
-            var document = channel.objects.document;
-            console.log('QWebChannel 初始化完成，已获取 document 对象');
-        
-            // 修改错误处理函数，添加错误同步逻辑
-            window.onerror = function(message, source, lineno, colno, error) {
-                const errorInfo = {
-                    message: message,
-                    source: source,
-                    lineno: lineno,
-                    colno: colno,
-                    stack: error ? error.stack : null
-                };
-        
-                // 打印详细错误信息
-                console.error('捕获到 JavaScript 错误:', errorInfo);
-        
-                // 同步错误信息到 Python 侧
-                if (document && document.reportJSError) {
-                    document.reportJSError(JSON.stringify(errorInfo));
-                }
-        
-                // 返回 true 阻止错误默认行为
-                return true;
-            };
-            
-            // 原有的内容加载逻辑
-            document.text_changed.connect(function(text) {
-                console.log('收到 text_changed 信号，文本长度: ', text.length);
-                if (window.editor) {
-                    window.editor.setValue(text);
-                }
-            });
-            
-            // 新增：监听编辑器内容变化
-            if (window.editor) {
-                window.editor.on('change', function() {
-                    var currentContent = window.editor.getMarkdown();
-                    // 通知Python端内容已变化
-                    if (document && document.content_changed) {
-                        document.content_changed(currentContent);
-                    }
-                });
+        // 添加响应发送函数定义
+        function sendResponseToPython(requestId, data) {
+            if (!appState.isChannelReady || !appState.backendInterface) {
+                console.error('WebChannel未就绪，无法发送响应');
+                return;
             }
-        });
+            try {
+                const responseData = {
+                    requestId: requestId,
+                    result: data
+                };
+                appState.backendInterface.handle_web_response(JSON.stringify(responseData));
+            } catch (error) {
+                console.error('发送响应失败:', error);
+            }
+        }
+
+        // 初始化编辑器
+        function initEditor() {
+            appState.editor = new Cherry({
+                id: 'editor',
+                value: '',
+                toolbars: {
+                    theme: 'light',
+                    toolbar: [
+                        'bold','italic','strikethrough','|',
+                        'color','header','ruby','|',
+                        'quote','list','panel','detail', 'justify', 'checklist', '|',
+                        {insert: ['image', 'audio', 'video', 'link', 'hr', 'br', 'code', 'formula', 'toc', 'table']},
+                        'graph'
+                    ],
+                    toolbarRight: ['undo', 'redo', 'togglePreview', 'codeTheme'],
+                    bubble: false,
+                    float: ['table', 'code']
+                },
+                mode: 'edit&preview',
+                preview: { style: { height: 'auto', width: '100%' }},
+                header: { anchorStyle: 'none' }
+            });
+
+            // 绑定编辑器事件
+            bindEditorEvents();
+        }
+
+        // 绑定编辑器事件
+        function bindEditorEvents() {
+            if (!appState.editor) return;
+
+            // 内容变化节流处理 (300ms延迟)
+            const throttle = (func, wait = 300) => {
+                let timeout;
+                return (...args) => {
+                    if (!timeout) {
+                        timeout = setTimeout(() => { func.apply(this, args); timeout = null; }, wait);
+                    }
+                };
+            };
+
+            // 内容变化事件
+            appState.editor.on('change', throttle(() => {
+                sendToPython('contentChanged', {
+                    content: appState.editor.getValue()
+                });
+            }));
+        }
+
+        // 初始化通信通道
+        function initWebChannel() {
+            if (!window.qt || !window.qt.webChannelTransport) {
+                console.error('QWebChannel传输不可用');
+                return;
+            }
+
+            new QWebChannel(qt.webChannelTransport, (channel) => {
+                appState.backendInterface = channel.objects.backendInterface;
+                appState.isChannelReady = true;
+                console.log('QWebChannel初始化完成');
+
+                // 注册后端信号处理
+                registerBackendSignals();
+                // 通知后端前端就绪
+                appState.backendInterface.frontend_ready();
+            });
+        }
+
+        // 处理Python发送的消息
+        window.handlePythonMessage = function(action, data, requestId) {
+            console.log('收到Python消息:', action, data, 'requestId:', requestId);
+            switch(action) {
+                case 'setValue':
+                    if (appState.editor) {
+                        appState.editor.setValue(data.content);
+                        console.log('编辑器内容已更新');
+                    } else {
+                        console.error('编辑器未初始化，无法设置内容');
+                    }
+                    break;
+                case 'setCurrentFileId':
+                    appState.currentDocumentId = data.file_id;
+                    console.log('当前文件ID已更新:', data.file_id);
+                     // 立即验证ID有效性
+                    sendToPython('verifyDocumentId', { docId: data.file_id }, (response) => {
+                        if (response.error) {
+                            console.error('文档ID验证失败:', response.error);
+                            // 处理验证失败情况，如提示用户
+                        } else {
+                            console.log('文档ID验证成功');
+                            // 处理验证成功情况
+                        }
+                    });
+                    break;
+                case 'textChanged':
+                    if (appState.editor) {
+                        appState.editor.setValue(data.content);
+                        console.log('编辑器内容已更新');
+                    } else {
+                        console.error('编辑器未初始化，无法设置内容');
+                    }
+                    break;
+                case 'getMarkdown':
+                    if (appState.editor) {
+                        sendResponseToPython(requestId, {
+                            content: appState.editor.getValue()
+                        });
+                    } else {
+                        sendResponseToPython(requestId, {
+                            error: '编辑器未初始化，无法获取Markdown'
+                        });
+                    }
+                    break;
+                // 其他命令处理...
+                default:
+                    console.warn('未处理的命令:', action);
+            }
+        };
+
+        // 注册后端信号
+        function registerBackendSignals() {
+            if (!appState.backendInterface) return;
+
+            // 文本变更信号
+            appState.backendInterface.text_changed.connect((text) => {
+                console.log('收到文本更新，长度:', text.length);
+                if (appState.editor) appState.editor.setValue(text);
+            });
+
+            // 文档关联信号
+            appState.backendInterface.document_associated.connect((docId) => {
+                appState.currentDocumentId = docId;
+                console.log('已关联文档ID:', docId);
+            });
+        }
+
+        // 标准化消息发送
+        function sendToPython(action, data = {}, callback = null) {
+            if (!appState.isChannelReady || !appState.backendInterface) {
+                console.error('通信通道未就绪');
+                return;
+            }
+            
+            // 添加后端方法存在性检查
+            if (typeof appState.backendInterface.dispatch_request !== 'function') {
+                console.error('后端接口方法不存在: dispatch_request');
+                return;
+            }
+
+            // 生成唯一请求ID
+            const requestId = `req_${Date.now()}_${appState.requestCounter++}`;
+            if (callback) appState.callbackMap.set(requestId, callback);
+
+            // 标准请求格式
+            const request = {
+                id: requestId,
+                action: action,
+                data: { ...data, docId: appState.currentDocumentId || 'default' }  // 确保docId存在
+            };
+
+            try {
+                // 使用.then()处理Promise响应
+                appState.backendInterface.dispatch_request(JSON.stringify(request))
+                    .then(responseJson => handlePythonResponse(responseJson))
+                    .catch(error => console.error('请求失败:', error));
+            } catch (e) {
+                console.error('发送请求失败:', e);
+            }
+        }
+
+        // 处理Python响应
+        function handlePythonResponse(responseJson) {
+            console.log('原始响应数据:', responseJson);
+            try {
+                // 尝试解析JSON
+                const response = typeof responseJson === 'string' ? JSON.parse(responseJson) : responseJson;
+                console.log('解析后的响应:', response);
+                
+                // 处理回调
+                if (response.id && appState.callbackMap.has(response.id)) {
+                    appState.callbackMap.get(response.id)(response);
+                    appState.callbackMap.delete(response.id);
+                }
+            } catch (e) {
+                console.error('解析响应失败:', e);
+            }
+        }
+
+        // 错误处理全局化
+        window.onerror = function(message, source, lineno, colno, error) {
+            sendToPython('frontend_error', {
+                message: message,
+                source: source,
+                line: lineno,
+                column: colno,
+                stack: error?.stack || ''
+            });
+            return true; // 阻止默认处理
+        };
+
+        // 初始化应用
+        function initApp() {
+            initEditor();
+            initWebChannel();
+            // 启动自动保存 (30秒间隔)
+            setInterval(() => {
+                if (appState.editor && appState.currentDocumentId) {
+                    sendToPython('autoSave', {
+                        content: appState.editor.getValue()
+                    });
+                }
+            }, 30000);
+        }
+
+        // 启动应用
+        document.addEventListener('DOMContentLoaded', initApp);
     </script>
 </body>
 </html>

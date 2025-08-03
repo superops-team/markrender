@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarkRender - 您的创意笔记本</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
+        
+        .left-panel {
+            flex: 6;
+            padding: 4rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            background-color: #ffffff;
+        }
+        
+        .right-panel {
+            flex: 4;
+            background-image: url('./assets/icon_markrender.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            background-color: #f5f5f7;
+            opacity: 0.9;
+        }
+        
+        .title {
+            font-size: 2.5rem;
+            color: #2c3e50;
+            margin-bottom: 1.5rem;
+            font-weight: 700;
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            color: #666;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+        
+        .features {
+            margin-bottom: 3rem;
+        }
+        
+        .feature-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+            font-size: 1rem;
+            color: #333;
+        }
+        
+        .feature-item::before {
+            content: '✓';
+            color: #3498db;
+            font-weight: bold;
+            margin-right: 0.8rem;
+            font-size: 1.2rem;
+        }
+        
+        .action-button {
+            padding: 0.8rem 2rem;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            width: fit-content;
+        }
+        
+        .action-button:hover {
+            background-color: #2980b9;
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+            
+            .right-panel {
+                height: 30vh;
+                flex: none;
+            }
+            
+            .left-panel {
+                padding: 2rem;
+                height: 70vh;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="left-panel">
+        <h1 class="title">MarkRender</h1>
+        <p class="subtitle">您的多功能 Markdown 笔记本，支持富文本编辑、绘图和多格式导出。开始记录您的创意和想法吧！</p>
+        
+        <div class="features">
+            <div class="feature-item">实时预览 Markdown 格式，所见即所得</div>
+            <div class="feature-item">集成 Mermaid 绘图工具，支持手绘和图形插入</div>
+            <div class="feature-item">多平台同步，安全保存您的所有笔记</div>
+            <div class="feature-item">丰富的导出选项，支持 PDF、HTML 和图片格式</div>
+        </div>        
+    </div>
+    <div class="right-panel"></div>
+</body>
+</html>

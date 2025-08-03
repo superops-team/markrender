@@ -1,25 +1,34 @@
 # 修改导入语句，添加 QEvent 导入
+from PySide6 import QtWidgets, QtCore
 from PySide6.QtWidgets import (
     QVBoxLayout,
     QListWidget,
     QListWidgetItem, 
     QLineEdit, 
-    QMenu,
+    QWidget,
+    QInputDialog,
     QHBoxLayout,
-    QStyledItemDelegate, QStyleOptionViewItem, QStyle, QPushButton, QMessageBox)
-from PySide6.QtGui import QAction, QPainter, QFont, QColor, QIcon
-from PySide6 import QtWidgets, QtCore
-from PySide6.QtCore import Qt, Signal, QSize, QEvent, QRect, QTimer  # 添加 QRect 导入
-from PySide6.QtWidgets import QWidget, QInputDialog
+    QStyledItemDelegate,
+    QStyleOptionViewItem,
+    QStyle,
+    QDialog,
+    QPushButton,
+    QFormLayout,    
+    QLabel,
+    QMessageBox,
+    QLineEdit,
+    QVBoxLayout,
+    QPushButton,
+    QSizePolicy,
+)
+from PySide6.QtGui import QPainter, QFont, QColor, QIcon, QPen
+from PySide6.QtCore import Qt, Signal, QSize, QEvent, QRect
+
 from utils.logger_utils import logger
 from utils.path import get_icon_path
-from sqlalchemy.orm import Session
-from db.models import MarkdownFileHistory
-from datetime import datetime
 from utils.time_utils import get_readable_time, get_duration
 from app.app_style import AppStyle
-from PySide6.QtGui import QColor, QFont, QPainter, QPen  # 添加 QPen 导入
-from PySide6.QtWidgets import QDialog, QFormLayout, QLabel, QLineEdit, QVBoxLayout, QPushButton
+
 
 MANUAL_CONVERTER = 'manual'
 
@@ -329,9 +338,7 @@ class HistoryPanel(QWidget):
         # 替换 MListView 为 QListWidget
         self.history_list = QListWidget()
         # 设置 sizePolicy 为 Expanding
-        from PySide6.QtWidgets import QSizePolicy
-        self.history_list.setSizePolicy(
-            QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.history_list.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         # 禁用水平滚动条
         from PySide6.QtCore import Qt
         self.history_list.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -403,31 +410,7 @@ class HistoryPanel(QWidget):
         
         # 优化列表项选中样式，与全局风格保持一致
         self.history_list.viewport().setMouseTracking(True)
-        self.history_list.setStyleSheet('''
-            QListWidget {
-                border: 2px solid #ddd;
-                border-radius: 8px;
-                padding: 0;
-                margin-top: 0px; /* 移除原有的margin-top设置 */
-            }
-            QListWidget::item {
-                border: 2px solid transparent;
-                padding: 5px 10px;
-                background-color: #f0f0f0;
-                border-bottom: 1px solid #ddd !important;
-            }
-            QListWidget::item:last {
-                border-bottom: none !important;
-            }
-            QListWidget::item:hover {
-                border: 2px solid rgb(25, 144, 255, 0.1);
-                background-color: rgb(234, 243, 255, 0.1);
-            }
-            QListWidget::item:selected {
-                border: 2px solid rgb(25, 144, 255, 0.1);
-                background-color: rgb(234, 243, 255, 0.1);
-            }
-        ''')
+        self.history_list.setStyleSheet(AppStyle().get_history_panel())
         main_layout.addWidget(self.history_list)
         # 设置布局后，添加样式表修改底色，这里以浅灰色为例
         self.setLayout(main_layout)
@@ -540,14 +523,27 @@ class HistoryPanel(QWidget):
                 # 添加保存完成信号发射
                 self.save_complete.emit()
 
-            js_code = """
-                    if (window.editor) {
-                        window.editor.getMarkdown();
+            # 通过Web通信方式获取编辑器内容
+            if hasattr(self.parent.markdown_editor, 'web_comm') and hasattr(self.parent.markdown_editor.web_comm, 'send_message'):
+                def handle_web_response(response):
+                    logger.debug(f"切换item前收到Web通信响应: {response}")
+                    # 处理Web通信返回的响应
+                    content = response.get('content', '') if response else ''
+                    handle_content(content)
+                
+                # 发送消息请求获取Markdown内容
+                self.parent.markdown_editor.web_comm.send_message('getMarkdown', {}, handle_web_response)
+                logger.debug("已发送获取Markdown内容的Web通信请求")
+            else:
+                # 回退方案：使用原有的直接执行JS方式
+                js_code = """
+                    if (window.appState.editor) {
+                        window.appStat.editor.getMarkdown();
                     } else {
                         '';
                     }
-            """
-            self.parent.markdown_editor.preview.page().runJavaScript(js_code, handle_content)
+                """
+                self.parent.markdown_editor.preview.page().runJavaScript(js_code, handle_content)
         except Exception as e:
             logger.error(f"保存内容失败: {str(e)}")
             self.save_complete.emit()  # 出错时也发射信号，避免阻塞
