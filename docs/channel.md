@@ -19,9 +19,9 @@
   注册前端事件处理器
   - 参数: `event_name` (str) - 事件名称, `handler` (callable) - 处理函数
 
-- **send_web_request(method, params, callback=None)**
+- **send_message(action, data, callback=None)**
   发送请求到前端
-  - 参数: `method` (str) - 前端方法名, `params` (dict) - 请求参数, `callback` (callable) - 响应回调
+  - 参数: `action` (str) - 前端方法名, `data` (dict) - 请求数据, `callback` (callable) - 响应回调
 
 - **unregister_document(document_id)**
   解除文档与通信通道的关联

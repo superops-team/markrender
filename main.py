@@ -197,43 +197,30 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         """在窗口关闭前保存未保存的笔记并清理线程"""
         try:
-            current_file_id = self.markdown_editor.document.file_id
-            if current_file_id:
-                # 获取当前笔记内容
-                def save_current_content(data):
-                    try:
-                        # 修复：正确访问嵌套在result中的content字段
-                        content = data['result']['content']
-                        self.markdown_editor.save_markdown_content(current_file_id, content)
-                        self.status_bar.show_message("笔记已保存")
-                    except Exception as e:
-                        logger.error(f"保存笔记失败: {str(e)}")
-                        QMessageBox.critical(self, "保存失败", f"无法保存笔记内容: {str(e)}")
-                # 修复：使用get_markdown方法获取内容
-                self.markdown_editor.get_markdown(save_current_content)
             # 调用编辑器的关闭事件处理线程
             self.markdown_editor.closeEvent(event)
         except Exception as e:
             logger.error(f"退出前保存笔记失败: {str(e)}")
-            # 调用编辑器的关闭事件处理线程
-            self.markdown_editor.closeEvent(event)
-        except Exception as e:
-            logger.error(f"退出前保存笔记失败: {str(e)}")
-        
         # 调用父类的关闭事件处理
         super().closeEvent(event)
 
     # 实现窗口拖动功能
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
-            self.drag_start_position = event.globalPos() - self.frameGeometry().topLeft()
+            self.drag_start_position = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
             event.accept()
 
     def mouseMoveEvent(self, event):
         if hasattr(self, 'drag_start_position'):
             if event.buttons() & Qt.LeftButton:
-                self.move(event.globalPos() - self.drag_start_position)
+                self.move(event.globalPosition().toPoint() - self.drag_start_position)
                 event.accept()
+
+    # 添加双击事件处理方法
+    def mouseDoubleClickEvent(self, event):
+        # 当双击主窗口时切换最大化状态
+        self.toggle_maximize()
+        event.accept()
 
 if __name__ == "__main__":
     logger.info("应用启动")

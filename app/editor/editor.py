@@ -218,7 +218,7 @@ class MarkdownEditor(QWidget):
     def init_auto_save(self):
         """初始化自动保存功能"""
         self.general_settings = SettingsManager().get_settings_dict('general') or {}
-        self.auto_save_enabled = self.general_settings.get('auto_save_enabled', True)
+        self.auto_save_enabled = self.general_settings.get('auto_save', True)
         self.auto_save_interval = self.general_settings.get('auto_save_interval', 30) * 1000
         
         if self.auto_save_enabled:
@@ -246,7 +246,7 @@ class MarkdownEditor(QWidget):
         if result:
             self.last_saved_text = self.document.get_text()
             self.document_modified = False
-            logger.info(f"自动保存成功: {task_id}")
+            logger.info(f"自动保存成功: {task_id}, save content: {self.last_saved_text[-10:-1]}")
 
     def on_document_modified(self, text, source="user"):
         """标记文档为已修改，source: user/program"""
@@ -483,8 +483,10 @@ class MarkdownEditor(QWidget):
     @Slot()
     def on_web_content_changed(self, data):
         if 'content' in data:
+            logger.info(f"on_web_content_changed: {data['content']}")
             # 直接触发修改标记，跳过document中间层
-            self.on_document_modified(data['content'], source="web")
+            self.on_document_modified(data['content'], source="user")
+            self.markdown_manager.save_markdown(id=self.document.file_id, content=data['content'])
     
     @Slot()
     def on_web_save_request(self):
@@ -492,7 +494,7 @@ class MarkdownEditor(QWidget):
         self.save_document()
 
     @Slot(str)    
-    def reportJSError(self, error_info):
+    def report_js_error(self, error_info):
         """接收并处理 JS 侧的错误信息"""
         try:
             error_data = json.loads(error_info)
@@ -506,11 +508,30 @@ class MarkdownEditor(QWidget):
             self.auto_save_timer.stop()
             logger.info("Auto-save timer stopped")
 
-        # 2. 注销文档关联
+        # 2. 退出前保存文件
         if hasattr(self, 'web_comm') and self.document and self.document.file_id:
-            self.web_comm.unregister_document(self.document.file_id)
-            logger.info(f"Unregistered document: {self.document.file_id}")
-
+            logger.info(f"退出前获取文档对象: {self.document.file_id}")
+            
+            def save_markdown(response):
+                content = response.get('content')
+                logger.info(f"退出前保存文档对象: {self.document.file_id}, 内容长度: {len(content)}")
+                if content:
+                    self.markdown_manager.save_markdown(id=self.document.file_id, content=content)
+                else:
+                    logger.error(f"退出前保存文档对象失败: {self.document.file_id}, 错误信息: {response}")
+                
+                # 保存完成后再清理资源
+                self._cleanup_resources()
+            
+            self.web_comm.send_message("getMarkdown", {}, callback=save_markdown)
+            # 阻止事件默认处理，等待保存完成
+            event.ignore()
+            return
+    
+        # 如果没有需要保存的文档，直接清理资源
+        self._cleanup_resources()
+        
+    def _cleanup_resources(self):
         # 3. 清理线程池资源
         if hasattr(self, 'thread_pool'):
             # 取消所有未完成任务
@@ -523,13 +544,10 @@ class MarkdownEditor(QWidget):
         if hasattr(self, 'web_comm'):
             self.web_comm.cleanup()
 
-        super().closeEvent(event)
-
-
     def init_web_handlers(self):
         """延迟初始化Web处理器，避免类定义阶段竞争"""
         # 所有装饰器移至此处动态注册
         self.web_comm.register_python_handler('autoSave', self.save_markdown_content, is_async=True)
         self.web_comm.register_python_handler('contentChanged', self.on_web_content_changed)
         self.web_comm.register_python_handler('requestSave', self.on_web_save_request)
-        self.web_comm.register_python_handler('reportError', self.reportJSError)
+        self.web_comm.register_python_handler('reportError', self.report_js_error)

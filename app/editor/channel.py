@@ -1,28 +1,39 @@
 import json
-import uuid
 import threading
+import time
 
 from PySide6.QtCore import QObject, Slot, QRunnable, QThreadPool
 from pydantic import BaseModel, ValidationError, Field
 from PySide6.QtCore import Signal
 from PySide6.QtWebChannel import QWebChannel
 from utils import logger
+from db.markdown_manager import MarkdownManager
 
 # 添加RequestModel定义
 class RequestModel(BaseModel):
     action: str
     data: dict = Field(default_factory=dict)
-    request_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    request_id: str
 
 
 class WebCommunicationManager(QObject):
     # 删除重复的text_changed定义
     # 添加channel_ready信号定义
     channel_ready = Signal()
+    document_associated = Signal(str)
     
     # 单例实现简化
     _instance = None
     _lock = threading.Lock()  # 保留线程安全锁
+    _request_counter = 0
+    
+    @classmethod
+    def _generate_request_id(cls):
+        """生成与前端格式一致的请求ID"""
+        with cls._lock:
+            request_id = f"req_{int(time.time() * 1000)}_{cls._request_counter}"
+            cls._request_counter += 1
+            return request_id
 
     @classmethod
     def instance(cls):
@@ -35,13 +46,13 @@ class WebCommunicationManager(QObject):
                     cls._instance.__init__()  # 显式初始化
         return cls._instance
 
-    def __init__(self, markdown_manager=None, parent=None):
+    def __init__(self, parent=None):
         # 防止重复初始化
         if hasattr(self, '_initialized'):
             return
         super().__init__(parent)
         self._initialized = True
-        self.markdown_manager = markdown_manager  # 注入依赖
+        self.markdown_manager = MarkdownManager()  # 注入依赖
         self.python_handlers = {}
         self.document_map = {}
         self.ready = False  # 添加就绪状态标志
@@ -49,7 +60,6 @@ class WebCommunicationManager(QObject):
         self.channel = None
         self.web_handlers = {}
         self.web_callbacks = {}
-        self.document_map = {}  # 文档ID到MarkdownDocument的映射
 
     @Slot(str)
     def handle_web_response(self, response_json):
@@ -70,7 +80,6 @@ class WebCommunicationManager(QObject):
     @Slot()
     def frontend_ready(self):
         self.ready = True
-        # 延迟发送的初始化消息可以在这里触发
 
     # 添加处理器注册方法
     def register_python_handler(self,
@@ -80,14 +89,6 @@ class WebCommunicationManager(QObject):
         """注册Python处理器到通信管理器"""
         # Store handler and async flag as tuple
         self.python_handlers[action] = (handler, is_async)
-
-    # 添加文档注册处理器
-    def register_document_handler(self, document):
-        """注册文档到document_map"""
-        if document.file_id:
-            self.document_map[document.file_id] = document
-            return True
-        return False
 
     @Slot(str, result=str)  # 添加Slot装饰器，指定参数类型和返回值类型
     def dispatch_request(self, request_json):
@@ -134,23 +135,6 @@ class WebCommunicationManager(QObject):
                 "success": False,
                 "error": str(e)
             })
-
-    def send_web_request(self, action, data=None, callback=None):
-        if not self.channel or not self.document:
-            return
-
-        request_id = str(uuid.uuid4())
-        if callback:
-            self.web_callbacks[request_id] = callback
-
-        request = {
-            'id': request_id,
-            'action': action,
-            'data': data or {}
-        }
-
-        js_code = f"window.dispatchWebRequest({json.dumps(request)});"
-        self.document.page().runJavaScript(js_code)
     
     # 添加send_message方法实现
     def send_message(self, action: str, data: dict = None, callback=None):
@@ -161,7 +145,7 @@ class WebCommunicationManager(QObject):
 
         data = data or {}
         try:
-            request_id = str(uuid.uuid4()) if callback else None
+            request_id = self._generate_request_id() if callback else None
             if callback and request_id:
                 self.web_callbacks[request_id] = callback
 
@@ -175,30 +159,32 @@ class WebCommunicationManager(QObject):
             return False
 
     def _on_message_sent(self, request_id, result):
-        if request_id:
-            logger.debug(f"收到前端响应: {request_id} - {result}")
-            if request_id in self.web_callbacks:
-                callback = self.web_callbacks.pop(request_id)
-                try:
-                    # 验证响应数据结构
-                    if isinstance(result, dict) and 'content' in result:
-                        callback({'success': True, 'result': result})
-                    else:
-                        # 标准化响应格式，确保包含content字段
-                        callback({
-                            'success': True,
-                            'result': {'content': result} if not isinstance(result, dict) else result
-                        })
-                except Exception as e:
-                    logger.error(f"处理回调时出错: {str(e)}")
-                    callback({'success': False, 'error': str(e)})
-                finally:
-                    # 确保无论回调执行结果如何都移除回调引用
-                    if request_id in self.web_callbacks:
-                        del self.web_callbacks[request_id]
+        if not request_id:
+            logger.debug(f"消息发送完成: 无回调消息")
+            return
+        logger.debug(f"收到前端响应: {request_id} - {result}")
+        if request_id not in self.web_callbacks:
+            if result:
+                logger.warning(f"收到未知request_id的响应: {request_id} - {result}")
+            return
+        callback = self.web_callbacks.pop(request_id)
+        try:
+            # 验证响应数据结构
+            if isinstance(result, dict) and 'content' in result:
+                callback({'success': True, 'result': result})
             else:
-                logger.warning(f"收到未知request_id的响应: {request_id}")
-        logger.debug(f"消息发送完成: {request_id or '无回调消息'}")
+                # 标准化响应格式，确保包含content字段
+                callback({
+                    'success': True,
+                    'result': {'content': result} if not isinstance(result, dict) else result
+                })
+        except Exception as e:
+            logger.error(f"处理回调时出错: {str(e)}, request_id: {request_id}, result: {result}")
+            callback({'success': False, 'error': str(e)})
+        finally:
+            # 确保无论回调执行结果如何都移除回调引用
+            if request_id in self.web_callbacks:
+                del self.web_callbacks[request_id]            
     
     def _send_web_response(self, callback_id, result):
         response = {
@@ -206,7 +192,7 @@ class WebCommunicationManager(QObject):
             'result': result
         }
         js_code = f"window.handlePythonResponse({json.dumps(response)});"
-        self.document.page().runJavaScript(js_code)
+        self.page.runJavaScript(js_code)
 
     def _send_web_error(self, callback_id, error_msg):
         response = {
@@ -215,22 +201,19 @@ class WebCommunicationManager(QObject):
             'result': None
         }
         js_code = f"window.handlePythonResponse({json.dumps(response)});"
-        self.document.page().runJavaScript(js_code)
-
-    # 默认处理器实现
-    def on_content_changed(self, content):
-        self.content_changed.emit(content)  # 发射信号而非直接调用
+        self.page.runJavaScript(js_code)
 
     def on_js_error(self, error_info):
         self.js_error_occurred.emit(error_info)
         logger.error(f"JS错误: {error_info}")
 
     def get_markdown_content(self, file_id):
-        return self.markdown_manager.get_markdown_content(file_id)
+        detail = self.markdown_manager.get_detail(file_id)
+        return detail.content
 
     def _dispatch_async_request(self, request, handler):
         """异步请求处理"""
-        task_id = str(uuid.uuid4())
+        task_id = self._generate_request_id()
         
         class AsyncRequestHandler(QRunnable):
             def __init__(self, handler, data, task_id, manager):
@@ -274,11 +257,11 @@ class WebCommunicationManager(QObject):
             logger.error("Web page not attached")
             return
         
-        request_id = str(uuid.uuid4()) if callback else None
+        request_id = self._generate_request_id() if callback else None
         if callback and request_id:
             self.web_callbacks[request_id] = callback
         
-        js_code = f"window.webComm.callMethod('{method}', {json.dumps(params or {})}, '{request_id or ''}')"
+        js_code = f"window.handlePythonMessage('{method}', {json.dumps(params or {})}, '{request_id or ''}')"
         self.page.runJavaScript(js_code)
     
     @Slot(str, str)
@@ -313,13 +296,6 @@ class WebCommunicationManager(QObject):
     def on_document_text_changed(self, text):
         """转发文档变更到前端"""
         self.send_message("textChanged", {"content": text})
-
-    def unregister_document(self, file_id):
-        """注销文档对象"""
-        if file_id:
-            logger.info(f"注销文档对象: {file_id}")
-        if self.channel:
-            self.channel = None
     
     def cleanup(self):
         """清理资源"""
