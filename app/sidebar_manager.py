@@ -1,3 +1,9 @@
+import time
+import re
+import os
+import urllib.parse
+
+from markitdown import MarkItDown
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -15,15 +21,9 @@ from PySide6.QtGui import QIcon, QFont, QKeySequence, QGuiApplication
 from PySide6.QtCore import Qt, QThread, QSize, Signal
 from app.settings_dialog import SettingsDialog
 from utils import logger, get_icon_path, time_utils, supported_formats
-from db import db_manager
 from db.markdown_manager import MarkdownManager
 from db.settings_manager import SettingsManager
-import os
-from markitdown import MarkItDown
-import time
-import re
-import urllib.parse
-from .app_style import AppStyle, COLOR_BACKGROUND_LIGHT  # 新增导入 COLOR_BACKGROUND_LIGHT
+from app.app_style import AppStyle, COLOR_BACKGROUND_LIGHT  # 新增导入 COLOR_BACKGROUND_LIGHT
 
 
 def replace_image_paths(content, base_url):
@@ -250,10 +250,7 @@ class ImportThread(QThread):
         self.import_settings = SettingsManager().get_settings_dict('import') # 导入导出设置
         self.file_size = os.path.getsize(file_path)
         self.file_ext = os.path.splitext(file_path)[1][1:]
-        if self.file_ext == 'pdf':
-            self.converter = 'marker-pdf'
-        else:
-            self.converter = 'markitdown'
+        self.converter = 'markitdown'
         self.converter_start = None
         self.converter_end = None
 
@@ -305,52 +302,7 @@ class ImportThread(QThread):
             self.error_occurred.emit(f"导入文件时出错: {str(e)}")
 
     def convert(self):
-        md_content = ''
-        if self.file_ext == 'pdf':
-            import_method = self.import_settings.get('pdf_import_method', 'marker-pdf')
-            if import_method == 'marker-pdf':
-                md_content = self.convert_by_markerpdf()
-            if import_method == 'markitdown':
-                md_content = self.convert_by_markitdown()
-        if self.file_ext in ('md', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'):
-            md_content = self.convert_by_markitdown()
-        if not md_content:
-            md_content = self.convert_by_markitdown()
-        return md_content
-       
-    
-    def convert_by_markerpdf(self):
-        """
-        use marker-pdf to parse pdf
-        """
-        from marker.converters.pdf import PdfConverter
-        from marker.models import create_model_dict
-        from marker.config.parser import ConfigParser
-        from marker.output import save_output
-        self.converter = 'marker-pdf'
-        base_path = f"{db_manager.get_user_data_dir()}/output"
-        # base_path = urllib.parse.quote(base_path, safe=':/')
-        config = {
-            "output_format": "markdown",
-            "output_dir": base_path,
-        }
-        config_parser = ConfigParser(config)
-        try:
-            converter = PdfConverter(
-                config=config_parser.generate_config_dict(),
-                artifact_dict=create_model_dict(),
-                processor_list=config_parser.get_processors(),
-                renderer=config_parser.get_renderer(),
-                llm_service=config_parser.get_llm_service()
-            )
-            rendered = converter(self.file_path)
-            logger.info(
-                f"转换 PDF 成功, 输出路径: {base_path}, 文件名: {
-                    self.file_name}")
-            save_output(rendered, base_path, self.file_name)
-            return replace_image_paths(rendered.markdown, base_path)
-        except Exception as e:
-            logger.error(f"转换 PDF 时出错, 降级为markitdown: {str(e)}")
+        return self.convert_by_markitdown()
 
     def convert_by_markitdown(self):
         """

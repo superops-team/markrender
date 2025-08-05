@@ -118,6 +118,21 @@ QPushButton:hover::after {
 }
 """
 
+STATUS_STYLE = '''
+QStatusBar {
+    border: 2px solid #ddd; /* 边框样式 */
+    border-radius: 2px; /* 边框圆角 */
+    background-color: #fafafa; /* 使用统一背景色 */
+    color: #eaf3ff; /* 字体颜色 */
+    font-size: 12px; /* 字体大小 */
+    padding: 2px 20px 2px 32px; /* 上、右、下、左内边距，左侧设置为 32px */
+}
+QLabel {
+    margin-left: 15px; /* 标签间距 */
+    color: #C3C9D3; /* 新增标签字体颜色 */
+}
+'''
+
 MINIMIZE_BUTTON = """
 QPushButton {
     background-color: #ffbd2e;

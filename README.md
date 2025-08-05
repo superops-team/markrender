@@ -24,11 +24,7 @@ MarkRender is a powerful file conversion tool that enables users to convert vari
 3. EPUB
 
 ## Supported Converters
-- **markitdown**: Works well in most cases, but PDF file styles are not supported.
-- **marker-pdf**: Converts PDF files into Markdown files.
-- **xlsx2md**: Converts XLSX files into Markdown files.
-- **epub2md**: Converts EPUB files into Markdown files.
-- **docx2md**: Converts DOCX files into Markdown files.
+- **markitdown**: Works well in most cases
 
 ## GUI Screenshots
 Here are some screenshots of the application's graphical user interface:

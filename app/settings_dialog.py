@@ -130,22 +130,14 @@ class SettingsDialog(QDialog):
         pdf_label = QLabel("PDF 导入方式:")
         self.pdf_import_group = QButtonGroup()
         markitdown_radio = QRadioButton("markitdown")
-        marker_pdf_radio = QRadioButton("marker-pdf")
 
         # 从设置中获取并设置默认选中项
-        pdf_method = self.import_settings.get('pdf_import_method', "markitdown")
-        if pdf_method == "markitdown":
-            markitdown_radio.setChecked(True)
-        else:
-            marker_pdf_radio.setChecked(True)
+        markitdown_radio.setChecked(True)
 
         self.pdf_import_group.addButton(markitdown_radio)
-        self.pdf_import_group.addButton(marker_pdf_radio)
 
         pdf_buttons_layout = QVBoxLayout()
         pdf_buttons_layout.addWidget(markitdown_radio)
-        pdf_buttons_layout.addWidget(marker_pdf_radio)
-
         form_layout.addRow(pdf_label, pdf_buttons_layout)
 
         import_export_tab.setLayout(form_layout)

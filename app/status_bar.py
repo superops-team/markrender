@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QStatusBar, QLabel  # 修改导入语句
 from PySide6.QtCore import Qt
-from app.app_style import COLOR_BACKGROUND_LIGHT  # 新增导入
+from app.app_style import AppStyle  # 新增导入
 
 class StatusBar(QStatusBar):
     def __init__(self, parent=None):
@@ -16,20 +16,7 @@ class StatusBar(QStatusBar):
         self.addPermanentWidget(self.word_count_label)
 
         # 设置样式表
-        self.setStyleSheet(f'''
-            QStatusBar {{
-                border: 2px solid #ddd; /* 边框样式 */
-                border-radius: 5px; /* 边框圆角 */
-                background-color: {COLOR_BACKGROUND_LIGHT}; /* 使用统一背景色 */
-                color: #eaf3ff; /* 字体颜色 */
-                font-size: 12px; /* 字体大小 */
-                padding: 5px 20px 5px 32px; /* 上、右、下、左内边距，左侧设置为 32px */
-            }}
-            QLabel {{
-                margin-left: 15px; /* 标签间距 */
-                color: #C3C9D3; /* 新增标签字体颜色 */
-            }}
-        ''')
+        self.setStyleSheet(AppStyle().get_status_bar())  # 新增样式表设置
 
     def update_file_size(self, size_in_bytes):
         size_in_kb = size_in_bytes / 1024
