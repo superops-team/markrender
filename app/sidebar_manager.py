@@ -11,9 +11,8 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QFrame,
 )
-from PySide6.QtGui import QIcon, QFont, QPixmap
-from PySide6 import QtCore, QtGui
-from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon, QFont, QKeySequence, QGuiApplication
+from PySide6.QtCore import Qt, QThread, QSize, Signal
 from app.settings_dialog import SettingsDialog
 from utils import logger, get_icon_path, time_utils, supported_formats
 from db import db_manager
@@ -72,7 +71,7 @@ class ImportDialog(QDialog):
         self.import_area.setMinimumSize(400, 200)
         self.import_area.setStyleSheet(AppStyle().get_import_area())
         area_layout = QVBoxLayout(self.import_area)
-        area_layout.setAlignment(QtCore.Qt.AlignCenter)
+        area_layout.setAlignment(Qt.AlignCenter)
 
         # 创建遮罩层和加载状态标签，初始状态隐藏
         self.overlay = QFrame(self.import_area)
@@ -111,7 +110,7 @@ class ImportDialog(QDialog):
         self.format_label.setStyleSheet(AppStyle().get_format_label())
         area_layout.addWidget(self.format_label)
 
-        dialog_layout.addWidget(self.import_area, 0, QtCore.Qt.AlignCenter)
+        dialog_layout.addWidget(self.import_area, 0, Qt.AlignCenter)
 
         # 进度条
         self.progress_bar = QProgressBar(self)
@@ -131,20 +130,20 @@ class ImportDialog(QDialog):
         self.close_button.hide()
         self.close_button.setStyleSheet(AppStyle().get_close_button_style())
         self.close_button.clicked.connect(self.close)
-        dialog_layout.addWidget(self.close_button, 0, QtCore.Qt.AlignCenter)
+        dialog_layout.addWidget(self.close_button, 0, Qt.AlignCenter)
 
         # 为导入区域添加点击事件
         self.import_area.mousePressEvent = self.perform_import
 
     def keyPressEvent(self, event):
         """监听键盘事件，处理粘贴操作"""
-        if event.matches(QtGui.QKeySequence.Paste):
+        if event.matches(QKeySequence.Paste):
             self.handle_paste_image()
         super().keyPressEvent(event)
 
     def handle_paste_image(self):
         """处理剪贴板中的图片并上传"""
-        clipboard = QtGui.QGuiApplication.clipboard()
+        clipboard = QGuiApplication.clipboard()
         mime_data = clipboard.mimeData()
 
         if mime_data.hasImage():
@@ -237,10 +236,10 @@ class ImportDialog(QDialog):
         self.close()
 
 
-class ImportThread(QtCore.QThread):
-    progress_updated = QtCore.Signal(int)
-    finished = QtCore.Signal(str)
-    error_occurred = QtCore.Signal(str)
+class ImportThread(QThread):
+    progress_updated = Signal(int)
+    finished = Signal(str)
+    error_occurred = Signal(str)
 
     def __init__(self, file_path, markdown_manager, history_panel):
         super().__init__()
@@ -407,7 +406,7 @@ class SidebarManager(QWidget):
         self.import_btn = QPushButton()
         self.import_btn.setIcon(
             QIcon(get_icon_path("plus-square")))  # 需替换为实际图标路径
-        self.import_btn.setIconSize(QtCore.QSize(25, 25))
+        self.import_btn.setIconSize(QSize(25, 25))
         # 应用统一样式并移除flat属性
         self.import_btn.setStyleSheet(AppStyle().get_sidebar_button_style())
         # 设置按钮可选中
@@ -430,7 +429,7 @@ class SidebarManager(QWidget):
         self.settings_btn = QPushButton()
         self.settings_btn.setIcon(
             QIcon(get_icon_path("settings")))
-        self.settings_btn.setIconSize(QtCore.QSize(25, 25))
+        self.settings_btn.setIconSize(QSize(25, 25))
         # 应用统一样式并移除flat属性
         self.settings_btn.setStyleSheet(AppStyle().get_sidebar_button_style())
         # 设置按钮可选中
@@ -460,7 +459,7 @@ class SidebarManager(QWidget):
         """初始化侧边栏按钮并设置图标切换"""
         # 设置初始图标（默认状态）
         button.setIcon(QIcon(get_icon_path(icon_name)))
-        button.setIconSize(QtCore.QSize(25, 25))
+        button.setIconSize(QSize(25, 25))
         button.setStyleSheet(self.app_style.get_sidebar_button_style())
         button.setCheckable(True)
         button.toggled.connect(lambda checked: toggle_slot(checked, icon_name))

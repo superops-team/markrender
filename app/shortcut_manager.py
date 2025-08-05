@@ -4,14 +4,13 @@
 支持全局快捷键和局部快捷键管理
 支持Windows和Mac平台差异化快捷键
 """
-
-from PySide6 import QtCore, QtWidgets, QtGui
-from PySide6.QtCore import Signal, QObject, QSettings
+import json
+import sys
+from PySide6.QtWidgets import QDialog, QVBoxLayout, QListWidget, QHBoxLayout, QPushButton, QFileDialog
+from PySide6.QtCore import Signal, QObject, QSettings, Qt, QEvent
 from PySide6.QtGui import QKeySequence, QShortcut
 from utils import logger
-import json
-import os
-import sys
+
 
 
 class ShortcutManager(QObject):
@@ -91,9 +90,9 @@ class ShortcutManager(QObject):
     def get_platform_modifier(self):
         """获取当前平台的修饰键"""
         if sys.platform == "darwin":
-            return QtCore.Qt.MetaModifier
+            return Qt.MetaModifier
         else:
-            return QtCore.Qt.ControlModifier
+            return Qt.ControlModifier
             
     def handle_key_event(self, event, target_widget=None):
         """处理键盘事件，支持平台差异"""
@@ -105,27 +104,27 @@ class ShortcutManager(QObject):
         
         # 定义快捷键映射
         key_combinations = {
-            'copy': (platform_modifier, QtCore.Qt.Key_C),
-            'paste': (platform_modifier, QtCore.Qt.Key_V),
-            'cut': (platform_modifier, QtCore.Qt.Key_X),
-            'undo': (platform_modifier, QtCore.Qt.Key_Z),
-            'redo': (platform_modifier, QtCore.Qt.Key_Y),
-            'find': (platform_modifier, QtCore.Qt.Key_F),
-            'replace': (platform_modifier, QtCore.Qt.Key_H),
-            'bold': (platform_modifier, QtCore.Qt.Key_B),
-            'italic': (platform_modifier, QtCore.Qt.Key_I),
-            'underline': (platform_modifier, QtCore.Qt.Key_U),
-            'insert_link': (platform_modifier, QtCore.Qt.Key_K),
-            'insert_image': (platform_modifier | QtCore.Qt.ShiftModifier, QtCore.Qt.Key_I),
-            'insert_table': (platform_modifier, QtCore.Qt.Key_T),
-            'insert_code': (platform_modifier | QtCore.Qt.ShiftModifier, QtCore.Qt.Key_C),
+            'copy': (platform_modifier, Qt.Key_C),
+            'paste': (platform_modifier, Qt.Key_V),
+            'cut': (platform_modifier, Qt.Key_X),
+            'undo': (platform_modifier, Qt.Key_Z),
+            'redo': (platform_modifier, Qt.Key_Y),
+            'find': (platform_modifier, Qt.Key_F),
+            'replace': (platform_modifier, Qt.Key_H),
+            'bold': (platform_modifier, Qt.Key_B),
+            'italic': (platform_modifier, Qt.Key_I),
+            'underline': (platform_modifier, Qt.Key_U),
+            'insert_link': (platform_modifier, Qt.Key_K),
+            'insert_image': (platform_modifier | Qt.ShiftModifier, Qt.Key_I),
+            'insert_table': (platform_modifier, Qt.Key_T),
+            'insert_code': (platform_modifier | Qt.ShiftModifier, Qt.Key_C),
         }
         
         # Mac平台特殊处理strikethrough快捷键
         if sys.platform == "darwin":
-            key_combinations['strikethrough'] = (platform_modifier | QtCore.Qt.ShiftModifier, QtCore.Qt.Key_S)
+            key_combinations['strikethrough'] = (platform_modifier | Qt.ShiftModifier, Qt.Key_S)
         else:
-            key_combinations['strikethrough'] = (platform_modifier | QtCore.Qt.ShiftModifier, QtCore.Qt.Key_S)
+            key_combinations['strikethrough'] = (platform_modifier | Qt.ShiftModifier, Qt.Key_S)
             
         modifiers = event.modifiers()
         key = event.key()
@@ -168,7 +167,7 @@ class ShortcutManager(QObject):
         if is_global and self.parent():
             # 注册全局快捷键
             shortcut = QShortcut(key_sequence, self.parent())
-            shortcut.setContext(QtCore.Qt.ApplicationShortcut)
+            shortcut.setContext(Qt.ApplicationShortcut)
             self.global_shortcuts[action_name] = shortcut
             
             # 连接信号
@@ -245,20 +244,20 @@ class ShortcutManager(QObject):
             
         # 检查各个快捷键
         key_combinations = {
-            'copy': (QtCore.Qt.ControlModifier, QtCore.Qt.Key_C),
-            'paste': (QtCore.Qt.ControlModifier, QtCore.Qt.Key_V),
-            'cut': (QtCore.Qt.ControlModifier, QtCore.Qt.Key_X),
-            'undo': (QtCore.Qt.ControlModifier, QtCore.Qt.Key_Z),
-            'redo': (QtCore.Qt.ControlModifier, QtCore.Qt.Key_Y),
-            'find': (QtCore.Qt.ControlModifier, QtCore.Qt.Key_F),
-            'replace': (QtCore.Qt.ControlModifier, QtCore.Qt.Key_H),
-            'bold': (QtCore.Qt.ControlModifier, QtCore.Qt.Key_B),
-            'italic': (QtCore.Qt.ControlModifier, QtCore.Qt.Key_I),
-            'underline': (QtCore.Qt.ControlModifier, QtCore.Qt.Key_U),
-            'insert_link': (QtCore.Qt.ControlModifier, QtCore.Qt.Key_K),
-            'insert_image': (QtCore.Qt.ControlModifier | QtCore.Qt.ShiftModifier, QtCore.Qt.Key_I),
-            'insert_table': (QtCore.Qt.ControlModifier, QtCore.Qt.Key_T),
-            'insert_code': (QtCore.Qt.ControlModifier | QtCore.Qt.ShiftModifier, QtCore.Qt.Key_C),
+            'copy': (Qt.ControlModifier, Qt.Key_C),
+            'paste': (Qt.ControlModifier, Qt.Key_V),
+            'cut': (Qt.ControlModifier, Qt.Key_X),
+            'undo': (Qt.ControlModifier, Qt.Key_Z),
+            'redo': (Qt.ControlModifier, Qt.Key_Y),
+            'find': (Qt.ControlModifier, Qt.Key_F),
+            'replace': (Qt.ControlModifier, Qt.Key_H),
+            'bold': (Qt.ControlModifier, Qt.Key_B),
+            'italic': (Qt.ControlModifier, Qt.Key_I),
+            'underline': (Qt.ControlModifier, Qt.Key_U),
+            'insert_link': (Qt.ControlModifier, Qt.Key_K),
+            'insert_image': (Qt.ControlModifier | Qt.ShiftModifier, Qt.Key_I),
+            'insert_table': (Qt.ControlModifier, Qt.Key_T),
+            'insert_code': (Qt.ControlModifier | Qt.ShiftModifier, Qt.Key_C),
         }
         
         modifiers = event.modifiers()
@@ -350,7 +349,7 @@ class ShortcutManager(QObject):
             return False
 
 
-class ShortcutHandler(QtCore.QObject):
+class ShortcutHandler(QObject):
     """局部快捷键处理器"""
     
     def __init__(self, widget, shortcut_manager):
@@ -361,13 +360,13 @@ class ShortcutHandler(QtCore.QObject):
         
     def eventFilter(self, obj, event):
         """事件过滤器"""
-        if event.type() == QtCore.QEvent.KeyPress:
+        if event.type() == QEvent.KeyPress:
             if self.shortcut_manager.handle_key_event(event, self.widget):
                 return True
         return super().eventFilter(obj, event)
 
 
-class ShortcutDialog(QtWidgets.QDialog):
+class ShortcutDialog(QDialog):
     """快捷键配置对话框"""
     
     def __init__(self, shortcut_manager, parent=None):
@@ -381,26 +380,26 @@ class ShortcutDialog(QtWidgets.QDialog):
         self.setModal(True)
         self.resize(400, 500)
         
-        layout = QtWidgets.QVBoxLayout(self)
+        layout = QVBoxLayout(self)
         
         # 快捷键列表
-        self.shortcut_list = QtWidgets.QListWidget()
+        self.shortcut_list = QListWidget()
         self.load_shortcut_list()
         layout.addWidget(self.shortcut_list)
         
         # 按钮组
-        button_layout = QtWidgets.QHBoxLayout()
+        button_layout = QHBoxLayout()
         
-        self.reset_button = QtWidgets.QPushButton("重置为默认值")
+        self.reset_button = QPushButton("重置为默认值")
         self.reset_button.clicked.connect(self.reset_shortcuts)
         
-        self.export_button = QtWidgets.QPushButton("导出配置")
+        self.export_button = QPushButton("导出配置")
         self.export_button.clicked.connect(self.export_config)
         
-        self.import_button = QtWidgets.QPushButton("导入配置")
+        self.import_button = QPushButton("导入配置")
         self.import_button.clicked.connect(self.import_config)
         
-        self.close_button = QtWidgets.QPushButton("关闭")
+        self.close_button = QPushButton("关闭")
         self.close_button.clicked.connect(self.accept)
         
         button_layout.addWidget(self.reset_button)
@@ -426,7 +425,7 @@ class ShortcutDialog(QtWidgets.QDialog):
         
     def export_config(self):
         """导出配置"""
-        file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
+        file_path, _ = QFileDialog.getSaveFileName(
             self, "导出快捷键配置", "shortcuts.json", "JSON Files (*.json)"
         )
         if file_path:
@@ -434,7 +433,7 @@ class ShortcutDialog(QtWidgets.QDialog):
             
     def import_config(self):
         """导入配置"""
-        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
+        file_path, _ = QFileDialog.getOpenFileName(
             self, "导入快捷键配置", "", "JSON Files (*.json)"
         )
         if file_path:

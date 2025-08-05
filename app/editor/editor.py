@@ -2,12 +2,10 @@ import os
 import json  # 添加json导入
 import time
 
-from PySide6 import QtWidgets
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QWidget, QVBoxLayout
 from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6 import QtWebEngineCore
 from PySide6.QtCore import QUrl, QObject, Signal, Property, QTimer, Slot
-from PySide6.QtWebEngineCore import QWebEnginePage
+from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings, QWebEngineProfile
 
 from db.settings_manager import SettingsManager
 from db.markdown_manager import MarkdownManager
@@ -158,7 +156,7 @@ class MarkdownEditor(QWidget):
         cache_path = db_manager.get_user_data_dir() + '/web_cache'
         profile.setCachePath(cache_path)
         profile.setPersistentStoragePath(db_manager.get_user_data_dir() + '/web_storage')
-        profile.setHttpCacheType(QtWebEngineCore.QWebEngineProfile.DiskHttpCache)
+        profile.setHttpCacheType(QWebEngineProfile.DiskHttpCache)
         # 设置缓存大小为 100MB
         profile.setHttpCacheMaximumSize(100 * 1024 * 1024)
 
@@ -166,7 +164,7 @@ class MarkdownEditor(QWidget):
         self.preview.loadFinished.connect(self.on_page_loaded)
 
         # 创建布局
-        layout = QtWidgets.QVBoxLayout()
+        layout = QVBoxLayout()
         layout.addWidget(self.preview)
         layout.setContentsMargins(5, 5, 5, 5)
         layout.setSpacing(0)
@@ -190,16 +188,16 @@ class MarkdownEditor(QWidget):
         self.preview.setUrl(QUrl.fromLocalFile(html_path))
         # Add these settings with corrected import
         self.preview.page().settings().setAttribute(
-            QtWebEngineCore.QWebEngineSettings.ErrorPageEnabled, False)
+            QWebEngineSettings.ErrorPageEnabled, False)
         # 禁用不必要的功能
         self.preview.page().settings().setAttribute(
-            QtWebEngineCore.QWebEngineSettings.PluginsEnabled, False)
+            QWebEngineSettings.PluginsEnabled, False)
         self.preview.page().settings().setAttribute(
-            QtWebEngineCore.QWebEngineSettings.JavascriptCanOpenWindows, False)
+            QWebEngineSettings.JavascriptCanOpenWindows, False)
         self.preview.page().settings().setAttribute(
-            QtWebEngineCore.QWebEngineSettings.LocalStorageEnabled, True)
+            QWebEngineSettings.LocalStorageEnabled, True)
         self.preview.page().settings().setAttribute(
-            QtWebEngineCore.QWebEngineSettings.LocalContentCanAccessRemoteUrls, False)
+            QWebEngineSettings.LocalContentCanAccessRemoteUrls, False)
 
     @property
     def file_id(self):

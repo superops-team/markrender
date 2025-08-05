@@ -1,5 +1,4 @@
 # 修改导入语句，添加 QEvent 导入
-from PySide6 import QtWidgets, QtCore
 from PySide6.QtWidgets import (
     QVBoxLayout,
     QListWidget,
@@ -20,9 +19,10 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QPushButton,
     QSizePolicy,
+    QAbstractItemView,
 )
 from PySide6.QtGui import QPainter, QFont, QColor, QIcon, QPen
-from PySide6.QtCore import Qt, Signal, QSize, QEvent, QRect
+from PySide6.QtCore import Signal, QSize, QEvent, QRect, Qt
 
 from utils.logger_utils import logger
 from utils.path import get_icon_path
@@ -340,13 +340,12 @@ class HistoryPanel(QWidget):
         # 设置 sizePolicy 为 Expanding
         self.history_list.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         # 禁用水平滚动条
-        from PySide6.QtCore import Qt
         self.history_list.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.history_list.setItemDelegate(
             HistoryItemDelegate(self.history_list))
         # 设置列表项可编辑
         self.history_list.setEditTriggers(
-            QtWidgets.QAbstractItemView.DoubleClicked
+            QAbstractItemView.DoubleClicked
         )
         self.init_ui()
         self.load_history_items()
@@ -392,7 +391,7 @@ class HistoryPanel(QWidget):
         self.new_btn.setCheckable(True)
         # 初始图标（默认状态）
         self.new_btn.setIcon(QIcon(get_icon_path("pencil-square", selected=False)))
-        self.new_btn.setIconSize(QtCore.QSize(20, 20))
+        self.new_btn.setIconSize(QSize(20, 20))
         # 应用统一侧边栏按钮样式
         self.new_btn.setStyleSheet(AppStyle().get_sidebar_button_style())
         # 连接状态切换信号
@@ -485,7 +484,6 @@ class HistoryPanel(QWidget):
             search_text = self.search_input.text().lower()
             logger.debug(f"搜索关键字: {search_text}")
 
-            from PySide6.QtCore import Qt
             logger.debug(f"当前所有历史项数量: {len(self.all_history_items)}")
             for item in self.all_history_items:
                 if search_text in item['title'].lower():
