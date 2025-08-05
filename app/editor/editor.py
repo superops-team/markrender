@@ -277,8 +277,16 @@ class MarkdownEditor(QWidget):
         self.shortcut_manager.register_default_shortcuts()
 
     # 添加带装饰器的保存方法
-    def save_markdown_content(self, file_id, content):
-        return self.markdown_manager.save_markdown(id=file_id, content=content)
+    def save_markdown_content(self, document, content):
+        """保存markdown内容"""
+        if not document or not document.file_id:
+            logger.error("无法保存：文档未关联文件ID")
+            return False
+        logger.info(f"自动保存文档: {document.file_id}")
+        return self.markdown_manager.save_markdown(
+            id=document.file_id, 
+            content=content
+        )
 
     def save_document(self):
         """手动保存当前文档"""
@@ -299,11 +307,7 @@ class MarkdownEditor(QWidget):
                     if success:
                         self.last_saved_text = content
                         self.document_modified = False
-                        logger.info(f"手动保存成功: {self.document.file_name}")
-                        
-                        # 发送保存成功信号（如果需要）
-                        if hasattr(self.parent(), 'on_file_saved'):
-                            self.parent().on_file_saved(self.document.file_id)
+                        logger.info(f"手动保存成功: {self.document.file_id}")
                     else:
                         logger.error("保存到数据库失败")
                         
@@ -317,13 +321,13 @@ class MarkdownEditor(QWidget):
 
     def create_new_file(self):
         """创建新文件（快捷键响应）"""
-        if hasattr(self.parent(), 'create_new_file'):
-            self.parent().create_new_file()
+        if hasattr(self.parent.history_panel, 'create_new_markdown'):
+            self.parent.history_panel.create_new_markdown()
 
     def open_file(self):
         """打开文件（快捷键响应）"""
-        if hasattr(self.parent(), 'open_file_dialog'):
-            self.parent().open_file_dialog()
+        if hasattr(self.parent.sidebar_manager, 'handle_import'):
+            self.parent.sidebar_manager.handle_import()
 
     def show_find_dialog(self):
         # 通过channel发送命令，而非直接调用runJavaScript

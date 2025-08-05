@@ -211,21 +211,23 @@ class WebCommunicationManager(QObject):
         detail = self.markdown_manager.get_detail(file_id)
         return detail.content
 
-    def _dispatch_async_request(self, request, handler):
+    def _dispatch_async_request(self, request, handler, document):
         """异步请求处理"""
         task_id = self._generate_request_id()
         
         class AsyncRequestHandler(QRunnable):
-            def __init__(self, handler, data, task_id, manager):
+            def __init__(self, handler, data, task_id, manager, document):
                 super().__init__()
                 self.handler = handler
                 self.data = data
                 self.task_id = task_id
                 self.manager = manager
+                self.document = document
             
             def run(self):
                 try:
-                    result = self.handler(**self.data)
+                    # 传递document和data参数
+                    result = self.handler(self.document, **self.data)
                     self.manager._send_async_response(
                         self.task_id, True, result
                     )
@@ -236,7 +238,7 @@ class WebCommunicationManager(QObject):
         
         # 提交到线程池
         QThreadPool.globalInstance().start(
-            AsyncRequestHandler(handler, request.data, task_id, self)
+            AsyncRequestHandler(handler, request.data, task_id, self, document)
         )
         
         # 返回任务ID

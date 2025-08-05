@@ -78,44 +78,38 @@ class ThreadPoolManager(QObject):
         def run(self):
             self.start_time = time.time()
             try:
-                # 删除进度检查循环
                 if self.canceled:
                     self.manager.task_canceled.emit(self.task_id)
                     return
 
                 result = self.worker.run()
-                QMetaObject.invokeMethod(self.manager, "on_task_complete",
-                    Qt.QueuedConnection,
-                    Q_ARG(str, self.task_id),
-                    Q_ARG(str, str(result)))  # 修改：确保结果转为字符串
+                # 调用回调函数
+                if self.callback:
+                    QMetaObject.invokeMethod(
+                        self.manager,
+                        "on_task_complete",
+                        Qt.QueuedConnection,
+                        Q_ARG(str, self.task_id),
+                        Q_ARG(str, str(result))
+                    )
             except Exception as e:
-                QMetaObject.invokeMethod(self.manager, "on_task_error",
+                QMetaObject.invokeMethod(
+                    self.manager,
+                    "on_task_error",
                     Qt.QueuedConnection,
                     Q_ARG(str, self.task_id),
-                    Q_ARG(str, str(e)))
+                    Q_ARG(str, str(e))
+                )
 
-    def submit_task(self, task_id, worker, callback):
-        # 添加锁超时保护
-        if not self.task_mutex.tryLock(1000):  # 1秒超时
-            logger.error(f"获取任务锁超时: {task_id}")
-            return False
-        try:
-            if task_id in self.active_tasks:
-                logger.warning(f"任务 {task_id} 已存在")
-                return False
-            wrapper = self.TaskWrapper(worker, callback, task_id, self)
-            self.active_tasks[task_id] = wrapper
-            self.thread_pool.start(wrapper)
-            return True
-        finally:
-            self.task_mutex.unlock()
-
-    @Slot(str, str)  # 修改：将object改为str类型
+    @Slot(str, str)
     def on_task_complete(self, task_id, result):
         self.task_mutex.lock()
         try:
             if task_id in self.active_tasks:
-                del self.active_tasks[task_id]
+                wrapper = self.active_tasks.pop(task_id)
+                # 调用用户提供的回调
+                if wrapper.callback:
+                    wrapper.callback(result)
             if hasattr(self, f"on_{task_id}_complete"):
                 getattr(self, f"on_{task_id}_complete")(result)
         finally:
@@ -126,7 +120,10 @@ class ThreadPoolManager(QObject):
         self.task_mutex.lock()
         try:
             if task_id in self.active_tasks:
-                del self.active_tasks[task_id]
+                wrapper = self.active_tasks.pop(task_id)
+                # 调用用户提供的回调（如果有）
+                if wrapper.callback:
+                    wrapper.callback(None, error)
                 logger.error(f"任务 {task_id} 失败: {error}")
         finally:
             self.task_mutex.unlock()
@@ -164,7 +161,7 @@ class ThreadPoolManager(QObject):
     def cancel_all_tasks(self):
         """取消所有未执行的任务"""
         with self._lock:
-            for task_id in list(self.task_map.keys()):
+            for task_id in list(self.active_tasks.keys()):
                 self.cancel_task(task_id)
 
     def wait_for_completion(self, timeout_ms=1000):
@@ -193,10 +190,10 @@ class AutoSaveWorker(QRunnable):
         try:
             success = self.markdown_manager.save_markdown(
                 id=self.file_id, content=self.content)
-            return str(success)  # 修改：显式返回字符串类型
+            return success  # 不需要转为字符串
         except Exception as e:
             logger.error(f"自动保存失败: {str(e)}")
-            return str(False)
+            return False
 
     def cancel(self):
         """取消任务"""
