@@ -18,7 +18,6 @@ onefile:
 		--hidden-import "numpy" \
 		--noconfirm \
 		--exclude-module "PySide6.QtQuick" \
-		--exclude-module "PySide6.QtNetwork" \
 		--exclude-module "PySide6.QtDesigner" \
 		--exclude-module "PySide6.QtQuickWidgets" \
 		--exclude-module "PySide6.QtVirtualKeyboard" \
