@@ -2,6 +2,7 @@
 genicon:
 	icon-gen -i ./icon_markrender.png -o icons
 
+
 # create single file
 onefile:
 	rm -rf build dist
@@ -15,8 +16,19 @@ onefile:
 		--add-data "icons/app.icns:." \
 		--add-data "icons:icons" \
 		--add-data "app/editor/resources:app/editor/resources" \
-		--hidden-import "numpy" \
 		--noconfirm \
+		--hidden-import "numpy" \
+		--exclude-module "PyQt5" \
+		--exclude-module "test" \
+		--exclude-module "tests" \
+		--exclude-module "unittest" \
+		--exclude-module "matplotlib" \
+		--exclude-module "setuptools" \
+		--exclude-module "IPython" \
+		--exclude-module "jupyter" \
+		--exclude-module "tkinter" \
+		--exclude-module "pyinstaller" \
+		--exclude-module "distutils" \
 		--exclude-module "PySide6.QtQuick" \
 		--exclude-module "PySide6.QtDesigner" \
 		--exclude-module "PySide6.QtQuickWidgets" \
@@ -67,6 +79,7 @@ onefile:
 # create dmg
 dmg: onefile
 	mkdir -p dist/dmg
+	python clean_dist.py
 	mv dist/markrender.app dist/dmg
 
 	create-dmg \
