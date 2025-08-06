@@ -79,12 +79,14 @@ class ThreadPoolManager(QObject):
             self.start_time = time.time()
             try:
                 if self.canceled:
+                    logger.info(f"任务 {self.task_id} 已取消")
                     self.manager.task_canceled.emit(self.task_id)
                     return
 
                 result = self.worker.run()
                 # 调用回调函数
                 if self.callback:
+                    logger.info(f"任务 {self.task_id} 完成")
                     QMetaObject.invokeMethod(
                         self.manager,
                         "on_task_complete",
@@ -93,6 +95,7 @@ class ThreadPoolManager(QObject):
                         Q_ARG(str, str(result))
                     )
             except Exception as e:
+                logger.error(f"任务 {self.task_id} 运行时出错: {e}")
                 QMetaObject.invokeMethod(
                     self.manager,
                     "on_task_error",

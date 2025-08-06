@@ -481,14 +481,15 @@ class MarkdownEditor(QWidget):
         """线程任务失败处理"""
         logger.error(f"任务 {task_id} 执行失败: {error}")
     
-    # 修改on_web_content_changed方法
-    @Slot()
+    @Slot(dict)
     def on_web_content_changed(self, data):
         if 'content' in data:
+            logger.info(f"收到前端内容变更，长度: {len(data['content'])}")  # 添加此行
             logger.info(f"on_web_content_changed: {data['content']}")
-            # 直接触发修改标记，跳过document中间层
             self.on_document_modified(data['content'], source="user")
             self.markdown_manager.save_markdown(id=self.document.file_id, content=data['content'])
+        else:
+            logger.error(f"收到无效的内容变更消息: {data}")
     
     @Slot()
     def on_web_save_request(self):
@@ -550,6 +551,6 @@ class MarkdownEditor(QWidget):
         """延迟初始化Web处理器，避免类定义阶段竞争"""
         # 所有装饰器移至此处动态注册
         self.web_comm.register_python_handler('autoSave', self.save_markdown_content, is_async=True)
-        self.web_comm.register_python_handler('contentChanged', self.on_web_content_changed)
-        self.web_comm.register_python_handler('requestSave', self.on_web_save_request)
-        self.web_comm.register_python_handler('reportError', self.report_js_error)
+        self.web_comm.register_python_handler('contentChanged', self.on_web_content_changed, is_async=True)
+        self.web_comm.register_python_handler('requestSave', self.on_web_save_request, is_async=True)
+        self.web_comm.register_python_handler('reportError', self.report_js_error, is_async=True)

@@ -78,22 +78,13 @@
         function bindEditorEvents() {
             if (!appState.editor) return;
 
-            // 内容变化节流处理 (300ms延迟)
-            const throttle = (func, wait = 300) => {
-                let timeout;
-                return (...args) => {
-                    if (!timeout) {
-                        timeout = setTimeout(() => { func.apply(this, args); timeout = null; }, wait);
-                    }
-                };
-            };
-
             // 内容变化事件
-            appState.editor.on('change', throttle(() => {
+            appState.editor.on('afterChange', (text, html) => {
+                console.log(`[${new Date().toISOString()}] 内容变化事件触发，内容长度: ${text.length}，前20字符: ${text.substring(0, 20)}`);
                 sendToPython('contentChanged', {
-                    content: appState.editor.getValue()
+                    content: text
                 });
-            }));
+            });
         }
 
         // 初始化通信通道
