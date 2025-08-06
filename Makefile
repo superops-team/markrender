@@ -20,7 +20,15 @@ onefile:
 		--hidden-import "numpy" \
 		--exclude-module "PyQt5" \
 		--exclude-module "test" \
+		--exclude-module "tests" \
 		--exclude-module "unittest" \
+		--exclude-module "matplotlib" \
+		--exclude-module "setuptools" \
+		--exclude-module "IPython" \
+		--exclude-module "jupyter" \
+		--exclude-module "tkinter" \
+		--exclude-module "pyinstaller" \
+		--exclude-module "distutils" \
 		--exclude-module "PySide6.QtQuick" \
 		--exclude-module "PySide6.QtDesigner" \
 		--exclude-module "PySide6.QtQuickWidgets" \
