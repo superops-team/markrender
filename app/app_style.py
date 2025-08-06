@@ -490,13 +490,7 @@ QWidget {{
 """
 
     def get_status_bar(self):
-        bg_color = COLOR_BACKGROUND_LIGHT if not self.dark_mode else COLOR_BACKGROUND_DARK
-        return f"""
-QStatusBar {{
-    background-color: {bg_color};
-    border-top: 1px solid {LINE_COLOR};  /* 顶部内侧边框 */
-}}
-"""
+        return STATUS_STYLE
     
     def get_minimize_button(self):
         return MINIMIZE_BUTTON

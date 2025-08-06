@@ -74,17 +74,9 @@
             bindEditorEvents();
         }
 
-        // 绑定编辑器事件
+        // 绑定编辑器事件，TODO
         function bindEditorEvents() {
             if (!appState.editor) return;
-
-            // 内容变化事件
-            appState.editor.on('afterChange', (text, html) => {
-                console.log(`[${new Date().toISOString()}] 内容变化事件触发，内容长度: ${text.length}，前20字符: ${text.substring(0, 20)}`);
-                sendToPython('contentChanged', {
-                    content: text
-                });
-            });
         }
 
         // 初始化通信通道
@@ -99,8 +91,6 @@
                 appState.isChannelReady = true;
                 console.log('QWebChannel初始化完成');
 
-                // 注册后端信号处理
-                registerBackendSignals();
                 // 通知后端前端就绪
                 appState.backendInterface.frontend_ready();
             });
@@ -152,17 +142,6 @@
             }
         };
 
-        // 注册后端信号
-        function registerBackendSignals() {
-            if (!appState.backendInterface) return;
-
-            // 文本变更信号
-            appState.backendInterface.text_changed.connect((text) => {
-                console.log('收到文本更新，长度:', text.length);
-                if (appState.editor) appState.editor.setValue(text);
-            });
-        }
-
         // 处理异步执行结果，当前功能无相关处理，只保留函数
         function handleAsyncResponse(requestId, success, data) {
             console.log('处理异步响应:', requestId, success, data);
@@ -170,6 +149,8 @@
 
         // 标准化消息发送
         function sendToPython(action, data = {}, callback = null) {
+            console.log('发送到Python:', action, data);
+            
             if (!appState.isChannelReady || !appState.backendInterface) {
                 console.error('通信通道未就绪');
                 return;
@@ -187,7 +168,7 @@
 
             // 标准请求格式
             const request = {
-                id: requestId,
+                requestId: requestId,
                 action: action,
                 data: { ...data, docId: appState.currentDocumentId || 'default' }  // 确保docId存在
             };
@@ -236,14 +217,14 @@
         function initApp() {
             initEditor();
             initWebChannel();
-            // 启动自动保存 (5秒间隔)
+            // 启动自动保存 (10秒间隔)
             setInterval(() => {
                 if (appState.editor && appState.currentDocumentId) {
                     sendToPython('autoSave', {
                         content: appState.editor.getValue()
                     });
                 }
-            }, 5000);
+            }, 10000);
         }
 
         // 启动应用

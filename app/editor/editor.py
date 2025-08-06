@@ -5,7 +5,7 @@ import time
 from PySide6.QtWidgets import QWidget, QVBoxLayout
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtCore import QUrl, QObject, Signal, Property, QTimer, Slot
-from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings, QWebEngineProfile
+from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile, QWebEngineSettings
 
 from db.settings_manager import SettingsManager
 from db.markdown_manager import MarkdownManager
@@ -27,11 +27,11 @@ class MarkdownDocument(QObject):
         self.file_name = file_name
         self._text = ""
         self._suppress_change_notification = False
-        # 新增防抖定时器，默认 500 毫秒
+        # 新增防抖定时器，默认 200 毫秒
         self._debounce_timer = QTimer(self)
         self._debounce_timer.setSingleShot(True)
         self._debounce_timer.timeout.connect(self._emit_delayed_change)
-        self._debounce_interval = 500
+        self._debounce_interval = 200
 
     @Slot(str)
     def on_content_changed(self, text):
@@ -123,7 +123,7 @@ class MarkdownEditor(QWidget):
             self.web_comm.document_map[file_id] = self.document
             self.file_id = file_id
         # 建立信号连接
-        self.document.text_changed.connect(self.web_comm.on_document_text_changed)
+        self.document.text_changed.connect(self.on_document_text_changed)  # 数据库读取后写入到前端
         self.markdown_manager = MarkdownManager()
         
         # 添加上次保存内容跟踪
@@ -152,8 +152,8 @@ class MarkdownEditor(QWidget):
         self.preview.setPage(page)
 
         # 添加缓存设置
-        profile = self.preview.page().profile()
         cache_path = db_manager.get_user_data_dir() + '/web_cache'
+        profile = self.preview.page().profile()
         profile.setCachePath(cache_path)
         profile.setPersistentStoragePath(db_manager.get_user_data_dir() + '/web_storage')
         profile.setHttpCacheType(QWebEngineProfile.DiskHttpCache)
@@ -176,9 +176,6 @@ class MarkdownEditor(QWidget):
         # Setup WebChannel
         self.web_comm.attach_to_page(self.preview.page())
         
-        # 连接文档变化信号
-        self.document.text_changed.connect(self.on_document_modified)
-        
         # Load HTML file
         html_path = os.path.abspath(
             os.path.join(
@@ -186,19 +183,13 @@ class MarkdownEditor(QWidget):
                 "resources",
                 "index.html"))
         self.preview.setUrl(QUrl.fromLocalFile(html_path))
-        # Add these settings with corrected import
-        self.preview.page().settings().setAttribute(
-            QWebEngineSettings.ErrorPageEnabled, False)
-        # 禁用不必要的功能
-        self.preview.page().settings().setAttribute(
-            QWebEngineSettings.PluginsEnabled, False)
-        self.preview.page().settings().setAttribute(
-            QWebEngineSettings.JavascriptCanOpenWindows, False)
-        self.preview.page().settings().setAttribute(
-            QWebEngineSettings.LocalStorageEnabled, True)
-        self.preview.page().settings().setAttribute(
-            QWebEngineSettings.LocalContentCanAccessRemoteUrls, False)
-
+        self.preview.page().settings().setAttribute(QWebEngineSettings.ErrorPageEnabled, False)
+        self.preview.page().settings().setAttribute(QWebEngineSettings.PluginsEnabled, False)
+        self.preview.page().settings().setAttribute(QWebEngineSettings.JavascriptCanOpenWindows, False) 
+        self.preview.page().settings().setAttribute(QWebEngineSettings.LocalStorageEnabled, True)
+        self.preview.page().settings().setAttribute(QWebEngineSettings.LocalContentCanAccessRemoteUrls, False)
+        self.preview.page().settings().setAttribute(QWebEngineSettings.WebGLEnabled, True)
+    
     @property
     def file_id(self):
         return self.document.file_id
@@ -211,7 +202,10 @@ class MarkdownEditor(QWidget):
             if value:
                 self.document.file_id = value
                 self.web_comm.document_map[value] = self.document
-
+    
+    def on_document_text_changed(self, text):
+        """转发文档变更到前端"""
+        self.web_comm.send_message("textChanged", {"content": text})
     
     def init_auto_save(self):
         """初始化自动保存功能"""
@@ -274,16 +268,13 @@ class MarkdownEditor(QWidget):
         # 注册默认快捷键
         self.shortcut_manager.register_default_shortcuts()
 
-    # 添加带装饰器的保存方法
-    def save_markdown_content(self, document, content):
+    def save_markdown_content(self, data):
         """保存markdown内容"""
-        if not document or not document.file_id:
-            logger.error("无法保存：文档未关联文件ID")
-            return False
-        logger.info(f"自动保存文档: {document.file_id}")
-        return self.markdown_manager.save_markdown(
-            id=document.file_id, 
-            content=content
+        logger.info(f"自动保存文档: {self.document.file_id}")
+        content = data.get('content')
+        self.markdown_manager.save_markdown(
+            id=self.document.file_id,
+            content=content,
         )
 
     def save_document(self):
@@ -480,23 +471,7 @@ class MarkdownEditor(QWidget):
     def on_task_failed(self, task_id, error):
         """线程任务失败处理"""
         logger.error(f"任务 {task_id} 执行失败: {error}")
-    
-    @Slot(dict)
-    def on_web_content_changed(self, data):
-        if 'content' in data:
-            logger.info(f"收到前端内容变更，长度: {len(data['content'])}")  # 添加此行
-            logger.info(f"on_web_content_changed: {data['content']}")
-            self.on_document_modified(data['content'], source="user")
-            self.markdown_manager.save_markdown(id=self.document.file_id, content=data['content'])
-        else:
-            logger.error(f"收到无效的内容变更消息: {data}")
-    
-    @Slot()
-    def on_web_save_request(self):
-        """处理Web端保存请求"""
-        self.save_document()
 
-    @Slot(str)    
     def report_js_error(self, error_info):
         """接收并处理 JS 侧的错误信息"""
         try:
@@ -548,9 +523,6 @@ class MarkdownEditor(QWidget):
             self.web_comm.cleanup()
 
     def init_web_handlers(self):
-        """延迟初始化Web处理器，避免类定义阶段竞争"""
-        # 所有装饰器移至此处动态注册
-        self.web_comm.register_python_handler('autoSave', self.save_markdown_content, is_async=True)
-        self.web_comm.register_python_handler('contentChanged', self.on_web_content_changed, is_async=True)
-        self.web_comm.register_python_handler('requestSave', self.on_web_save_request, is_async=True)
-        self.web_comm.register_python_handler('reportError', self.report_js_error, is_async=True)
+        """初始化Web发起请求处理器"""
+        self.web_comm.register_python_handler('autoSave', self.save_markdown_content, is_async=False)
+        self.web_comm.register_python_handler('reportError', self.report_js_error, is_async=False)

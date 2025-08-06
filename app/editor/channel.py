@@ -1,19 +1,29 @@
 import json
 import threading
 import time
+import json
 
 from PySide6.QtCore import QObject, Slot, QRunnable, QThreadPool
-from pydantic import BaseModel, ValidationError, Field
+# 移除pydantic相关导入
 from PySide6.QtCore import Signal
 from PySide6.QtWebChannel import QWebChannel
 from utils import logger
 from db.markdown_manager import MarkdownManager
 
-# 添加RequestModel定义
-class RequestModel(BaseModel):
-    action: str
-    data: dict = Field(default_factory=dict)
-    request_id: str
+# 纯Python实现的RequestModel类
+class RequestModel:
+    def __init__(self, action: str, data: dict = None, request_id: str = None):
+        self.action = action
+        self.data = data or {}
+        self.request_id = request_id
+        
+    @classmethod
+    def from_dict(cls, data: dict):
+        return cls(
+            action=data.get('action'),
+            data=data.get('data'),
+            request_id=data.get('requestId')
+        )
 
 
 class WebCommunicationManager(QObject):
@@ -54,7 +64,6 @@ class WebCommunicationManager(QObject):
         self._initialized = True
         self.markdown_manager = MarkdownManager()  # 注入依赖
         self.python_handlers = {}
-        self.document_map = {}
         self.ready = False  # 添加就绪状态标志
         self.page = None  # Initialize page attribute
         self.channel = None
@@ -80,6 +89,7 @@ class WebCommunicationManager(QObject):
     @Slot()
     def frontend_ready(self):
         self.ready = True
+        self.channel_ready.emit()
 
     # 添加处理器注册方法
     def register_python_handler(self,
@@ -87,7 +97,6 @@ class WebCommunicationManager(QObject):
                                handler: callable,
                                is_async: bool = False):
         """注册Python处理器到通信管理器"""
-        # Store handler and async flag as tuple
         self.python_handlers[action] = (handler, is_async)
 
     @Slot(str, result=str)  # 添加Slot装饰器，指定参数类型和返回值类型
@@ -95,44 +104,37 @@ class WebCommunicationManager(QObject):
         """增强请求分发，添加文档ID路由"""
         try:
             request_data = json.loads(request_json)
-            request = RequestModel(**request_data)
-            # 从请求数据中提取文档ID
-            doc_id = request.data.get("docId")
-            document = self.document_map.get(doc_id)
-
-            if not document and request.action != "registerDocument":
-                existing_ids = list(self.document_map.keys())
+            logger.debug(f"Received request: {request_data}")
+            request = RequestModel.from_dict(request_data)
+            if not request.request_id:
+                logger.warning("请求缺少requestId")
                 return json.dumps({
                     "success": False,
-                    "error": f"Document {doc_id} not found. Existing IDs: {existing_ids}"
+                    "requestId": request.request_id,
+                    "error": "Missing requestId"
                 })
             handler_tuple = self.python_handlers.get(request.action)
             if not handler_tuple:
                 return json.dumps({
                     "success": False,
+                    "requestId": request.request_id,
                     "error": f"Unknown action: {request.action}"
                 })
             handler, is_async = handler_tuple
-            
-            # 使用线程池处理耗时操作
-            # 修改处理器调用方式
+            # 异步处理
             if is_async:
-                return self._dispatch_async_request(request, handler, document)
+                return self._dispatch_async_request(request, handler)
             else:
                 # 同步处理 - 将文档实例作为第一个参数传递
-                result = handler(document, **request.data)
+                handler(request.data)
                 return json.dumps({
                     "success": True,
-                    "result": result
+                    "requestId": request.request_id,
                 })
-        except ValidationError as e:
-            return json.dumps({
-                "success": False,
-                "error": f"Validation error: {str(e)}"
-            })
         except Exception as e:
             return json.dumps({
                 "success": False,
+                "requestId": request.request_id,
                 "error": str(e)
             })
     
@@ -211,23 +213,22 @@ class WebCommunicationManager(QObject):
         detail = self.markdown_manager.get_detail(file_id)
         return detail.content
 
-    def _dispatch_async_request(self, request, handler, document):
+    def _dispatch_async_request(self, request, handler):
         """异步请求处理"""
-        task_id = self._generate_request_id()
+        task_id = request.request_id
         
         class AsyncRequestHandler(QRunnable):
-            def __init__(self, handler, data, task_id, manager, document):
+            def __init__(self, handler, data, task_id, manager):
                 super().__init__()
                 self.handler = handler
                 self.data = data
                 self.task_id = task_id
                 self.manager = manager
-                self.document = document
             
             def run(self):
                 try:
                     # 传递document和data参数
-                    result = self.handler(self.document, **self.data)
+                    result = self.handler(self.data)
                     self.manager._send_async_response(
                         self.task_id, True, result
                     )
@@ -238,9 +239,8 @@ class WebCommunicationManager(QObject):
         
         # 提交到线程池
         QThreadPool.globalInstance().start(
-            AsyncRequestHandler(handler, request.data, task_id, self, document)
+            AsyncRequestHandler(handler, request.data, task_id, self)
         )
-        
         # 返回任务ID
         return json.dumps({
             "success": True,
@@ -294,10 +294,6 @@ class WebCommunicationManager(QObject):
         self.channel.registerObject('backendInterface', self)
         self.page.setWebChannel(self.channel)
         self.channel_ready.emit()
-
-    def on_document_text_changed(self, text):
-        """转发文档变更到前端"""
-        self.send_message("textChanged", {"content": text})
     
     def cleanup(self):
         """清理资源"""

@@ -112,9 +112,9 @@ class ThreadPoolManager(QObject):
                 wrapper = self.active_tasks.pop(task_id)
                 # 调用用户提供的回调
                 if wrapper.callback:
-                    wrapper.callback(result)
-            if hasattr(self, f"on_{task_id}_complete"):
-                getattr(self, f"on_{task_id}_complete")(result)
+                    wrapper.callback(task_id, result)
+                # 调用完成信号
+                self.task_completed.emit(task_id, result)
         finally:
             self.task_mutex.unlock()
 
