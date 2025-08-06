@@ -229,6 +229,8 @@ class WebCommunicationManager(QObject):
                 try:
                     # 传递document和data参数
                     result = self.handler(self.data)
+                    if not result:
+                        result = {}
                     self.manager._send_async_response(
                         self.task_id, True, result
                     )
