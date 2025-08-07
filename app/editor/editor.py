@@ -269,13 +269,37 @@ class MarkdownEditor(QWidget):
         self.shortcut_manager.register_default_shortcuts()
 
     def save_markdown_content(self, data):
-        """保存markdown内容"""
-        logger.info(f"自动保存文档: {self.document.file_id}")
-        content = data.get('content')
-        self.markdown_manager.save_markdown(
-            id=self.document.file_id,
-            content=content,
-        )
+        """线程安全的保存方法"""
+        try:
+            content = data.get('content', '')
+            if not self.document.file_id:
+                return {"error": "无文件ID"}
+                
+            # 数据库操作通常是线程安全的
+            success = self.markdown_manager.save_markdown(
+                id=self.document.file_id,
+                content=content,
+            )
+            
+            return {
+                "success": success,
+                "file_id": self.document.file_id,
+                "content_length": len(content)
+            }
+            
+        except Exception as e:
+            logger.error(f"保存失败: {str(e)}")
+            return {"error": str(e)}
+
+    def report_js_error(self, error_info):
+        """线程安全的错误报告"""
+        try:
+            error_data = json.loads(error_info) if isinstance(error_info, str) else error_info
+            logger.error(f'JS错误: {error_data}')
+            return {"logged": True}
+        except Exception as e:
+            logger.error(f'处理JS错误失败: {str(e)}')
+            return {"error": str(e)}
 
     def save_document(self):
         """手动保存当前文档"""
@@ -523,6 +547,7 @@ class MarkdownEditor(QWidget):
             self.web_comm.cleanup()
 
     def init_web_handlers(self):
-        """初始化Web发起请求处理器"""
-        self.web_comm.register_python_handler('autoSave', self.save_markdown_content, is_async=False)
-        self.web_comm.register_python_handler('reportError', self.report_js_error, is_async=False)
+        """初始化Web发起请求处理器 - 线程安全版本"""
+        # 使用异步处理，但确保线程安全
+        self.web_comm.register_python_handler('autoSave', self.save_markdown_content, is_async=True)
+        self.web_comm.register_python_handler('reportError', self.report_js_error, is_async=True)

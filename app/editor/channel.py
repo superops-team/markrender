@@ -3,9 +3,7 @@ import threading
 import time
 import json
 
-from PySide6.QtCore import QObject, Slot, QRunnable, QThreadPool
-# 移除pydantic相关导入
-from PySide6.QtCore import Signal
+from PySide6.QtCore import QObject, Slot, QRunnable, QThreadPool, Signal, QTimer
 from PySide6.QtWebChannel import QWebChannel
 from utils import logger
 from db.markdown_manager import MarkdownManager
@@ -27,16 +25,33 @@ class RequestModel:
 
 
 class WebCommunicationManager(QObject):
-    # 删除重复的text_changed定义
-    # 添加channel_ready信号定义
+    # 添加异步响应信号
+    async_response_ready = Signal(str, bool, dict)  # task_id, success, data
     channel_ready = Signal()
     document_associated = Signal(str)
     
     # 单例实现简化
     _instance = None
-    _lock = threading.Lock()  # 保留线程安全锁
+    _lock = threading.Lock()
     _request_counter = 0
     
+    def __init__(self, parent=None):
+        # 防止重复初始化
+        if hasattr(self, '_initialized'):
+            return
+        super().__init__(parent)
+        self._initialized = True
+        self.markdown_manager = MarkdownManager()
+        self.python_handlers = {}
+        self.ready = False
+        self.page = None
+        self.channel = None
+        self.web_handlers = {}
+        self.web_callbacks = {}
+        
+        # 连接信号到槽函数，确保线程安全
+        self.async_response_ready.connect(self._send_async_response_safe)
+
     @classmethod
     def _generate_request_id(cls):
         """生成与前端格式一致的请求ID"""
@@ -214,8 +229,8 @@ class WebCommunicationManager(QObject):
         return detail.content
 
     def _dispatch_async_request(self, request, handler):
-        """异步请求处理"""
-        task_id = request.request_id
+        """修复后的异步请求处理"""
+        task_id = request.request_id or self._generate_request_id()
         
         class AsyncRequestHandler(QRunnable):
             def __init__(self, handler, data, task_id, manager):
@@ -224,36 +239,66 @@ class WebCommunicationManager(QObject):
                 self.data = data
                 self.task_id = task_id
                 self.manager = manager
+                self.setAutoDelete(True)
             
             def run(self):
                 try:
-                    # 传递document和data参数
                     result = self.handler(self.data)
-                    if not result:
-                        result = {}
-                    self.manager._send_async_response(
-                        self.task_id, True, result
-                    )
+                    if result is None:
+                        result = {"success": True}
+                    
+                    # 通过信号槽机制发送结果到主线程
+                    self.manager.async_response_ready.emit(self.task_id, True, result)
+                    
                 except Exception as e:
-                    self.manager._send_async_response(
-                        self.task_id, False, str(e)
+                    logger.error(f"异步任务失败: {str(e)}")
+                    self.manager.async_response_ready.emit(
+                        self.task_id, False, {"error": str(e), "success": False}
                     )
         
-        # 提交到线程池
-        QThreadPool.globalInstance().start(
-            AsyncRequestHandler(handler, request.data, task_id, self)
-        )
-        # 返回任务ID
+        # 使用全局线程池
+        thread_pool = QThreadPool.globalInstance()
+        if thread_pool.activeThreadCount() < thread_pool.maxThreadCount():
+            thread_pool.start(AsyncRequestHandler(handler, request.data, task_id, self))
+        else:
+            # 线程池满，延迟执行
+            QTimer.singleShot(10, lambda: self._dispatch_async_request(request, handler))
+        
         return json.dumps({
             "success": True,
-            "task_id": task_id
+            "task_id": task_id,
+            "message": "任务已提交到线程池"
         })
-    
-    def _send_async_response(self, task_id, success, data):
-        """发送异步响应到Web端"""
+
+    @Slot(str, bool, dict)
+    def _send_async_response_safe(self, task_id, success, data):
+        """线程安全的响应发送"""
+        if self.page and hasattr(self.page, 'runJavaScript'):
+            try:
+                response_data = json.dumps({
+                    "success": success,
+                    "task_id": task_id,
+                    "data": data
+                })
+                js_code = f"window.handleAsyncResponse('{task_id}', {response_data})"
+                self.page.runJavaScript(js_code)
+            except Exception as e:
+                logger.error(f"发送异步响应失败: {str(e)}")
+
+    def cleanup(self):
+        """增强清理逻辑"""
+        if self.channel:
+            self.channel = None
         if self.page:
-            js_code = f"window.handleAsyncResponse('{task_id}', {success}, {json.dumps(data)})"
-            self.page.runJavaScript(js_code)
+            try:
+                self.page.setWebChannel(None)
+            except:
+                pass  # 页面可能已销毁
+        self.web_callbacks.clear()
+        
+        # 清理线程池
+        thread_pool = QThreadPool.globalInstance()
+        thread_pool.waitForDone(1000)  # 等待1秒
     
     def call_web_method(self, method, params=None, callback=None):
         """调用Web端方法"""
