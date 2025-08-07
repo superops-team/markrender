@@ -42,7 +42,7 @@ WIDGET_BACKGROUND_DARK = "QWidget { background-color: #1f1f1f; }"
 IMPORT_AREA = """
 QFrame {
     border: 1px dashed #1990ff;
-    border-radius: 5px;
+    border-radius: 2px;
     background-color: #f5f5f5;
     margin: 10px;
 }
@@ -257,25 +257,18 @@ QProgressBar::chunk {
 
 # 新增样式定义
 TITLE_BAR = """
-QWidget {{
+QWidget {
     background-color: #f0f0f0;
     font-size: 14px;
     font-weight: bold;
-    border-bottom: 1px solid {};  /* 底部内侧边框 */
-}}
+    border-bottom: 1px solid #c0c0c0;  /* 底部内侧边框 */
+}
 """
 
 SIDEBAR = """
 QWidget {{
     background-color: #fafafa;
     border-right: 1px solid {};  /* 右侧内侧边框 */
-}}
-"""
-
-STATUS_BAR = f"""
-QStatusBar {{
-    background-color: #fafafa;
-    border-top: 1px solid {LINE_COLOR};  /* 顶部内侧边框 */
 }}
 """
 
@@ -478,7 +471,7 @@ class AppStyle:
         return MAIN_WINDOW_COLOR.format(self.get_background_color())
 
     def get_title_bar(self):
-        return TITLE_BAR.format('#c0c0c0')
+        return TITLE_BAR
     
     def get_sidebar(self):
         bg_color = COLOR_BACKGROUND_LIGHT if not self.dark_mode else COLOR_BACKGROUND_DARK

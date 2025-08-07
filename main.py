@@ -88,10 +88,11 @@ class MainWindow(QMainWindow):
 
         # 创建自定义标题栏
         title_bar = QWidget()
-        title_bar_layout = QHBoxLayout(title_bar)
-        title_bar_layout.setContentsMargins(10, 5, 10, 5)  # 调整上下边距
         title_bar.setFixedHeight(30)  # 固定标题栏高度
         title_bar.setStyleSheet(AppStyle().get_title_bar())
+        title_bar_layout = QHBoxLayout(title_bar)
+        title_bar_layout.setContentsMargins(10, 5, 10, 5)  # 调整上下边距
+
 
         # 添加最小化、最大化、关闭按钮
         self.minimize_btn = MacOSButton("minimize", self)
