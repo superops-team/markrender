@@ -13,10 +13,12 @@
         .cherry-suggester-panel {
             position: fixed !important;
             max-height: 300px !important;
+            height: 300px !important;
             overflow-y: auto !important;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
             border-radius: 4px !important;
             z-index: 10000 !important;
+            transition: transform 0.1s ease-out !important; /* 添加平滑过渡效果 */
         }
 
         /* 确保提示框在底部时向上显示 */
@@ -105,39 +107,133 @@
                 header: { anchorStyle: 'none' }
             });
 
-            // 动态调整提示框位置
-            const observer = new MutationObserver(function(mutationsList) {
+            // 创建防抖函数
+            function debounce(func, wait) {
+                let timeout;
+                return function executedFunction(...args) {
+                    const later = () => {
+                        clearTimeout(timeout);
+                        func(...args);
+                    };
+                    clearTimeout(timeout);
+                    timeout = setTimeout(later, wait);
+                };
+            }
+
+            // 更新提示框位置的函数
+            function updatePanelPosition(panel) {
+                // 确保面板可见且已渲染
+                if (!panel || panel.style.display === 'none') return;
+                
+                // 使用requestAnimationFrame确保在浏览器重绘时执行
+                requestAnimationFrame(() => {
+                    const rect = panel.getBoundingClientRect();
+                    const editorRect = document.getElementById('editor').getBoundingClientRect();
+                    const viewportHeight = window.innerHeight;
+                    
+                    // 先移除可能存在的类
+                    panel.classList.remove('position-bottom');
+                    
+                    // 检查提示框是否超出编辑器底部边界或屏幕底部
+                    if (rect.bottom > editorRect.bottom || rect.bottom > viewportHeight) {
+                        // 检查是否有足够空间在上方显示（至少300px）
+                        if (rect.top > 300) { // 300px是提示框的高度
+                            panel.classList.add('position-bottom');
+                        }
+                    }
+                });
+            }
+
+            // 预判提示框位置的函数
+            function preCalculatePanelPosition(panel) {
+                // 在提示框显示前预判位置
+                const editorRect = document.getElementById('editor').getBoundingClientRect();
+                const viewportHeight = window.innerHeight;
+                
+                // 先移除可能存在的类
+                panel.classList.remove('position-bottom');
+                
+                // 获取面板的预期位置（基于编辑器位置计算）
+                const expectedBottom = editorRect.bottom;
+                
+                // 如果预期位置超出边界，则预设position-bottom类
+                if (expectedBottom > viewportHeight - 300) {
+                    panel.classList.add('position-bottom');
+                }
+            }
+
+            // 防抖版本的位置更新函数
+            const debouncedUpdatePanelPosition = debounce(function(panel) {
+                updatePanelPosition(panel);
+            }, 10);
+
+            // 使用ResizeObserver监听提示框尺寸变化
+            const resizeObserver = new ResizeObserver(function(entries) {
+                for (let entry of entries) {
+                    const panel = entry.target;
+                    if (panel && panel.style.display !== 'none') {
+                        debouncedUpdatePanelPosition(panel);
+                    }
+                }
+            });
+            
+            // 使用MutationObserver监听提示框属性变化
+            const mutationObserver = new MutationObserver(function(mutationsList) {
                 for(let mutation of mutationsList) {
                     if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
-                        const panel = document.querySelector('.cherry-suggester-panel');
+                        const panel = mutation.target;
                         if (panel && panel.style.display !== 'none') {
-                            const rect = panel.getBoundingClientRect();
-                            const editorRect = document.getElementById('editor').getBoundingClientRect();
-                            
-                            // 检查提示框是否超出编辑器底部边界
-                            if (rect.bottom > editorRect.bottom) {
-                                panel.classList.add('position-bottom');
+                            // 如果是显示操作，先预判位置再更新
+                            if (panel.style.display === 'block' || panel.style.display === '') {
+                                preCalculatePanelPosition(panel);
+                                // 使用requestAnimationFrame确保在浏览器重绘时执行
+                                requestAnimationFrame(() => {
+                                    debouncedUpdatePanelPosition(panel);
+                                });
                             } else {
-                                panel.classList.remove('position-bottom');
+                                debouncedUpdatePanelPosition(panel);
                             }
                         }
                     }
                 }
             });
             
+            // 监听窗口大小变化
+            window.addEventListener('resize', function() {
+                const panel = document.querySelector('.cherry-suggester-panel');
+                if (panel && panel.style.display !== 'none') {
+                    // 延迟执行以确保窗口大小变化完成
+                    setTimeout(() => {
+                        debouncedUpdatePanelPosition(panel);
+                    }, 50);
+                }
+            });
+            
             // 监听.cherry-suggester-panel的属性变化
             const panel = document.querySelector('.cherry-suggester-panel');
             if (panel) {
-                observer.observe(panel, { attributes: true, attributeFilter: ['style'] });
+                mutationObserver.observe(panel, { attributes: true, attributeFilter: ['style'] });
+                resizeObserver.observe(panel);
             }
 
             // 绑定编辑器事件
             bindEditorEvents();
         }
 
-        // 绑定编辑器事件，TODO
+        // 绑定编辑器事件
         function bindEditorEvents() {
             if (!appState.editor) return;
+            
+            // 获取编辑器输入框元素
+            const editorInput = document.querySelector('.cherry-editor');
+            if (editorInput) {
+                // 添加输入事件监听，移除不必要的防抖处理
+                editorInput.addEventListener('input', (event) => {
+                    // 可在此添加输入法状态变化时的特殊处理逻辑
+                    // 当前先保证基础输入响应
+                    console.log('Input event detected:', event.data);
+                });
+            }
         }
 
         // 初始化通信通道

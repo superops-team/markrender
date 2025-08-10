@@ -2,6 +2,7 @@ import json
 import threading
 import time
 import json
+import traceback
 
 from PySide6.QtCore import QObject, Slot, QRunnable, QThreadPool, Signal, QTimer
 from PySide6.QtWebChannel import QWebChannel
@@ -246,12 +247,10 @@ class WebCommunicationManager(QObject):
                     result = self.handler(self.data)
                     if result is None:
                         result = {"success": True}
-                    
                     # 通过信号槽机制发送结果到主线程
                     self.manager.async_response_ready.emit(self.task_id, True, result)
-                    
                 except Exception as e:
-                    logger.error(f"异步任务失败: {str(e)}")
+                    logger.error(f"异步任务失败: {str(e)}, traceback: {traceback.format_exc()}")
                     self.manager.async_response_ready.emit(
                         self.task_id, False, {"error": str(e), "success": False}
                     )

@@ -271,10 +271,11 @@ class MarkdownEditor(QWidget):
     def save_markdown_content(self, data):
         """线程安全的保存方法"""
         try:
+            data = json.loads(data) if isinstance(data, str) else data
             content = data.get('content', '')
             if not self.document.file_id:
                 return {"error": "无文件ID"}
-                
+            
             # 数据库操作通常是线程安全的
             success = self.markdown_manager.save_markdown(
                 id=self.document.file_id,
