@@ -1,6 +1,6 @@
 # create icons
 genicon:
-	icon-gen -i ./icon_markrender.png -o icons
+	icon-gen -i ./icon_markrender.png -o icons --icns  --icns-sizes 16,32,64,128,256,512,1024
 
 
 # create single file
@@ -81,7 +81,7 @@ dmg: onefile
 	  --window-pos 200 120 \
 	  --window-size 600 300 \
 	  --icon-size 90 \
-	  --icon "markrender.app" 120 100 \
+	  --icon "markrender.app" 175 120 \
 	  --hide-extension "markrender.app" \
 	  --app-drop-link 425 120 \
 	  "dist/markrender.dmg" \
