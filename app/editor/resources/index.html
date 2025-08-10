@@ -3,17 +3,40 @@
 
 <head>
     <meta charset="utf-8">
-    <link rel="stylesheet" type="text/css" href="./cherry-markdown/cherry-markdown.min.css">
-    <script src="./cherry-markdown/cherry-markdown.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="./cherry-markdown/cherry-markdown.css">
+    <script src="./cherry-markdown/cherry-markdown.js"></script>
     <script src="./cherry-markdown/echarts.min.js"></script>
     <script src="./cherry-markdown/jspdf.umd.min.js"></script>
     <script src="qrc:/qtwebchannel/qwebchannel.js"></script>
     <style>
+        /* Cherry Markdown 提示框样式优化 */
+        .cherry-suggester-panel {
+            position: fixed !important;
+            max-height: 300px !important;
+            overflow-y: auto !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+            border-radius: 4px !important;
+            z-index: 10000 !important;
+        }
+
+        /* 确保提示框在底部时向上显示 */
+        .cherry-suggester-panel.position-bottom {
+            transform: translateY(-100%) !important;
+        }
+
+        /* 响应式调整 */
+        @media screen and (max-height: 500px) {
+            .cherry-suggester-panel {
+                max-height: 200px !important;
+            }
+        }
+
         body {
             margin: 0;
             height: 100vh;
             padding: 0;
             box-sizing: border-box;
+            border: 5;
             overflow: hidden;
             background-color: transparent;
         }
@@ -59,6 +82,7 @@
         }
 
         // 初始化编辑器
+        // 在initEditor函数中添加以下代码
         function initEditor() {
             appState.editor = new Cherry({
                 id: 'editor',
@@ -80,6 +104,32 @@
                 preview: { style: { height: 'auto', width: '100%' } },
                 header: { anchorStyle: 'none' }
             });
+
+            // 动态调整提示框位置
+            const observer = new MutationObserver(function(mutationsList) {
+                for(let mutation of mutationsList) {
+                    if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                        const panel = document.querySelector('.cherry-suggester-panel');
+                        if (panel && panel.style.display !== 'none') {
+                            const rect = panel.getBoundingClientRect();
+                            const editorRect = document.getElementById('editor').getBoundingClientRect();
+                            
+                            // 检查提示框是否超出编辑器底部边界
+                            if (rect.bottom > editorRect.bottom) {
+                                panel.classList.add('position-bottom');
+                            } else {
+                                panel.classList.remove('position-bottom');
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // 监听.cherry-suggester-panel的属性变化
+            const panel = document.querySelector('.cherry-suggester-panel');
+            if (panel) {
+                observer.observe(panel, { attributes: true, attributeFilter: ['style'] });
+            }
 
             // 绑定编辑器事件
             bindEditorEvents();
