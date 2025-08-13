@@ -1,0 +1,29 @@
+{
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "packageManager": "pnpm@8.15.9",
+  "scripts": {
+    "start": "vite"
+  },
+  "dependencies": {
+    "@milkdown/crepe": "7.14.0",
+    "@milkdown/plugin-clipboard": "^7.15.3",
+    "@milkdown/plugin-cursor": "^7.15.3",
+    "@milkdown/plugin-emoji": "^7.15.3",
+    "@milkdown/plugin-history": "^7.15.3",
+    "@milkdown/plugin-indent": "^7.15.3",
+    "@milkdown/plugin-table": "^5.3.1",
+    "@milkdown/plugin-tooltip": "^7.15.3",
+    "@milkdown/preset-commonmark": "^7.15.3",
+    "@milkdown/preset-gfm": "^7.15.3",
+    "@type-config/strict": "^1.2.1",
+    "@types/node": "^22.0.0",
+    "tslib": "^2.4.1",
+    "typescript": "^5.0.0",
+    "vite": "^6.0.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.5"
+  }
+}

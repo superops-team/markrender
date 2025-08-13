@@ -499,11 +499,7 @@ class MarkdownEditor(QWidget):
 
     def report_js_error(self, error_info):
         """接收并处理 JS 侧的错误信息"""
-        try:
-            error_data = json.loads(error_info)
-            logger.error(f'收到 JS 错误: {error_data}')
-        except json.JSONDecodeError:
-            logger.error(f'解析 JS 错误信息失败: {error_info}')
+        logger.error(f'收到 JS 错误: {error_info}')
 
     def closeEvent(self, event):
         # 1. 停止自动保存定时器
@@ -550,5 +546,5 @@ class MarkdownEditor(QWidget):
     def init_web_handlers(self):
         """初始化Web发起请求处理器 - 线程安全版本"""
         # 使用异步处理，但确保线程安全
-        self.web_comm.register_python_handler('autoSave', self.save_markdown_content, is_async=True)
-        self.web_comm.register_python_handler('reportError', self.report_js_error, is_async=True)
+        self.web_comm.register_python_handler('autoSave', self.save_markdown_content, is_async=False)
+        self.web_comm.register_python_handler('reportError', self.report_js_error, is_async=False)
