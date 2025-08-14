@@ -10,7 +10,6 @@ from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile, QWebEngin
 from db.settings_manager import SettingsManager
 from db.markdown_manager import MarkdownManager
 from app.editor.background import ThreadPoolManager, AutoSaveWorker, ContentLoader
-from app.shortcut_manager import ShortcutManager  # 添加快捷键管理器导入
 from app.app_style import AppStyle
 from app.editor.channel import WebCommunicationManager
 from utils import logger
@@ -128,10 +127,6 @@ class MarkdownEditor(QWidget):
         
         # 添加上次保存内容跟踪
         self.last_saved_text = None
-        
-        # 初始化快捷键管理器
-        self.shortcut_manager = ShortcutManager(self)
-        self.init_shortcuts()
         
         # 假设 history_panel 是 HistoryPanel 实例
         if hasattr(self.parent, 'history_panel'):
@@ -294,13 +289,9 @@ class MarkdownEditor(QWidget):
 
     def report_js_error(self, error_info):
         """线程安全的错误报告"""
-        try:
-            error_data = json.loads(error_info) if isinstance(error_info, str) else error_info
-            logger.error(f'JS错误: {error_data}')
-            return {"logged": True}
-        except Exception as e:
-            logger.error(f'处理JS错误失败: {str(e)}')
-            return {"error": str(e)}
+        
+        logger.error(f'JS错误: {error_info}')
+        return {"logged": True}
 
     def save_document(self):
         """手动保存当前文档"""
