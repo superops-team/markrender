@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>导出预览</title>
+    <link rel="stylesheet" type="text/css" href="./cherry-markdown/cherry-markdown.css">
+    <script src="./cherry-markdown/cherry-markdown.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        #preview {
+            width: 100%;
+            height: 80vh;
+            border: 1px solid #ccc;
+        }
+        .export-options {
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 8px 16px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="export-options">
+        <button onclick="exportFile('html')">导出 HTML</button>
+        <button onclick="exportFile('md')">导出 MD</button>
+        <button onclick="exportFile('pdf')">导出 PDF</button>
+        <button onclick="exportFile('epub')">导出 EPUB</button>
+    </div>
+    <div id="preview"></div>
+    <script>
+        'use strict';
+        let currentContent = '';
+
+        // 接收来自后端的内容
+        window.setPreviewContent = function(content) {
+            currentContent = content;
+            const cherry = new Cherry({
+                id: 'preview',
+                value: content,
+                mode: 'preview'
+            });
+        };
+
+        // 触发导出
+        function exportFile(format) {
+            if (window.qt && window.qt.webChannelTransport) {
+                new QWebChannel(qt.webChannelTransport, (channel) => {
+                    channel.objects.backendInterface.exportFile(format, currentContent);
+                });
+            }
+        }
+    </script>
+</body>
+</html>

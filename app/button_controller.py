@@ -4,6 +4,8 @@ from PySide6.QtCore import Qt
 
 from utils.path import get_icon_path
 
+from PySide6.QtWidgets import QMenu  # 新增导入
+
 class ButtonController(QWidget):
     def __init__(self, parent, history_panel, markdown_editor):
         super().__init__(parent)
@@ -50,18 +52,49 @@ class ButtonController(QWidget):
         self.mode_btn.setFixedSize(20, 20)  # 固定按钮大小
         layout.addWidget(self.mode_btn)
 
-        # 导出控制按钮
+        # 导出控制按钮，改为支持下拉菜单
         self.export_btn = QToolButton()
         self.export_btn.setIcon(QIcon(get_icon_path('download')))
         self.export_btn.setToolTip('导出')
-        self.export_btn.clicked.connect(self.export_content)
+        # 修改为 InstantPopup 模式，点击整个按钮都会触发下拉菜单
+        self.export_btn.setPopupMode(QToolButton.InstantPopup)
+        
+        # 创建下拉菜单
+        export_menu = QMenu(self.export_btn)
+        # 可以继续保留之前设置的菜单样式
+        export_menu.setStyleSheet('''
+            QMenu {
+                border: 1px solid #d0d0d0;
+                background-color: white;
+                padding: 4px;
+                margin: 2px;
+            }
+            QMenu::item {
+                padding: 4px 24px 4px 24px;
+                margin: 0px;
+            }
+            QMenu::item:selected {
+                background-color: #d0d0d0;
+            }
+        ''')
+        formats = ['html', 'md', 'pdf', 'epub']
+        for format in formats:
+            action = export_menu.addAction(f'导出 {format.upper()}')
+            action.triggered.connect(lambda _, fmt=format: self.export_content(fmt))
+        
+        self.export_btn.setMenu(export_menu)
         self.export_btn.setStyleSheet('''
             QToolButton {
                 border: none;
                 padding: 2px;
+                background: transparent; /* 显式设置背景为透明 */
+                selection-background-color: transparent; /* 设置选中背景为透明 */
             }
             QToolButton:hover {
                 background-color: #d0d0d0;
+            }
+            QToolButton::menu-indicator {
+                image: none; /* 移除菜单指示器可能产生的线条 */
             }
         ''')
         self.export_btn.setFixedSize(20, 20)  # 固定按钮大小
@@ -77,5 +110,6 @@ class ButtonController(QWidget):
         # 这里需要根据实际的编辑模式切换逻辑修改，当前为示例代码
         print('切换编辑/预览模式')
 
-    def export_content(self):
-        self.markdown_editor.export_to_browser()
+    def export_content(self, format):
+        # 调用 markdown_editor 的导出方法，直接导出指定类型文件
+        self.markdown_editor.export_file(format)

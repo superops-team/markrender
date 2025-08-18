@@ -14,6 +14,7 @@ from app.app_style import AppStyle
 from app.editor.channel import WebCommunicationManager
 from utils import logger
 from db import db_manager
+from app.editor.export_manager import ExportManager  # 在文件开头添加导入
 
 
 class MarkdownDocument(QObject):
@@ -533,7 +534,7 @@ class MarkdownEditor(QWidget):
             # 取消所有未完成任务
             self.thread_pool.cancel_all_tasks()
             # 等待当前任务完成（最多等待2秒）
-            self.thread_pool.wait_for_completion(2000)
+            self.thread_pool.wait_for_completion(500)
             logger.info("Thread pool resources cleaned up")
 
         # 4. 释放Web通信资源
@@ -545,3 +546,12 @@ class MarkdownEditor(QWidget):
         # 使用异步处理，但确保线程安全
         self.web_comm.register_python_handler('autoSave', self.save_markdown_content, is_async=False)
         self.web_comm.register_python_handler('reportError', self.report_js_error, is_async=False)
+
+    def export_file(self, format):
+        """
+        导出指定格式的文件
+        :param format: 导出文件的格式，支持 'html', 'md', 'pdf', 'epub'
+        """
+        content = self.document.get_text()
+        export_manager = ExportManager(self, content)
+        export_manager.export_file(format)
