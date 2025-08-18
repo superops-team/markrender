@@ -224,6 +224,13 @@
         function initApp() {
             initEditor();
             initWebChannel();
+            
+            // 添加禁用右键菜单代码
+            document.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                return false;
+            });
+            
             // 启动自动保存 (10秒间隔)
             setInterval(() => {
                 if (appState.editor && appState.currentDocumentId) {

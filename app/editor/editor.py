@@ -91,7 +91,7 @@ class CustomWebEnginePage(QWebEnginePage):
         # 这里可以添加你的 URL 限制逻辑，以下是示例：
         # 只允许打开本地文件和特定域名的链接
         allowed_schemes = ['file']  # 允许 file 协议
-        allowed_domains = ['example.com']  # 允许的域名列表
+        allowed_domains = ['localhost', '127.0.0.1']  # 允许的域名列表
 
         if url.scheme() in allowed_schemes:
             return True
@@ -101,6 +101,12 @@ class CustomWebEnginePage(QWebEnginePage):
         # 打印被阻止的 URL，方便调试
         logger.debug(f"Blocked navigation to: {url.toString()}")
         return False
+
+    # 修改方法：禁止右键菜单
+    def contextMenuEvent(self, event):
+        # 不调用父类方法，阻止默认右键菜单显示
+        logger.debug("Right-click menu suppressed")
+        pass
 
 
 class MarkdownEditor(QWidget):
@@ -178,9 +184,9 @@ class MarkdownEditor(QWidget):
                 "resources",
                 "index.html"))
         self.preview.setUrl(QUrl.fromLocalFile(html_path))
-        self.preview.page().settings().setAttribute(QWebEngineSettings.ErrorPageEnabled, False)
-        self.preview.page().settings().setAttribute(QWebEngineSettings.PluginsEnabled, False)
-        self.preview.page().settings().setAttribute(QWebEngineSettings.JavascriptCanOpenWindows, False) 
+        self.preview.page().settings().setAttribute(QWebEngineSettings.ErrorPageEnabled, True)
+        self.preview.page().settings().setAttribute(QWebEngineSettings.PluginsEnabled, True)
+        self.preview.page().settings().setAttribute(QWebEngineSettings.JavascriptCanOpenWindows, True) 
         self.preview.page().settings().setAttribute(QWebEngineSettings.LocalStorageEnabled, True)
         self.preview.page().settings().setAttribute(QWebEngineSettings.LocalContentCanAccessRemoteUrls, False)
         self.preview.page().settings().setAttribute(QWebEngineSettings.WebGLEnabled, True)
