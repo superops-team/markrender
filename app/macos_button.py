@@ -15,7 +15,7 @@ class MacOSButton(QPushButton):
                 border: none;
                 border-radius: 6px;
                 padding: 0px;
-                margin-right: 3px;  /* 缩小右侧间距 */
+                margin-right: 2px;  /* 缩小右侧间距 */
             }
             QPushButton:hover {
                 background-color: rgba(0, 0, 0, 20);

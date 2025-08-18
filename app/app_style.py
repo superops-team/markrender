@@ -18,7 +18,7 @@ LINE_COLOR = '#F2F2F2'
 
 # Tag 颜色映射表
 TAG_COLOR_MAP = {
-    'md': QColor(159, 200, 156), 
+    'md': QColor(0, 171, 179), 
     'pdf': QColor(145, 200, 228),
     'png': QColor(173, 178, 212),  
     'jpeg': QColor(15, 130, 140), 
@@ -34,7 +34,7 @@ TAG_COLOR_MAP = {
 DEFAULT_COLOR = QColor(128, 128, 128)
 
 # 通用样式
-DIALOG_BORDER_RADIUS = "QDialog { border-radius: 5px; }"
+DIALOG_BORDER_RADIUS = "QDialog { border-radius: 0px; }"
 WIDGET_BACKGROUND_LIGHT = "QWidget { background-color: #fafafa; }"
 WIDGET_BACKGROUND_DARK = "QWidget { background-color: #1f1f1f; }"
 
@@ -42,7 +42,6 @@ WIDGET_BACKGROUND_DARK = "QWidget { background-color: #1f1f1f; }"
 IMPORT_AREA = """
 QFrame {
     border: 1px dashed #1990ff;
-    border-radius: 2px;
     background-color: #f5f5f5;
     margin: 10px;
 }
@@ -121,7 +120,6 @@ QPushButton:hover::after {
 STATUS_STYLE = '''
 QStatusBar {
     border: 2px solid #ddd; /* 边框样式 */
-    border-radius: 2px; /* 边框圆角 */
     background-color: #fafafa; /* 使用统一背景色 */
     color: #eaf3ff; /* 字体颜色 */
     font-size: 12px; /* 字体大小 */
@@ -364,7 +362,6 @@ QSplitter > QWidget {{
 
 CENTRAL_WIDGET = """
 QWidget {{
-    border-radius: 10px;
     background-color: {};
     border: 1px solid #F0F0F0;  /* 添加边框 */
 }}
@@ -373,7 +370,7 @@ QWidget {{
 HISTORY_PANEL = """
 QListWidget {
     border: 2px solid #ddd;
-    border-radius: 8px;
+    border-radius: 2px;
     padding: 0;
     margin-top: 0px; /* 移除原有的margin-top设置 */
 }

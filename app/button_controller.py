@@ -25,7 +25,6 @@ class ButtonController(QWidget):
             QToolButton {
                 border: none;
                 padding: 2px;
-                border-radius: 4px;
             }
             QToolButton:hover {
                 background-color: #d0d0d0;
@@ -43,7 +42,6 @@ class ButtonController(QWidget):
             QToolButton {
                 border: none;
                 padding: 2px;
-                border-radius: 4px;
             }
             QToolButton:hover {
                 background-color: #d0d0d0;
@@ -61,7 +59,6 @@ class ButtonController(QWidget):
             QToolButton {
                 border: none;
                 padding: 2px;
-                border-radius: 4px;
             }
             QToolButton:hover {
                 background-color: #d0d0d0;
