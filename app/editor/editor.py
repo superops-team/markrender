@@ -107,7 +107,6 @@ class CustomWebEnginePage(QWebEnginePage):
     def contextMenuEvent(self, event):
         # 不调用父类方法，阻止默认右键菜单显示
         logger.debug("Right-click menu suppressed")
-        pass
 
 
 class MarkdownEditor(QWidget):
@@ -161,6 +160,17 @@ class MarkdownEditor(QWidget):
         profile.setHttpCacheType(QWebEngineProfile.DiskHttpCache)
         # 设置缓存大小为 100MB
         profile.setHttpCacheMaximumSize(100 * 1024 * 1024)
+        
+        # 新增性能优化配置
+        profile.setPersistentCookiesPolicy(QWebEngineProfile.ForcePersistentCookies)
+        profile.setSpellCheckEnabled(False)  # 禁用拼写检查提高性能
+        
+        # 启用硬件加速
+        settings = self.preview.page().settings()
+        settings.setAttribute(QWebEngineSettings.Accelerated2dCanvasEnabled, True)
+        settings.setAttribute(QWebEngineSettings.WebGLEnabled, True)
+        settings.setAttribute(QWebEngineSettings.TouchIconsEnabled, False)
+        settings.setAttribute(QWebEngineSettings.FocusOnNavigationEnabled, False)
 
         # 添加页面加载完成信号绑定
         self.preview.loadFinished.connect(self.on_page_loaded)
@@ -448,7 +458,7 @@ class MarkdownEditor(QWidget):
         logger.info(f"JS {log_level}: {message} at {source_id}:{line_number}")
     
     def on_page_loaded(self, success):
-        """页面加载完成回调"""
+        
         if success:
             self.page_loaded = True
             logger.debug("预览页面加载完成")
