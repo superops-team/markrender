@@ -554,8 +554,8 @@ class MarkdownEditor(QWidget):
     def init_web_handlers(self):
         """初始化Web发起请求处理器 - 线程安全版本"""
         # 使用异步处理，但确保线程安全
-        self.web_comm.register_python_handler('autoSave', self.save_markdown_content, is_async=False)
-        self.web_comm.register_python_handler('reportError', self.report_js_error, is_async=False)
+        self.web_comm.register_python_handler('autoSave', self.save_markdown_content, is_async=True)
+        self.web_comm.register_python_handler('reportError', self.report_js_error, is_async=True)
 
     def export_file(self, format):
         """
