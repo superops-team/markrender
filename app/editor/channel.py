@@ -197,8 +197,9 @@ class WebCommunicationManager(QObject):
                     'result': {'content': result} if not isinstance(result, dict) else result
                 })
         except Exception as e:
-            logger.error(f"处理回调时出错: {str(e)}, request_id: {request_id}, result: {result}")
-            callback({'success': False, 'error': str(e)})
+            import traceback
+            logger.error(f"处理回调时出错: {str(traceback.format_exc())}, request_id: {request_id}, result: {result}")
+            callback({'success': False, 'error': e})
         finally:
             # 确保无论回调执行结果如何都移除回调引用
             if request_id in self.web_callbacks:
@@ -343,8 +344,4 @@ class WebCommunicationManager(QObject):
     
     def cleanup(self):
         """清理资源"""
-        if self.channel:
-            self.channel = None
-        if self.page:
-            self.page.setWebChannel(None)
-        self.web_callbacks.clear()
+        pass
