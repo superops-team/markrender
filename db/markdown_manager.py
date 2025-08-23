@@ -40,11 +40,14 @@ class MarkdownManager:
             logger.error(f"Error deleting history item: {e}")
             return False
 
-    def load_history(self, limit=20):
+    def load_history(self, limit=20, page_type=''):
         """加载所有历史记录"""
         session = self.Session()
         try:
-            histories = session.query(MarkdownFileHistory).order_by(MarkdownFileHistory.created_at.desc()).limit(limit).all()
+            query = session.query(MarkdownFileHistory)
+            if page_type:
+                query = query.filter_by(page_type=page_type)
+            histories = query.order_by(MarkdownFileHistory.created_at.desc()).limit(limit).all()
             return [
                 {
                     'title': h.title,
@@ -52,6 +55,7 @@ class MarkdownManager:
                     'tags': h.tags,
                     'file_path': h.file_path,
                     'theme_id': h.theme_id,
+                    'page_type': h.page_type,
                     'converter': h.converter,
                     'converter_start': h.converter_start,
                     'converter_end': h.converter_end,
@@ -79,6 +83,7 @@ class MarkdownManager:
             status='',
             converter_start=None,
             converter_end=None,
+            page_type=None,
         ):
         session = self.Session()
         try:
@@ -100,6 +105,8 @@ class MarkdownManager:
                         history.theme_id = theme_id
                     if tags and tags != history.tags:
                         history.tags = tags
+                    if page_type and page_type != history.page_type:
+                        history.page_type = page_type
                     if render_style and render_style != history.render_style:
                         history.render_style = render_style
                     history.updated_at = now  # 使用北京时间更新
@@ -131,6 +138,7 @@ class MarkdownManager:
                     converter_start=converter_start,
                     converter_end=converter_end,
                     status=status,
+                    page_type=page_type,
                 )
                 session.add(new_history)
                 session.commit()
@@ -142,25 +150,34 @@ class MarkdownManager:
         finally:
             session.close()
 
-    def search_markdown(self, keyword=None):
+    def search_markdown(self, keyword=None, page_type=None):
         session = self.Session()
         try:
             if keyword:
-                return session.query(MarkdownFileHistory).filter(
-                    MarkdownFileHistory.title.ilike(f'%{keyword}%')).all()
+                query = session.query(MarkdownFileHistory).filter(
+                    MarkdownFileHistory.title.ilike(f'%{keyword}%'))
+                if page_type:
+                    query = query.filter_by(page_type=page_type)
+                return query.all()
             else:
-                return session.query(MarkdownFileHistory).all()
+                query = session.query(MarkdownFileHistory)
+                if page_type:
+                    query = query.filter_by(page_type=page_type)
+                return query.all()
         except Exception as e:
             logger.error(f"Error searching markdown: {e}")
             raise e
         finally:
             session.close()
 
-    def get_file_history(self, title):
+    def get_file_history(self, title, page_type=None):
         session = self.Session()
         try:
-            return session.query(MarkdownFileHistory).filter_by(
-                title=title).all()
+            query = session.query(MarkdownFileHistory).filter_by(
+                title=title)
+            if page_type:
+                query = query.filter_by(page_type=page_type)
+            return query.all()
         except Exception as e:
             logger.error(f"Error getting file history: {e}")
             raise e
@@ -215,6 +232,7 @@ class MarkdownManager:
                 'updated_at': record.updated_at,
                 'content_md5': record.content_md5,
                 'created_at': record.created_at,
+                'page_type': record.page_type,
                 'id': record.id
             }
         except Exception as e:

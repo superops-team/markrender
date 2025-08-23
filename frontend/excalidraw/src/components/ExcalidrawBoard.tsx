@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Excalidraw } from '@excalidraw/excalidraw';
-import { webChannel } from '../mock/webchannel';
+import { webChannel } from '../service/webchannel';
 
 const ExcalidrawBoard: React.FC = () => {
   const [elements, setElements] = useState<any[]>([]);

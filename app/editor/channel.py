@@ -1,6 +1,4 @@
 import json
-import threading
-import time
 import json
 import traceback
 
@@ -26,66 +24,34 @@ class RequestModel:
 
 
 class WebCommunicationManager(QObject):
-    # 添加异步响应信号
-    async_response_ready = Signal(str, bool, dict)  # task_id, success, data
+    # 信号定义
     channel_ready = Signal()
-    document_associated = Signal(str)
+    js_error_occurred = Signal(str)
+    async_response_ready = Signal(str, bool, dict)  # 添加异步响应信号
     
-    # 单例实现简化
-    _instance = None
-    _lock = threading.Lock()
-    _request_counter = 0
-    
-    def __init__(self, parent=None):
-        # 防止重复初始化
-        if hasattr(self, '_initialized'):
-            return
+    # 移除单例模式，每个页面一个实例
+    def __init__(self, page_id: str, parent=None):
         super().__init__(parent)
-        self._initialized = True
+        self.page_id = page_id
         self.markdown_manager = MarkdownManager()
         self.python_handlers = {}
+        self.web_callbacks = {}
+        self.page = None  # 添加page属性，初始为None
         self.ready = False
-        self.page = None
-        self.channel = None
-        self.web_handlers = {}
-        self.web_callbacks = {}
+    
+    def set_page(self, page):
+        """设置页面对象"""
+        self.page = page
         
-        # 连接信号到槽函数，确保线程安全
-        self.async_response_ready.connect(self._send_async_response_safe)
-
-    @classmethod
-    def _generate_request_id(cls):
-        """生成与前端格式一致的请求ID"""
-        with cls._lock:
-            request_id = f"req_{int(time.time() * 1000)}_{cls._request_counter}"
-            cls._request_counter += 1
-            return request_id
-
-    @classmethod
-    def instance(cls):
-        """Singleton access method"""
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    # 直接调用父类构造，避免__new__二次锁定
-                    cls._instance = super().__new__(cls)
-                    cls._instance.__init__()  # 显式初始化
-        return cls._instance
-
-    def __init__(self, parent=None):
-        # 防止重复初始化
-        if hasattr(self, '_initialized'):
-            return
-        super().__init__(parent)
-        self._initialized = True
-        self.markdown_manager = MarkdownManager()  # 注入依赖
-        self.python_handlers = {}
-        self.ready = False  # 添加就绪状态标志
-        self.page = None  # Initialize page attribute
-        self.channel = None
-        self.web_handlers = {}
-        self.web_callbacks = {}
-
+    def attach_to_page_manager(self, page_manager):
+        """附加到页面管理器并获取页面对象"""
+        page_manager.set_backend_interface(self.page_id, self)
+        # 获取对应的页面对象
+        if hasattr(page_manager, 'get_page'):
+            self.page = page_manager.get_page(self.page_id)
+        elif hasattr(page_manager, 'pages') and self.page_id in page_manager.pages:
+            self.page = page_manager.pages[self.page_id].page()
+        
     @Slot(str)
     def handle_web_response(self, response_json):
         """处理前端返回的响应数据"""
@@ -324,13 +290,6 @@ class WebCommunicationManager(QObject):
             except Exception as e:
                 callback(False, None, str(e))
 
-    def attach_to_page(self, page):
-        """附加到页面并初始化WebChannel"""
-        if self.page == page:
-            return
-        
-        self.page = page
-        self._init_channel()
         
     def _init_channel(self):
         """内部初始化QWebChannel"""
@@ -345,3 +304,8 @@ class WebCommunicationManager(QObject):
     def cleanup(self):
         """清理资源"""
         pass
+    
+    def _generate_request_id(self):
+        """生成唯一的请求ID"""
+        import uuid
+        return str(uuid.uuid4())

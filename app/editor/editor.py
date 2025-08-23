@@ -1,20 +1,17 @@
-import os
 import json  # 添加json导入
 import time
 
 from PySide6.QtWidgets import QWidget, QVBoxLayout
-from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6.QtCore import QUrl, QObject, Signal, Property, QTimer, Slot
-from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile, QWebEngineSettings
-
-from db.settings_manager import SettingsManager
-from db.markdown_manager import MarkdownManager
+from PySide6.QtCore import QObject, Signal, Property, QTimer, Slot
 from app.editor.background import ThreadPoolManager, AutoSaveWorker, ContentLoader
 from app.app_style import AppStyle
 from app.editor.channel import WebCommunicationManager
+from app.editor.webengine import WebPageManager  # 导入页面管理器
 from utils import logger
-from db import db_manager
-from app.editor.export_manager import ExportManager  # 在文件开头添加导入
+from db.markdown_manager import MarkdownManager
+from db.settings_manager import SettingsManager
+
+from app.editor.export_manager import ExportManager
 
 
 class MarkdownDocument(QObject):
@@ -70,138 +67,78 @@ class MarkdownDocument(QObject):
     text = Property(str, get_text, set_text, notify=text_changed)
 
 
-# 自定义 QWebEnginePage 类，拦截控制台日志和链接打开请求
-class CustomWebEnginePage(QWebEnginePage):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-
-    def javaScriptConsoleMessage(self, level, message, line_number, source_id):
-        # 调用原有的处理方法，可根据需求修改处理逻辑
-        super().javaScriptConsoleMessage(level, message, line_number, source_id)
-        # 可以在这里添加自定义的日志记录逻辑
-        logger.debug(f"JS Console: {message} (Line {line_number} in {source_id})", level)
-
-    def acceptNavigationRequest(self, url, nav_type, is_main_frame):
-        """
-        重写导航请求方法，限制 URL 打开
-        :param url: 请求的 URL
-        :param nav_type: 导航类型
-        :param is_main_frame: 是否为主框架
-        :return: 是否允许导航
-        """
-        # 这里可以添加你的 URL 限制逻辑，以下是示例：
-        # 只允许打开本地文件和特定域名的链接
-        allowed_schemes = ['file']  # 允许 file 协议
-        allowed_domains = ['localhost', '127.0.0.1']  # 允许的域名列表
-
-        if url.scheme() in allowed_schemes:
-            return True
-        if url.host() in allowed_domains:
-            return True
-        
-        # 打印被阻止的 URL，方便调试
-        logger.debug(f"Blocked navigation to: {url.toString()}")
-        return False
-
-    # 修改方法：禁止右键菜单
-    def contextMenuEvent(self, event):
-        # 不调用父类方法，阻止默认右键菜单显示
-        logger.debug("Right-click menu suppressed")
-
-
 class MarkdownEditor(QWidget):
     def __init__(self, parent=None, file_id="", file_name=""):
         super().__init__(parent)
-        # 首先初始化web_comm
-        self.web_comm = WebCommunicationManager.instance()
-        # 然后再调用init_web_handlers()
-        self.init_web_handlers()
         # 初始化线程池管理器
         self.thread_pool = ThreadPoolManager()
         # 连接线程池信号
         self.thread_pool.task_completed.connect(self.on_task_completed)
         self.thread_pool.task_failed.connect(self.on_task_failed)
-        # Initialize document for WebChannel
+        
+        # 初始化页面管理器
+        self.page_manager = WebPageManager()
+        self.page_id = "markdown_editor"  # 使用固定页面ID
+        
+        # 初始化文档
         self.document = MarkdownDocument(file_id, file_name)
         # 注册文档到通信管理器
-        if file_id:  # 确保file_id存在
+        if file_id:
             self.web_comm.document_map[file_id] = self.document
             self.file_id = file_id
-        # 建立信号连接
-        self.document.text_changed.connect(self.on_document_text_changed)  # 数据库读取后写入到前端
+            
+        # 初始化其他组件
         self.markdown_manager = MarkdownManager()
-        
-        # 添加上次保存内容跟踪
         self.last_saved_text = None
         
-        # 假设 history_panel 是 HistoryPanel 实例
-        if hasattr(self.parent, 'history_panel'):
-            self.parent.history_panel.history_item_selected.connect(self.update_markdown_content)
+        # 建立信号连接
+        self.document.text_changed.connect(self.on_document_text_changed)
         
-        # Setup GUI
+        # 设置UI
         self.setup_ui()
         
         # 自动保存相关初始化
         self.document_modified = False
         self.init_auto_save()
+    
+    def get_id(self):
+        return f"{self.page_id}_{id(self)}"
 
     def setup_ui(self):
-        # Web view for Cherry Markdown
-        self.preview = QWebEngineView()
-        # 创建自定义的 Page 实例
-        page = CustomWebEnginePage(self.preview)
-        self.preview.setPage(page)
-
-        # 添加缓存设置
-        cache_path = db_manager.get_user_data_dir() + '/web_cache'
-        profile = self.preview.page().profile()
-        profile.setCachePath(cache_path)
-        profile.setPersistentStoragePath(db_manager.get_user_data_dir() + '/web_storage')
-        profile.setHttpCacheType(QWebEngineProfile.DiskHttpCache)
-        # 设置缓存大小为 100MB
-        profile.setHttpCacheMaximumSize(100 * 1024 * 1024)
+        # 创建页面管理器实例
+        self.page_manager = WebPageManager()
         
-        # 新增性能优化配置
-        profile.setPersistentCookiesPolicy(QWebEngineProfile.ForcePersistentCookies)
-        profile.setSpellCheckEnabled(False)  # 禁用拼写检查提高性能
+        # 创建通信管理器（每个页面一个实例）
+        self.web_comm = WebCommunicationManager(self.get_id())
+        # 然后再调用init_web_handlers()
+        self.init_web_handlers()
         
-        # 启用硬件加速
-        settings = self.preview.page().settings()
-        settings.setAttribute(QWebEngineSettings.Accelerated2dCanvasEnabled, True)
-        settings.setAttribute(QWebEngineSettings.WebGLEnabled, True)
-        settings.setAttribute(QWebEngineSettings.TouchIconsEnabled, False)
-        settings.setAttribute(QWebEngineSettings.FocusOnNavigationEnabled, False)
-
-        # 添加页面加载完成信号绑定
-        self.preview.loadFinished.connect(self.on_page_loaded)
-
         # 创建布局
         layout = QVBoxLayout()
-        layout.addWidget(self.preview)
         layout.setContentsMargins(5, 5, 5, 5)
         layout.setSpacing(0)
         self.setLayout(layout)
 
-        # 设置圆角样式
+        # 使用页面管理器创建页面
+        self.preview = self.page_manager.create_page(self.get_id(), self.web_comm)
+        if not self.preview:
+            logger.error("Failed to create editor page")
+            return
+        
+        # 将通信管理器附加到页面管理器
+        self.web_comm.attach_to_page_manager(self.page_manager)
+        
+        # 加载HTML文件，并在加载完成后初始化WebChannel
+        success = self.page_manager.load_html(self.get_id(), "index", self._on_page_loaded)
+        if not success:
+            logger.error("Failed to load HTML file")
+            
+        # 将预览组件添加到布局
+        layout.addWidget(self.preview)
+        
+        # 设置样式
         self.setStyleSheet(AppStyle().get_editor_parent() + AppStyle().get_editor_preview())
 
-        # Setup WebChannel
-        self.web_comm.attach_to_page(self.preview.page())
-        
-        # Load HTML file
-        html_path = os.path.abspath(
-            os.path.join(
-                os.path.dirname(__file__),
-                "resources",
-                "index.html"))
-        self.preview.setUrl(QUrl.fromLocalFile(html_path))
-        self.preview.page().settings().setAttribute(QWebEngineSettings.ErrorPageEnabled, True)
-        self.preview.page().settings().setAttribute(QWebEngineSettings.PluginsEnabled, True)
-        self.preview.page().settings().setAttribute(QWebEngineSettings.JavascriptCanOpenWindows, True) 
-        self.preview.page().settings().setAttribute(QWebEngineSettings.LocalStorageEnabled, True)
-        self.preview.page().settings().setAttribute(QWebEngineSettings.LocalContentCanAccessRemoteUrls, False)
-        self.preview.page().settings().setAttribute(QWebEngineSettings.WebGLEnabled, True)
-    
     @property
     def file_id(self):
         return self.document.file_id
@@ -214,11 +151,11 @@ class MarkdownEditor(QWidget):
             if value:
                 self.document.file_id = value
                 self.web_comm.document_map[value] = self.document
-    
+
     def on_document_text_changed(self, text):
         """转发文档变更到前端"""
         self.web_comm.send_message("textChanged", {"content": text})
-    
+
     def init_auto_save(self):
         """初始化自动保存功能"""
         self.general_settings = SettingsManager().get_settings_dict('general') or {}
@@ -266,19 +203,6 @@ class MarkdownEditor(QWidget):
         # 使用更智能的比较，避免空格等微小变化
         if text.strip() != self.last_saved_text.strip():
             self.document_modified = True
-    
-    def init_shortcuts(self):
-        """初始化快捷键连接"""
-        # 连接保存快捷键
-        self.shortcut_manager.save_requested.connect(self.save_document)
-        
-        # 连接其他快捷键
-        self.shortcut_manager.new_file_requested.connect(self.create_new_file)
-        self.shortcut_manager.open_file_requested.connect(self.open_file)
-        self.shortcut_manager.find_requested.connect(self.show_find_dialog)
-        
-        # 注册默认快捷键
-        self.shortcut_manager.register_default_shortcuts()
 
     def save_markdown_content(self, data):
         """线程安全的保存方法"""
@@ -303,12 +227,6 @@ class MarkdownEditor(QWidget):
         except Exception as e:
             logger.error(f"保存失败: {str(e)}")
             return {"error": str(e)}
-
-    def report_js_error(self, error_info):
-        """线程安全的错误报告"""
-        
-        logger.error(f'JS错误: {error_info}')
-        return {"logged": True}
 
     def save_document(self):
         """手动保存当前文档"""
@@ -340,28 +258,6 @@ class MarkdownEditor(QWidget):
         except Exception as e:
             logger.error(f"保存文档失败: {str(e)}")
             return False
-
-    def create_new_file(self):
-        """创建新文件（快捷键响应）"""
-        if hasattr(self.parent.history_panel, 'create_new_markdown'):
-            self.parent.history_panel.create_new_markdown()
-
-    def open_file(self):
-        """打开文件（快捷键响应）"""
-        if hasattr(self.parent.sidebar_manager, 'handle_import'):
-            self.parent.sidebar_manager.handle_import()
-
-    def show_find_dialog(self):
-        # 通过channel发送命令，而非直接调用runJavaScript
-        self.web_comm.send_message("executeCommand", {
-            "command": "find"
-        })
-
-    def update_theme(self, theme):
-        # 通过channel发送主题更新请求
-        self.web_comm.send_message("setTheme", {
-            "theme": theme
-        })
 
     def reset(self):
         self.document.file_id = ""
@@ -457,25 +353,22 @@ class MarkdownEditor(QWidget):
         log_level = level_map.get(level, "UNKNOWN")
         logger.info(f"JS {log_level}: {message} at {source_id}:{line_number}")
     
-    def on_page_loaded(self, success):
-        
-        if success:
+    def _on_page_loaded(self, success):
+        """页面加载完成回调"""
+        if success:            
+            # 设置页面加载状态
             self.page_loaded = True
-            logger.debug("预览页面加载完成")
-            # 如果有延迟发送的初始内容
-            if hasattr(self, 'initial_content'):
-                self.set_text_content(self.initial_content)
-                del self.initial_content
-        else:
-            logger.error("预览页面加载失败")
+            logger.debug("WebChannel初始化完成")
             
             # 通过channel注册web端事件
             self.web_comm.send_message("registerEditorEvents", {})
-            
             # 通过channel设置内容变化监听
             self.web_comm.send_message("setupContentChangeListener", {
                 "callback": "contentChanged"
             })
+        else:
+            logger.error("页面加载失败")
+            self.page_loaded = False
 
     def update_markdown_content(self, item):
         """更新 Markdown 内容"""
@@ -505,10 +398,6 @@ class MarkdownEditor(QWidget):
         """线程任务失败处理"""
         logger.error(f"任务 {task_id} 执行失败: {error}")
 
-    def report_js_error(self, error_info):
-        """接收并处理 JS 侧的错误信息"""
-        logger.error(f'收到 JS 错误: {error_info}')
-
     def closeEvent(self, event):
         # 1. 停止自动保存定时器
         if hasattr(self, 'auto_save_timer'):
@@ -521,11 +410,11 @@ class MarkdownEditor(QWidget):
             
             def save_markdown(response):
                 content = response.get('content')
-                logger.info(f"退出前保存文档对象: {self.document.file_id}, 内容长度: {len(content)}")
                 if content:
+                    logger.debug(f"退出前保存文档对象: {self.document.file_id}, 内容长度: {len(content)}")
                     self.markdown_manager.save_markdown(id=self.document.file_id, content=content)
                 else:
-                    logger.error(f"退出前保存文档对象失败: {self.document.file_id}, 错误信息: {response}")
+                    logger.debug(f"退出前保存文档对象失败: {self.document.file_id}, 错误信息: {response}")
                 
                 # 保存完成后再清理资源
                 self._cleanup_resources()
@@ -555,7 +444,6 @@ class MarkdownEditor(QWidget):
         """初始化Web发起请求处理器 - 线程安全版本"""
         # 使用异步处理，但确保线程安全
         self.web_comm.register_python_handler('autoSave', self.save_markdown_content, is_async=True)
-        self.web_comm.register_python_handler('reportError', self.report_js_error, is_async=True)
 
     def export_file(self, format):
         """

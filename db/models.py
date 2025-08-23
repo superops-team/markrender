@@ -25,9 +25,10 @@ class MarkdownFileHistory(Base):
     tags = Column(String)  # 标签
     render_style = Column(String)  # 渲染样式
     content_md5 = Column(String)  # 内容md5
-    file_path = Column(String)  # 文件路径
+    file_path = Column(String, nullable=True)  # 文件路径
     theme_id = Column(Integer)  # 主题id
     converter = Column(String)  # 渲染器
+    page_type = Column(String, nullable=True)  # 页面类型,默认为markdown_editor，可以指定为excalidraw_editor
     converter_start = Column(DateTime(timezone=True), server_default=func.now())  # 转换开始时间
     converter_end = Column(DateTime(timezone=True), server_default=func.now())  # 转换结束时间
 
@@ -52,3 +53,17 @@ class Settings(Base):
     value = Column(Text)  # 配置value, json格式
     created_at = Column(DateTime(timezone=True), server_default=func.now())  # 创建时间
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())  # 更新时间
+
+
+class ExcalidrawBoard(Base):
+    __tablename__ = "excalidraw_board"
+
+    id = Column(Integer, primary_key=True)
+    file_id = Column(Integer, nullable=True)  # 文件id,如果外部导入则记录文件id
+    board_name = Column(String, nullable=False)  # 画板名称
+    board_data = Column(Text)  # 画板数据
+    created_at = Column(DateTime(timezone=True), server_default=func.now())  # 创建时间
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())  # 更新时间
+    tags = Column(String)  # 标签
+    board_type = Column(String)  # 画板类型
+    delete_at = Column(DateTime(timezone=True), nullable=True)  # 删除时间
