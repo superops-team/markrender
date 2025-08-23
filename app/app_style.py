@@ -34,7 +34,7 @@ TAG_COLOR_MAP = {
 DEFAULT_COLOR = QColor(128, 128, 128)
 
 # 通用样式
-DIALOG_BORDER_RADIUS = "QDialog { border-radius: 0px; }"
+DIALOG_BORDER_RADIUS = "QDialog { border-radius: 4px; }"
 WIDGET_BACKGROUND_LIGHT = "QWidget { background-color: #fafafa; }"
 WIDGET_BACKGROUND_DARK = "QWidget { background-color: #1f1f1f; }"
 
