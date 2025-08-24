@@ -8,7 +8,8 @@ from PySide6.QtWidgets import (
     QFormLayout, 
     QPushButton,
     QHBoxLayout,
-    QSizePolicy
+    QSizePolicy,
+    QComboBox
 ) 
 from PySide6.QtCore import Qt
 from app.preference import AppStyle
@@ -161,7 +162,7 @@ class EditItemDialog(QDialog):
         self.tags_container.updateGeometry()
         self.tags_container.repaint()
 
-    def _make_tag_widget(self, tag):
+    def _make_tag_widget(self, tag, with_delete_button=True):
         # 创建标签容器
         container = QWidget()
         container.setMinimumHeight(32)
@@ -188,6 +189,10 @@ class EditItemDialog(QDialog):
             padding: 0px;
         """)
         tag_label.setAlignment(Qt.AlignCenter)
+        # 添加到布局
+        layout.addWidget(tag_label, 1)
+        if not with_delete_button:
+            return container
         
         # 创建删除按钮
         delete_button = QPushButton("x")
@@ -207,9 +212,6 @@ class EditItemDialog(QDialog):
             }
         """)
         delete_button.clicked.connect(lambda: self._remove_tag(tag, container))
-        
-        # 添加到布局
-        layout.addWidget(tag_label, 1)
         layout.addWidget(delete_button)
         
         # 计算标签文本所需的宽度并设置最小宽度
@@ -264,6 +266,43 @@ class EditItemDialog(QDialog):
         """添加编辑器设置 tab"""
         editor_tab = QWidget()
         form_layout = QFormLayout()
+
+        # 添加文件类型选择
+        page_type = self.markdown_data.get('page_type', 'markdown')
+        if not page_type:
+            page_type = 'markdown'
+        page_type_label = self._make_tag_widget(page_type, False)
+        page_type_layout = QHBoxLayout()
+        page_type_layout.addWidget(page_type_label)
+        form_layout.addRow(self._make_label("文件类型："), page_type_layout)
+
+        create_time = self.markdown_data.get('created_at', '')
+        if create_time:
+            create_time = create_time.strftime('%Y-%m-%d %H:%M:%S')
+        create_time_label = self._make_label(create_time)
+        form_layout.addRow(self._make_label("创建时间："), create_time_label)
+
+        update_time = self.markdown_data.get('updated_at', '')
+        if update_time:
+            update_time = update_time.strftime('%Y-%m-%d %H:%M:%S')
+        update_time_label = self._make_label(update_time)
+        form_layout.addRow(self._make_label("更新时间："), update_time_label)
+
+        file_size = self.markdown_data.get('file_size', '')
+        if file_size:
+            file_size = f"{file_size} bytes"
+        else:
+            file_size = "0 bytes"
+        file_size_label = self._make_label(file_size)
+        form_layout.addRow(self._make_label("文件大小："), file_size_label)
+
+        content_md5 = self.markdown_data.get('content_md5', '')
+        if content_md5:
+            content_md5 = f"{content_md5}"
+        else:
+            content_md5 = ""
+        content_md5_label = self._make_label(content_md5)
+        form_layout.addRow(self._make_label("MD5值："), content_md5_label)
 
         editor_tab.setLayout(form_layout)
         self.tab_widget.addTab(editor_tab, "属性")

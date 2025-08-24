@@ -331,10 +331,11 @@ class QuickPickPanel(QWidget):
         from utils import time_utils
         timestamp = time_utils.now().strftime('%Y%m%d%H%M%S')
         new_item = {
-            'title': 'manual-{}'.format(timestamp),
+            'title': 'MD-{}'.format(timestamp),
             'content': '',
-            'tags': 'md',
+            'tags': '',
             'status': 'processed',
+            'page_type': 'markdown',
             'converter': 'manual',
         }
         # 保存到数据库

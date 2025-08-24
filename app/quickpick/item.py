@@ -9,13 +9,14 @@ from PySide6.QtCore import QSize, QEvent, QRect, Qt
 
 from utils.logger_utils import logger
 from utils.path import get_icon_path
-from utils.time_utils import get_readable_time, get_duration
+from utils.time_utils import get_readable_time, format_datetime
 
 
 class QuickPickItemDelegate(QStyledItemDelegate):
     # 定义 tag 到颜色的映射表，方便扩展
     tag_color_map = {
         'md': QColor(159, 200, 156), 
+        'markdown': QColor(159, 200, 156), 
         'pdf': QColor(145, 200, 228),
         'png': QColor(173, 178, 212),  
         'jpeg': QColor(15, 130, 140), 
@@ -27,17 +28,54 @@ class QuickPickItemDelegate(QStyledItemDelegate):
         'ppt': QColor(255, 166, 115),
         'pptx': QColor(255, 166, 115),
         'epub': QColor(100, 226, 183),
+        'board': QColor(100, 226, 183),
     }
-    default_color = QColor(128, 128, 128)    # 默认灰色
+    default_color = QColor(211, 218, 217, 100)    # 默认灰色
+
+    # 定义文件类型到图标名称的映射
+    file_type_to_icon = {
+        'md': 'textarea',
+        'markdown': 'textarea',
+        'pdf': 'book',
+        'png': 'card-checklist',
+        'jpeg': 'card-checklist',
+        'csv': 'textarea',
+        'docx': 'book',
+        'doc': 'book',
+        'xls': 'card-checklist',
+        'xlsx': 'card-checklist',
+        'ppt': 'card-checklist',
+        'pptx': 'card-checklist',
+        'epub': 'book',
+        'board': 'diagram',
+    }
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.delete_icon = QIcon(get_icon_path('trash-selected'))  # 假设图标文件名为 trash
-        #self.delete_selected_icon = QIcon(get_icon_path('trash-selected'))
+        # 初始化图标缓存
+        self.icon_cache = {}
         self.parent = parent  # 保存父对象引用
 
     def _format_time(self, modified_time):
         return get_readable_time(modified_time)
+
+    def _get_icon_for_file_type(self, file_type):
+        """根据文件类型获取对应的图标"""
+        # 检查缓存中是否已有该图标
+        if file_type in self.icon_cache:
+            return self.icon_cache[file_type]
+        
+        # 根据文件类型获取图标名称
+        icon_name = self.file_type_to_icon.get(file_type.lower(), 'file-earmark-plus')
+        
+        # 获取图标路径并创建图标对象
+        icon_path = get_icon_path(icon_name)
+        icon = QIcon(icon_path)
+        
+        # 缓存图标
+        self.icon_cache[file_type] = icon
+        return icon
 
     def paint(self, painter: QPainter, option: QStyleOptionViewItem, index):
         painter.save()
@@ -60,40 +98,40 @@ class QuickPickItemDelegate(QStyledItemDelegate):
             title = item_data.get('title', '')
             modified_time = item_data.get('updated_at', '')
             formatted_time = self._format_time(modified_time)
-            tag = item_data.get('tags', '')  # 获取 tag 字段
-            if tag != 'md':
-                if item_data.get('status', '') == 'processing':
-                    preview_suffix = '后台处理中...'
-                else:
-                    preview_suffix = "处理耗时：{}s".format(get_duration(item_data.get('converter_start', ''), item_data.get('converter_end', '')).seconds)
-            else:
-                item_created_at = item_data.get('created_at', '')
-                preview_suffix = f'创建时间：{item_created_at}'
-            preview = "{} {}".format(item_data.get('converter', ''), preview_suffix)
+            page_type = item_data.get('page_type', '')  # 获取文件类型字段
+            if not page_type:
+                page_type = 'markdown'
+            item_created_at = format_datetime(item_data.get('created_at', ''))
+            preview_suffix = f'创建时间：{item_created_at}'
+            preview = "{} {}".format(page_type, preview_suffix)
 
             # 设置边距
             margin = 10
             text_rect = option.rect.adjusted(margin, margin, -margin, -margin)
 
-            # 绘制 tag 角标
-            if tag:
-                tag_font = QFont()
-                tag_font.setPointSize(8)
-                painter.setFont(tag_font)
-                painter.setPen(QColor(255, 255, 255))
+            # 获取文件类型对应的颜色
+            background_color = self.default_color
+            
+            # 图标尺寸设置
+            icon_size = 16
+            tag_width = icon_size + 8  # 图标宽度 + 边距
+            tag_height = icon_size + 8  # 图标高度 + 边距
+            tag_x = text_rect.x()
+            tag_y = text_rect.y() + 5
+            
+            # 绘制标签背景
+            painter.setBrush(background_color)
+            painter.drawRoundedRect(tag_x, tag_y, tag_width, tag_height, 4, 4)
+            
+            # 获取并绘制图标
+            icon = self._get_icon_for_file_type(page_type)
+            # 图标在圆角矩形中的位置，居中显示
+            icon_x = tag_x + (tag_width - icon_size) // 2
+            icon_y = tag_y + (tag_height - icon_size) // 2
+            painter.drawPixmap(icon_x, icon_y, icon.pixmap(icon_size, icon_size))
 
-                # 根据 tag 内容获取对应的颜色，如果没有匹配则使用默认颜色
-                painter.setBrush(self.tag_color_map.get(tag, self.default_color))
-
-                tag_width = painter.fontMetrics().horizontalAdvance(tag) + 8
-                tag_height = 16
-                tag_x = text_rect.x()  # 设置 x 坐标为文本区域左侧
-                tag_y = text_rect.y() + 5
-                painter.drawRoundedRect(tag_x, tag_y, tag_width, tag_height, 4, 4)
-                painter.drawText(tag_x + 4, tag_y + 12, tag)
-
-                # 调整标题的起始位置，避免和 tag 角标重叠
-                text_rect = text_rect.adjusted(tag_width + 5, 0, 0, 0)
+            # 调整标题的起始位置，避免和标签重叠
+            text_rect = text_rect.adjusted(tag_width + 5, 0, 0, 0)
 
             # 绘制标题
             title_font = QFont()

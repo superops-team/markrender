@@ -63,7 +63,8 @@ class MarkdownManager:
                     'render_style': h.render_style,
                     'updated_at': h.updated_at,
                     'content_md5': h.content_md5,
-                    'created_at': h.created_at
+                    'created_at': h.created_at,
+                    'file_size': len(h.content),
                 } for h in histories]
         except Exception as e:
             raise e
