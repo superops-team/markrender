@@ -210,17 +210,18 @@ class QuickPickItemDelegate(QStyledItemDelegate):
             logger.debug("检测到鼠标双击事件")
             item_data = index.data(Qt.UserRole)
             if not item_data:
-                return
+                return False  # 明确返回False表示事件未处理
             if isinstance(self.parent, QListWidget):
                 quick_pick_panel = self.parent.parent()
                 quick_pick_panel.edit_item(index)
+                return True  # 明确返回True表示事件已处理
         if event.type() == QEvent.MouseButtonRelease and event.button() == Qt.LeftButton:
             # 从 index 中获取当前项的删除按钮区域
             delete_button_rect = index.data(Qt.UserRole + 1)
             if not delete_button_rect:
-                return
+                return False  # 明确返回False表示事件未处理
             if not delete_button_rect.contains(event.pos()):
-                return
+                return False  # 明确返回False表示事件未处理
             item_data = index.data(Qt.UserRole)
             if item_data and 'id' in item_data:
                 logger.debug(f"尝试删除ID为 {item_data['id']} 的记录")
@@ -228,4 +229,5 @@ class QuickPickItemDelegate(QStyledItemDelegate):
                     quick_pick_panel = self.parent.parent()
                     if hasattr(quick_pick_panel, 'delete_item'):
                         quick_pick_panel.delete_item(item_data['id'])
+                        return True  # 明确返回True表示事件已处理
         return super().editorEvent(event, model, option, index)
