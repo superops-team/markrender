@@ -123,7 +123,7 @@ class QuickPickPanel(QWidget):
             }
         ''')
 
-    def edit_item_title(self, index):
+    def edit_item(self, index):
         """处理双击编辑标题逻辑"""
         item_data = index.data(Qt.UserRole)
         if not item_data:
@@ -133,11 +133,16 @@ class QuickPickPanel(QWidget):
             new_title = dialog.get_new_title()
             if new_title:
                 item_data['title'] = new_title
+                item_data['tags'] = dialog.get_new_tags()
                 # 更新 index 数据
                 self.quickpick_list.model().setData(index, item_data, Qt.UserRole)
                 # 调用数据库更新逻辑，需根据实际情况实现
                 if 'id' in item_data:
-                    self.markdown_manager.update_title(item_data['id'], new_title)
+                    self.markdown_manager.save_markdown(
+                        id=item_data['id'],
+                        title=new_title,
+                        tags=item_data['tags'],
+                    )
 
     def on_item_clicked(self, index):
         # 修改获取数据的方式

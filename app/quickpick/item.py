@@ -171,25 +171,23 @@ class QuickPickItemDelegate(QStyledItemDelegate):
         if event.type() == QEvent.MouseButtonDblClick and event.button() == Qt.LeftButton:
             logger.debug("检测到鼠标双击事件")
             item_data = index.data(Qt.UserRole)
-            if item_data:
-                if isinstance(self.parent, QListWidget):
-                    quick_pick_panel = self.parent.parent()
-                    if hasattr(quick_pick_panel, 'edit_item_title'):
-                        # 修改为调用新对话框
-                        quick_pick_panel.edit_item_title(index)
+            if not item_data:
+                return
+            if isinstance(self.parent, QListWidget):
+                quick_pick_panel = self.parent.parent()
+                quick_pick_panel.edit_item(index)
         if event.type() == QEvent.MouseButtonRelease and event.button() == Qt.LeftButton:
-            logger.debug("检测到鼠标左键释放事件")
             # 从 index 中获取当前项的删除按钮区域
             delete_button_rect = index.data(Qt.UserRole + 1)
-            if delete_button_rect:
-                # 直接使用 event.pos()，不进行坐标转换
-                if delete_button_rect.contains(event.pos()):
-                    logger.debug("点击了删除按钮")
-                    item_data = index.data(Qt.UserRole)
-                    if item_data and 'id' in item_data:
-                        logger.debug(f"尝试删除ID为 {item_data['id']} 的记录")
-                        if isinstance(self.parent, QListWidget):
-                            quick_pick_panel = self.parent.parent()
-                            if hasattr(quick_pick_panel, 'delete_item'):
-                                quick_pick_panel.delete_item(item_data['id'])
+            if not delete_button_rect:
+                return
+            if not delete_button_rect.contains(event.pos()):
+                return
+            item_data = index.data(Qt.UserRole)
+            if item_data and 'id' in item_data:
+                logger.debug(f"尝试删除ID为 {item_data['id']} 的记录")
+                if isinstance(self.parent, QListWidget):
+                    quick_pick_panel = self.parent.parent()
+                    if hasattr(quick_pick_panel, 'delete_item'):
+                        quick_pick_panel.delete_item(item_data['id'])
         return super().editorEvent(event, model, option, index)

@@ -131,6 +131,21 @@ QLabel {
 }
 '''
 
+LINE_EDIT = """
+QLineEdit {
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 14px;
+    color: #495057;
+    background-color: #fff;
+}
+QLineEdit:focus {
+    border-color: #80bdff;
+    outline: 0;
+}
+"""
+
 MINIMIZE_BUTTON = """
 QPushButton {
     background-color: #ffbd2e;
@@ -393,6 +408,44 @@ QListWidget::item:selected {
 }
 """
 
+TAB_STYLE = """
+/* 去掉 tab 页边框 */
+QTabWidget::pane {
+    border: none;
+}
+/* 标签栏文字 + 指示器 */
+QTabBar::tab {
+    border: none;
+    padding: 6px 12px;
+    margin: 0px 1px;
+}
+QTabBar::tab:selected {
+    color: white;
+    background-color: #0d6efd;
+    border-radius: 4px;
+}
+
+/* 对话框统一圆角 */
+EditItemDialog {
+    border-radius: 4px;
+}
+QPushButton {
+    background-color: #0d6efd;
+    color: white;
+    border-radius: 4px;
+    padding: 8px 16px;
+    font-size: 14px;
+}
+QPushButton:hover {
+    background-color: #0b5ed7;
+    border-radius: 4px;
+}
+QTabWidget::tab-bar {
+    background: transparent;
+    border: none;
+}
+"""
+
 class AppStyle:
     '''
     应用程序样式
@@ -406,6 +459,9 @@ class AppStyle:
     
     def get_editor_preview_background_color(self):
         return WIDGET_BACKGROUND_LIGHT if not self.dark_mode else self.WIDGET_BACKGROUND_DARK
+    
+    def get_tab_style(self):
+        return TAB_STYLE
     
     def get_confirm_button_style(self):
         return CONFIRM_BUTTON if not self.dark_mode else CONFIRM_BUTTON.replace('#0078D4', '#005A9E')
@@ -470,6 +526,9 @@ class AppStyle:
     def get_title_bar(self):
         return TITLE_BAR
     
+    def get_line_edit(self):
+        return LINE_EDIT
+    
     def get_sidebar(self):
         bg_color = COLOR_BACKGROUND_LIGHT if not self.dark_mode else COLOR_BACKGROUND_DARK
         return f"""
@@ -502,3 +561,25 @@ QWidget {{
     
     def get_central_widget(self):
         return CENTRAL_WIDGET.format(self.get_line_color())
+    
+    def get_tag_style(self, tag):
+        """根据标签内容生成不同的样式 - 添加无边框设置"""
+        colors = {
+            'md': 'background-color: #9FC89C; color: white;',
+            'pdf': 'background-color: #91C8E4; color: white;',
+            'png': 'background-color: #ADB2D4; color: white;',
+            'jpeg': 'background-color: #0F828C; color: white;',
+            'csv': 'background-color: #A3DC9A; color: white;',
+            'docx': 'background-color: #97B067; color: white;',
+            'default': 'background-color: #0F828C; color: white;'
+        }
+        
+        # 使用标签的前几个字符作为key
+        tag_key = tag.lower()[:4]
+        return f"""
+            padding: 6px 16px;
+            border-radius: 16px;
+            font-size: 14px;
+            border: none; /* 明确设置无边框 */
+            {colors.get(tag_key, colors['default'])}
+        """
