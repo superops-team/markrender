@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QStatusBar, QLabel  # 修改导入语句
 from PySide6.QtCore import Qt
-from app.app_style import AppStyle  # 新增导入
+from app.preference import AppStyle  # 新增导入
 
 class StatusBar(QStatusBar):
     def __init__(self, parent=None):

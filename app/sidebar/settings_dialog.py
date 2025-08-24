@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from db.settings_manager import SettingsManager
-from app.app_style import AppStyle
+from app.preference import AppStyle
 
 from PySide6.QtWidgets import ( 
     QRadioButton, 

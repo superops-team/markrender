@@ -1,4 +1,3 @@
-from datetime import datetime
 from PySide6.QtWidgets import (
     QVBoxLayout,
     QListWidget,
@@ -20,40 +19,40 @@ from PySide6.QtCore import Signal, QSize, Qt
 
 from utils.logger_utils import logger
 from utils.path import get_icon_path
-from app.app_style import AppStyle
-from app.history_panel.history_item import HistoryItemDelegate
-from app.history_panel.edit_dialog import EditItemDialog
+from app.preference import AppStyle
+from .item import QuickPickItemDelegate
+from .edit_dialog import EditItemDialog
 
 
-class HistoryPanel(QWidget):
+class QuickPickPanel(QWidget):
     # 定义保存完成信号
     save_complete = Signal()
     file_created = Signal(str)
     file_renamed = Signal(str, str)
     # 修改信号，传递完整的历史记录项
-    history_item_selected = Signal(dict)
+    quickpick_item_selected = Signal(dict)
 
     def __init__(self, markdown_manager, parent=None):
         self.parent = parent
         super().__init__(parent)
         self.markdown_manager = markdown_manager
         # 替换 MListView 为 QListWidget
-        self.history_list = QListWidget()
+        self.quickpick_list = QListWidget()
         # 设置 sizePolicy 为 Expanding
-        self.history_list.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.quickpick_list.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         # 禁用水平滚动条
-        self.history_list.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.history_list.setItemDelegate(
-            HistoryItemDelegate(self.history_list))
+        self.quickpick_list.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.quickpick_list.setItemDelegate(
+            QuickPickItemDelegate(self.quickpick_list))
         # 设置列表项可编辑
-        self.history_list.setEditTriggers(
+        self.quickpick_list.setEditTriggers(
             QAbstractItemView.DoubleClicked
         )
         self.init_ui()
-        self.load_history_items()
+        self.load_quickpick_items()
         self.switch_pending = None  # 存储待切换的项数据
         self.save_complete.connect(self._complete_item_switch)
-        self.history_list.clicked.connect(self.on_item_clicked)
+        self.quickpick_list.clicked.connect(self.on_item_clicked)
 
     def init_ui(self):
         main_layout = QVBoxLayout()
@@ -84,8 +83,8 @@ class HistoryPanel(QWidget):
                 outline: none;
             }
         ''')
-        self.search_input.textChanged.connect(self.filter_history)
-        self.search_input.returnPressed.connect(self.filter_history)
+        self.search_input.textChanged.connect(self.filter_quickpick)
+        self.search_input.returnPressed.connect(self.filter_quickpick)
         
         # 创建新建按钮
         self.new_btn = QPushButton()
@@ -110,9 +109,9 @@ class HistoryPanel(QWidget):
         main_layout.setSpacing(5)
         
         # 优化列表项选中样式，与全局风格保持一致
-        self.history_list.viewport().setMouseTracking(True)
-        self.history_list.setStyleSheet(AppStyle().get_history_panel())
-        main_layout.addWidget(self.history_list)
+        self.quickpick_list.viewport().setMouseTracking(True)
+        self.quickpick_list.setStyleSheet(AppStyle().get_quickpick_panel())
+        main_layout.addWidget(self.quickpick_list)
         # 设置布局后，添加样式表修改底色，这里以浅灰色为例
         self.setLayout(main_layout)
 
@@ -135,14 +134,14 @@ class HistoryPanel(QWidget):
             if new_title:
                 item_data['title'] = new_title
                 # 更新 index 数据
-                self.history_list.model().setData(index, item_data, Qt.UserRole)
+                self.quickpick_list.model().setData(index, item_data, Qt.UserRole)
                 # 调用数据库更新逻辑，需根据实际情况实现
                 if 'id' in item_data:
                     self.markdown_manager.update_title(item_data['id'], new_title)
 
     def on_item_clicked(self, index):
         # 修改获取数据的方式
-        item = self.history_list.itemFromIndex(index)
+        item = self.quickpick_list.itemFromIndex(index)
         if not item:
             logger.warning("未找到点击的列表项")
             return
@@ -163,31 +162,31 @@ class HistoryPanel(QWidget):
         else:
             logger.warning("点击的列表项数据为空或缺少ID字段")
 
-    def load_history_items(self):
+    def load_quickpick_items(self):
         """加载所有历史记录"""
         try:
             logger.debug("开始加载历史记录...")
-            self.all_history_items = self.markdown_manager.load_history()
-            if self.all_history_items:
-                logger.info(f"成功加载 {len(self.all_history_items)} 条历史记录")
+            self.all_quickpick_items = self.markdown_manager.load_items()
+            if self.all_quickpick_items:
+                logger.info(f"成功加载 {len(self.all_quickpick_items)} 条记录")
             else:
-                logger.info("未找到历史记录")
-            logger.debug("调用 filter_history 方法过滤历史记录...")
-            self.filter_history()
+                logger.info("未找到记录")
+            logger.debug("调用 filter_quickpick 方法过滤记录...")
+            self.filter_quickpick()
         except Exception as e:
-            logger.error(f"加载历史记录失败: {e}", exc_info=True)
+            logger.error(f"加载记录失败: {e}", exc_info=True)
 
-    def filter_history(self):
-        """根据搜索框过滤历史记录"""
+    def filter_quickpick(self):
+        """根据搜索框过滤记录"""
         try:
-            logger.debug("开始过滤历史记录...")
+            logger.debug("开始过滤记录...")
             # 清除当前列表中的数据
-            self.history_list.clear()
+            self.quickpick_list.clear()
             search_text = self.search_input.text().lower()
             logger.debug(f"搜索关键字: {search_text}")
 
-            logger.debug(f"当前所有历史项数量: {len(self.all_history_items)}")
-            for item in self.all_history_items:
+            logger.debug(f"当前所有记录数量: {len(self.all_quickpick_items)}")
+            for item in self.all_quickpick_items:
                 if search_text in item['title'].lower():
                     logger.debug(f"找到匹配项: {item}")
                     # 创建自定义列表项
@@ -195,14 +194,14 @@ class HistoryPanel(QWidget):
                     list_item.setData(Qt.UserRole, item)
                     # 设置列表项文本，确保项可见
                     list_item.setText(item.get('title', ''))
-                    self.history_list.addItem(list_item)
-            logger.debug(f"过滤后匹配项数量: {self.history_list.count()}")
+                    self.quickpick_list.addItem(list_item)
+            logger.debug(f"过滤后匹配项数量: {self.quickpick_list.count()}")
             logger.debug(
-                f"历史列表模型是否设置成功: {
-                    self.history_list.model() is not None}")
-            logger.debug("历史记录过滤完成。")
+                f"快速选择列表模型是否设置成功: {
+                    self.quickpick_list.model() is not None}")
+            logger.debug("快速选择记录过滤完成。")
         except Exception as e:
-            logger.error(f"过滤历史记录时发生错误: {e}", exc_info=True)
+            logger.error(f"过滤快速选择记录时发生错误: {e}", exc_info=True)
 
     def save_current_file(self):
         """保存选中的文件"""
@@ -255,13 +254,13 @@ class HistoryPanel(QWidget):
             logger.debug(f"点击的列表项ID: {data['id']}")
             # 找到对应的完整历史记录项
             selected_item = next(
-                (x for x in self.all_history_items if x['id'] == data['id']), None)
+                (x for x in self.all_quickpick_items if x['id'] == data['id']), None)
             self.parent.current_file = selected_item
             if selected_item:
-                logger.debug(f"找到匹配的历史记录项: {selected_item}")
-                self.history_item_selected.emit(selected_item)
+                logger.debug(f"找到匹配的快速选择记录项: {selected_item}")
+                self.quickpick_item_selected.emit(selected_item)
             else:
-                logger.warning(f"未找到ID为 {data['id']} 的历史记录项")
+                logger.warning(f"未找到ID为 {data['id']} 的快速选择记录项")
             self.switch_pending = None
 
     def rename_selected_file(self):
@@ -279,21 +278,21 @@ class HistoryPanel(QWidget):
                     id=current_file['id'],
                     title=new_title
                 )
-                self.load_history_items()
-                logger.debug(f"重命名后历史记录数量: {len(self.all_history_items)}")
+                self.load_quickpick_items()
+                logger.debug(f"重命名后快速选择记录数量: {len(self.all_quickpick_items)}")
                 # 新增刷新搜索结果逻辑
-                self.filter_history()
+                self.filter_quickpick()
                 self.file_renamed.emit(old_title, new_title)
             except Exception as e:
                 logger.error(f"重命名文件失败: {e}")
 
     def delete_selected_file(self):
-        """删除选中的历史记录"""
-        index = self.history_list.currentIndex()
+        """删除选中的快速选择记录"""
+        index = self.quickpick_list.currentIndex()
         if not index.isValid():
             return
         # 修改获取项的方式
-        item = self.history_list.itemFromIndex(index)
+        item = self.quickpick_list.itemFromIndex(index)
         if not item:
             return
         data = item.data(Qt.UserRole)
@@ -309,8 +308,8 @@ class HistoryPanel(QWidget):
         if reply != QMessageBox.Yes:
             return
         try:
-            if self.markdown_manager.delete_history_item(data['id']):
-                self.load_history_items()
+            if self.markdown_manager.delete_item(data['id']):
+                self.load_quickpick_items()
                 # 清空编辑区
                 if hasattr(self.parent, 'markdown_editor'):
                     self.parent.markdown_editor.reset()
@@ -335,12 +334,12 @@ class HistoryPanel(QWidget):
         }
         # 保存到数据库
         self.markdown_manager.save_markdown(**new_item)
-        # 刷新历史列表
-        self.load_history_items()
+        # 刷新快速选择列表
+        self.load_quickpick_items()
         # 选择新创建的项目
-        if self.history_list.count() > 0:
-            self.history_list.setCurrentRow(0)
-            self.on_item_clicked(self.history_list.model().index(0, 0))
+        if self.quickpick_list.count() > 0:
+            self.quickpick_list.setCurrentRow(0)
+            self.on_item_clicked(self.quickpick_list.model().index(0, 0))
 
     def toggle_visibility(self):
         """切换面板可见性"""
@@ -349,27 +348,27 @@ class HistoryPanel(QWidget):
         else:
             self.show()
 
-    def select_history_item(self, current_file):
-        """根据文件路径选择历史记录项"""
+    def select_quickpick_item(self, current_file):
+        """根据文件路径选择快速选择项"""
         if not current_file or 'id' not in current_file:
             logger.warning("传入的 current_file 为空或缺少 id 字段")
             return
-        for i in range(self.history_list.count()):
-            item = self.history_list.item(i)
+        for i in range(self.quickpick_list.count()):
+            item = self.quickpick_list.item(i)
             data = item.data(Qt.UserRole)
             if data and data.get('id') == current_file['id']:
-                self.history_list.setCurrentItem(item)
+                self.quickpick_list.setCurrentItem(item)
                 break
 
     def delete_item(self, item_id):
-        """删除指定ID的历史记录"""
-        logger.debug(f"准备删除ID为 {item_id} 的历史记录，显示确认对话框")
-        # 获取当前要删除的历史记录项
+        """删除指定ID的快速选择记录"""
+        logger.debug(f"准备删除ID为 {item_id} 的快速选择记录，显示确认对话框")
+        # 获取当前要删除的快速选择记录项
         item = next(
-            (x for x in self.all_history_items if x['id'] == item_id),
+            (x for x in self.all_quickpick_items if x['id'] == item_id),
             None)
         if not item:
-            logger.warning(f'未找到ID为 {item_id} 的历史记录')
+            logger.warning(f'未找到ID为 {item_id} 的快速选择记录')
             return
 
         title = item.get('title', '')
@@ -395,14 +394,14 @@ class HistoryPanel(QWidget):
             return
         logger.debug(f"用户确认删除ID为 {item_id} 的历史记录")
         try:
-            if self.markdown_manager.delete_history_item(item_id):
-                logger.info(f"成功删除ID为 {item_id} 的历史记录，刷新列表")
-                self.load_history_items()
+            if self.markdown_manager.delete_item(item_id):
+                logger.info(f"成功删除ID为 {item_id} 的快速选择记录，刷新列表")
+                self.load_quickpick_items()
                 # 清空编辑区
                 self.parent.markdown_editor.reset()
                 # 设置 current_file 为空
                 self.parent.current_file = None
             else:
-                logger.warning(f'无法删除历史记录: ID为 {item_id} 的记录')
+                logger.warning(f'无法删除快速选择记录: ID为 {item_id} 的记录')
         except Exception as e:
-            logger.error(f"删除历史记录失败: {e}")
+            logger.error(f"删除快速选择记录失败: {e}")

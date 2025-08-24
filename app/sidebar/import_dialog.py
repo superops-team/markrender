@@ -1,15 +1,10 @@
 import time
-import re
 import os
-import urllib.parse
 
 from markitdown import MarkItDown
 from PySide6.QtWidgets import (
-    QWidget,
     QVBoxLayout,
     QPushButton,
-    QSpacerItem,
-    QSizePolicy,
     QFileDialog,
     QMessageBox,
     QDialog,
@@ -17,43 +12,19 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QFrame,
 )
-from PySide6.QtGui import QIcon, QFont, QKeySequence, QGuiApplication
-from PySide6.QtCore import Qt, QThread, QSize, Signal
-from app.settings_dialog import SettingsDialog
-from utils import logger, get_icon_path, time_utils, supported_formats
-from db.markdown_manager import MarkdownManager
+from PySide6.QtGui import QFont, QKeySequence, QGuiApplication
+from PySide6.QtCore import Qt, QThread, Signal
+from utils import logger,time_utils, supported_formats
 from db.settings_manager import SettingsManager
-from app.app_style import AppStyle, COLOR_BACKGROUND_LIGHT  # 新增导入 COLOR_BACKGROUND_LIGHT
-
-
-def replace_image_paths(content, base_url):
-    # 匹配 Markdown 图片语法：![alt](path)
-    pattern = r'!\[(.*?)\]\((.*?)\)'
-
-    # 替换为完整路径
-    def replace(match):
-        alt = match.group(1)
-        path = match.group(2)
-
-        # 跳过已为完整路径的图片
-        if path.startswith(('http://', 'https://')):
-            return f'![{alt}]({path})'
-        # 构建完整路径（根据实际需求调整拼接方式）
-        full_path = os.path.join(base_url, path)
-        # 对路径中的空格进行 URL 编码
-        encoded_path = urllib.parse.quote(full_path, safe=':/')
-        logger.info(f"full_path: {encoded_path}")
-        return f'![{alt}]({encoded_path})'
-
-    return re.sub(pattern, replace, content)
+from app.preference import AppStyle
 
 
 class ImportDialog(QDialog):
-    def __init__(self, parent, markdown_manager, history_panel):
+    def __init__(self, parent, markdown_manager, quickpick_panel):
         super().__init__(parent)
         self.markdown_manager = markdown_manager
         self.parent = parent
-        self.history_panel = history_panel
+        self.quickpick_panel = quickpick_panel
         self.init_ui()
         # 监听键盘事件以处理粘贴操作
         self.setFocusPolicy(Qt.StrongFocus)
@@ -208,7 +179,7 @@ class ImportDialog(QDialog):
         self.overlay.raise_()
          # 创建并启动导入线程
         self.import_thread = ImportThread(
-            file_path, self.markdown_manager, self.history_panel)
+            file_path, self.markdown_manager, self.quickpick_panel)
         self.import_thread.progress_updated.connect(self.update_progress)
         self.import_thread.finished.connect(self.import_finished)
         self.import_thread.error_occurred.connect(self.import_error)
@@ -241,12 +212,12 @@ class ImportThread(QThread):
     finished = Signal(str)
     error_occurred = Signal(str)
 
-    def __init__(self, file_path, markdown_manager, history_panel):
+    def __init__(self, file_path, markdown_manager, quickpick_panel):
         super().__init__()
         self.file_path = file_path
         self.file_name = os.path.basename(self.file_path)
         self.markdown_manager = markdown_manager
-        self.history_panel = history_panel
+        self.quickpick_panel = quickpick_panel
         self.import_settings = SettingsManager().get_settings_dict('import') # 导入导出设置
         self.file_size = os.path.getsize(file_path)
         self.file_ext = os.path.splitext(file_path)[1][1:]
@@ -290,8 +261,8 @@ class ImportThread(QThread):
             logger.debug(
                 f"写入数据！文件格式: {self.file_ext} 文件大小: {size_str} 转换器：{self.converter}")
             self.progress_updated.emit(75)
-            # step4: 刷新历史记录
-            self.history_panel.load_history_items()
+            # step4: 刷新quickpick记录
+            self.quickpick_panel.load_quickpick_items()
             process_time = time_utils.get_duration(self.converter_start, self.converter_end).total_seconds()
             info_text = f"导入成功！\n处理时长: {
                 process_time:.2f} 秒\n文件格式: {
@@ -312,120 +283,3 @@ class ImportThread(QThread):
         md = MarkItDown()
         result = md.convert(self.file_path)
         return result.text_content
-
-class SidebarManager(QWidget):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.markdown_manager = MarkdownManager()
-        self.parent = parent
-        self.app_style = AppStyle()  # 添加样式实例
-        self.init_ui()
-        # 设置侧边栏背景色
-        self.setStyleSheet(f'''
-            QWidget {{
-                background-color: {COLOR_BACKGROUND_LIGHT};
-            }}
-        ''')
-
-    def init_ui(self):
-        # 创建主布局
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-
-        # 创建顶部按钮组
-        self.file_browse_btn = QPushButton()
-        self.init_sidebar_button(
-            self.file_browse_btn, 
-            "home", 
-            self.on_file_browse_toggled
-        )
-        
-        self.import_btn = QPushButton()
-        self.init_sidebar_button(
-            self.import_btn, 
-            "plus-square", 
-            self.on_import_toggled
-        )
-        
-        # 假设在类中已经保存了 HistoryPanel 实例
-        if hasattr(self.parent, 'history_panel'):
-            self.file_browse_btn.clicked.connect(
-                lambda: self.file_browse_btn.setChecked(True))
-            self.file_browse_btn.clicked.connect(
-                self.parent.history_panel.load_history_items)
-
-        self.import_btn = QPushButton()
-        self.import_btn.setIcon(
-            QIcon(get_icon_path("plus-square")))  # 需替换为实际图标路径
-        self.import_btn.setIconSize(QSize(25, 25))
-        # 应用统一样式并移除flat属性
-        self.import_btn.setStyleSheet(AppStyle().get_sidebar_button_style())
-        # 设置按钮可选中
-        self.import_btn.setCheckable(True)
-        self.import_btn.clicked.connect(self.handle_import)
-
-        # 将顶部按钮添加到布局
-        layout.addWidget(self.file_browse_btn)
-        layout.addWidget(self.import_btn)
-
-        # 添加弹性空间，使设置按钮位于底部
-        layout.addSpacerItem(
-            QSpacerItem(
-                20,
-                40,
-                QSizePolicy.Minimum,
-                QSizePolicy.Expanding))
-
-        # 创建设置按钮
-        self.settings_btn = QPushButton()
-        self.settings_btn.setIcon(
-            QIcon(get_icon_path("settings")))
-        self.settings_btn.setIconSize(QSize(25, 25))
-        # 应用统一样式并移除flat属性
-        self.settings_btn.setStyleSheet(AppStyle().get_sidebar_button_style())
-        # 设置按钮可选中
-        self.settings_btn.setCheckable(True)
-
-        # 绑定点击事件
-        self.settings_btn.clicked.connect(self.show_settings_dialog)
-        layout.addWidget(self.settings_btn)
-
-        # 设置布局策略
-        self.setLayout(layout)
-
-    def handle_import(self):
-        self.import_btn.setChecked(True)
-        import_dialog = ImportDialog(
-            self,
-            self.markdown_manager,
-            self.parent.history_panel if self.parent else None)
-        import_dialog.exec_()
-
-    def show_settings_dialog(self):
-        """显示设置对话框"""
-        self.settings_dialog = SettingsDialog(self)
-        self.settings_dialog.exec()
-
-    def init_sidebar_button(self, button: QPushButton, icon_name: str, toggle_slot):
-        """初始化侧边栏按钮并设置图标切换"""
-        # 设置初始图标（默认状态）
-        button.setIcon(QIcon(get_icon_path(icon_name)))
-        button.setIconSize(QSize(25, 25))
-        button.setStyleSheet(self.app_style.get_sidebar_button_style())
-        button.setCheckable(True)
-        button.toggled.connect(lambda checked: toggle_slot(checked, icon_name))
-
-    def update_button_icon(self, button: QPushButton, icon_name: str, is_selected: bool):
-        """更新按钮图标（直接切换预定义SVG）"""
-        button.setIcon(QIcon(get_icon_path(icon_name, selected=is_selected)))
-
-    def on_file_browse_toggled(self, checked, icon_name="home"):
-        self.update_button_icon(self.file_browse_btn, icon_name, checked)
-        if checked and hasattr(self.parent, 'history_panel'):
-            self.parent.history_panel.load_history_items()
-
-    def on_import_toggled(self, checked, icon_name="plus-square"):
-        self.update_button_icon(self.import_btn, icon_name, checked)
-        if checked:
-            self.handle_import()

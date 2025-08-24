@@ -367,7 +367,7 @@ QWidget {{
 }}
 """
 
-HISTORY_PANEL = """
+QUICKPICK_PANEL = """
 QListWidget {
     border: 2px solid #ddd;
     border-radius: 2px;
@@ -437,8 +437,8 @@ class AppStyle:
     def get_editor_preview(self):
         return EDITOR_PREVIEW
     
-    def get_history_panel(self):
-        return HISTORY_PANEL
+    def get_quickpick_panel(self):
+        return QUICKPICK_PANEL
 
     def get_format_label(self):
         return FORMAT_LABEL

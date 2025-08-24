@@ -12,7 +12,7 @@ from utils.path import get_icon_path
 from utils.time_utils import get_readable_time, get_duration
 
 
-class HistoryItemDelegate(QStyledItemDelegate):
+class QuickPickItemDelegate(QStyledItemDelegate):
     # 定义 tag 到颜色的映射表，方便扩展
     tag_color_map = {
         'md': QColor(159, 200, 156), 
@@ -173,10 +173,10 @@ class HistoryItemDelegate(QStyledItemDelegate):
             item_data = index.data(Qt.UserRole)
             if item_data:
                 if isinstance(self.parent, QListWidget):
-                    history_panel = self.parent.parent()
-                    if hasattr(history_panel, 'edit_item_title'):
+                    quick_pick_panel = self.parent.parent()
+                    if hasattr(quick_pick_panel, 'edit_item_title'):
                         # 修改为调用新对话框
-                        history_panel.edit_item_title(index)
+                        quick_pick_panel.edit_item_title(index)
         if event.type() == QEvent.MouseButtonRelease and event.button() == Qt.LeftButton:
             logger.debug("检测到鼠标左键释放事件")
             # 从 index 中获取当前项的删除按钮区域
@@ -189,7 +189,7 @@ class HistoryItemDelegate(QStyledItemDelegate):
                     if item_data and 'id' in item_data:
                         logger.debug(f"尝试删除ID为 {item_data['id']} 的记录")
                         if isinstance(self.parent, QListWidget):
-                            history_panel = self.parent.parent()
-                            if hasattr(history_panel, 'delete_item'):
-                                history_panel.delete_item(item_data['id'])
+                            quick_pick_panel = self.parent.parent()
+                            if hasattr(quick_pick_panel, 'delete_item'):
+                                quick_pick_panel.delete_item(item_data['id'])
         return super().editorEvent(event, model, option, index)

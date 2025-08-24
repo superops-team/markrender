@@ -17,7 +17,7 @@ class MarkdownManager:
         Base.metadata.create_all(self.engine)
         self.Session = sessionmaker(bind=self.engine)
 
-    def add_history_item(self, new_file):
+    def add_item(self, new_file):
         try:
             with self.Session() as session:
                 session.add(new_file)
@@ -27,7 +27,7 @@ class MarkdownManager:
             logger.error(f"Error adding history item: {e}")
             return False
 
-    def delete_history_item(self, item_id):
+    def delete_item(self, item_id):
         try:
             with self.Session() as session:
                 history_item = session.query(MarkdownFileHistory).filter_by(id=item_id).first()
@@ -40,7 +40,7 @@ class MarkdownManager:
             logger.error(f"Error deleting history item: {e}")
             return False
 
-    def load_history(self, limit=20, page_type=''):
+    def load_items(self, limit=20, page_type=''):
         """加载所有历史记录"""
         session = self.Session()
         try:

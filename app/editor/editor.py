@@ -4,7 +4,7 @@ import time
 from PySide6.QtWidgets import QWidget, QVBoxLayout
 from PySide6.QtCore import QObject, Signal, Property, QTimer, Slot
 from app.editor.background import ThreadPoolManager, AutoSaveWorker, ContentLoader
-from app.app_style import AppStyle
+from app.preference import AppStyle
 from app.editor.channel import WebCommunicationManager
 from app.editor.webengine import WebPageManager  # 导入页面管理器
 from utils import logger

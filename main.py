@@ -6,13 +6,12 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
 from utils.logger_utils import logger
 from PySide6.QtWidgets import QSplitter
 from app.editor import MarkdownEditor
-from app.status_bar import StatusBar
-from app.history_panel import HistoryPanel
-from app.sidebar_manager import SidebarManager
+from app.statusbar import StatusBar
+from app.quickpick import QuickPickPanel
+from app.sidebar import SidebarManager
 from db.markdown_manager import MarkdownManager
-from app.button_controller import ButtonController
-from app.macos_button import MacOSButton
-from app.app_style import AppStyle  # 新增导入
+from app.topbar import ButtonController
+from app.preference import MacOSButton, AppStyle  # 新增导入
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -76,12 +75,10 @@ class MainWindow(QMainWindow):
         self.main_layout = QVBoxLayout(central_widget)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.setSpacing(0)
-        # 初始化历史面板
+        # 初始化quickpick面板
         self.markdown_manager = MarkdownManager(db_path)
-        logger.info("MarkdownManager 初始化完成")
-        self.history_panel = HistoryPanel(self.markdown_manager, self)
+        self.quickpick_panel = QuickPickPanel(self.markdown_manager, self)
         self.sidebar_manager = SidebarManager(parent=self)
-        logger.info("HistoryPanel 初始化完成")
         # 初始化 Markdown 编辑器
         self.markdown_editor = MarkdownEditor(self, '', '')
         self.sidebar = SidebarManager(self)
@@ -110,7 +107,7 @@ class MainWindow(QMainWindow):
         title_bar_layout.addStretch()
 
         # 添加按钮控制区域
-        self.button_controller = ButtonController(self, self.history_panel, self.markdown_editor)
+        self.button_controller = ButtonController(self, self.quickpick_panel, self.markdown_editor)
         self.button_controller.setFixedHeight(20)  # 固定按钮区域高度
         title_bar_layout.addWidget(self.button_controller)
 
@@ -141,7 +138,7 @@ class MainWindow(QMainWindow):
         # 隐藏分割条并禁用拖拽功能
         right_splitter.setHandleWidth(0)
         
-        right_splitter.addWidget(self.history_panel)
+        right_splitter.addWidget(self.quickpick_panel)
         right_splitter.addWidget(self.markdown_editor)
         initial_right_sizes = [int(self.width() * 0.2), int(self.width() * 0.8)]
         right_splitter.setSizes(initial_right_sizes)
@@ -160,7 +157,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central_widget)
 
         # 连接历史列表项选中信号
-        self.history_panel.history_item_selected.connect(
+        self.quickpick_panel.quickpick_item_selected.connect(
             self.update_editor_and_previewer)
 
         # 设置状态栏
@@ -172,28 +169,28 @@ class MainWindow(QMainWindow):
         """切换主题"""
         self.markdown_editor.update_theme(theme)
 
-    def update_editor_and_previewer(self, history_item):
+    def update_editor_and_previewer(self, quickpick_item):
         """更新编辑区和预览区内容"""
         try:
-            self.current_file = history_item
+            self.current_file = quickpick_item
             # 获取选中历史项的内容
-            content = history_item.get('content', '')
+            content = quickpick_item.get('content', '')
             if content == '':
-                content = self.markdown_manager.get_detail(history_item.get('id', ''))['content']
+                content = self.markdown_manager.get_detail(quickpick_item.get('id', ''))['content']
             # 更新编辑区内容
-            self.markdown_editor.set_file_id(history_item.get('id', ''))
-            self.markdown_editor.set_file_name(history_item.get('title', ''))
+            self.markdown_editor.set_file_id(quickpick_item.get('id', ''))
+            self.markdown_editor.set_file_name(quickpick_item.get('title', ''))
             self.markdown_editor.set_text_content(content)
             self.status_bar.update_file_size(len(content))
             self.status_bar.update_word_count(len(content))
         except Exception as e:
             logger.error(f"更新编辑区和预览区失败: {e}")
 
-    def update_history_list(self):
-        """更新历史列表"""
-        self.history_panel.load_history_items()
+    def update_quickpick_list(self):
+        """更新快速选择列表"""
+        self.quickpick_panel.load_quickpick_items()
         if self.current_file:
-            self.history_panel.select_history_item(self.current_file)
+            self.quickpick_panel.select_quickpick_item(self.current_file)
 
     def closeEvent(self, event):
         """在窗口关闭前保存未保存的笔记并清理线程"""

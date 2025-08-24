@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
     QTabWidget
 )
 from PySide6.QtCore import Qt
-from app.app_style import AppStyle
+from app.preference import AppStyle
 
 
 class EditItemDialog(QDialog):
