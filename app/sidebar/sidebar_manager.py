@@ -51,11 +51,11 @@ class SidebarManager(QWidget):
         )
         
         # 假设在类中已经保存了 HistoryPanel 实例
-        if hasattr(self.parent, 'history_panel'):
+        if hasattr(self.parent, 'quickpick_panel'):
             self.file_browse_btn.clicked.connect(
                 lambda: self.file_browse_btn.setChecked(True))
             self.file_browse_btn.clicked.connect(
-                self.parent.history_panel.load_history_items)
+                self.parent.quickpick_panel.load_quickpick_items)
 
         self.import_btn = QPushButton()
         self.import_btn.setIcon(
@@ -101,7 +101,7 @@ class SidebarManager(QWidget):
         import_dialog = ImportDialog(
             self,
             self.markdown_manager,
-            self.parent.history_panel if self.parent else None)
+            self.parent.quickpick_panel if self.parent else None)
         import_dialog.exec_()
 
     def show_settings_dialog(self):
@@ -124,8 +124,8 @@ class SidebarManager(QWidget):
 
     def on_file_browse_toggled(self, checked, icon_name="home"):
         self.update_button_icon(self.file_browse_btn, icon_name, checked)
-        if checked and hasattr(self.parent, 'history_panel'):
-            self.parent.history_panel.load_history_items()
+        if checked and hasattr(self.parent, 'quickpick_panel'):
+            self.parent.quickpick_panel.load_quickpick_items()
 
     def on_import_toggled(self, checked, icon_name="plus-square"):
         self.update_button_icon(self.import_btn, icon_name, checked)
