@@ -14,7 +14,6 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 from app.preference import AppStyle
 
-
 class EditItemDialog(QDialog):
     
     def __init__(self, markdown_data, parent=None):
@@ -31,35 +30,26 @@ class EditItemDialog(QDialog):
         self.init_ui()
 
     def init_ui(self):
-        # 创建主布局和 tab 控件
         layout = QVBoxLayout()
         self.tab_widget = QTabWidget()
-
-        # 添加不同的设置 tab 页面
         self.add_edit_tab()
         self.add_detail_tab()
-
-        # 添加保存按钮
         save_button = QPushButton("保存设置")
         save_button.clicked.connect(self.accept)
-
         layout.addWidget(self.tab_widget)
         layout.addWidget(save_button)
         self.setLayout(layout)
 
     def add_edit_tab(self):
-        """添加编辑信息 tab"""
         edit_tab = QWidget()
-        main_layout = QVBoxLayout(edit_tab)  # 使用QVBoxLayout作为主布局
-        main_layout.setContentsMargins(10, 10, 10, 10)  # 设置合适的边距
-        main_layout.setSpacing(10)  # 设置各组件之间的间距
+        main_layout = QVBoxLayout(edit_tab)
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setSpacing(10)
         
-        # 创建表单布局用于标题部分
         form_layout = QFormLayout()
-        form_layout.setContentsMargins(0, 0, 0, 0)  # 减小表单布局的边距
-        form_layout.setSpacing(8)  # 减小表单项之间的间距
+        form_layout.setContentsMargins(0, 0, 0, 0)
+        form_layout.setSpacing(8)
         
-        # 标题
         self.title_edit = QLineEdit(self.markdown_data.get('title', ''))
         self.title_edit.setMinimumHeight(32)
         self.title_edit.setMinimumWidth(450)
@@ -67,58 +57,40 @@ class EditItemDialog(QDialog):
         title_label = self._make_label('标题:')
         form_layout.addRow(title_label, self.title_edit)
         
-        # 添加标签标题
         tags_label = self._make_label('标签:')
-        
-        # 标签输入框
         self.tag_add_edit = QLineEdit()
         self.tag_add_edit.setMinimumHeight(32)
         self.tag_add_edit.setMinimumWidth(450)
         self.tag_add_edit.setStyleSheet(self.app_style.get_line_edit())
-        self.tag_add_edit.setPlaceholderText("添加标签")  # 设置提示文本
-        self.tag_add_edit.returnPressed.connect(self._add_new_tag)  # 绑定回车事件
-        
+        self.tag_add_edit.setPlaceholderText("添加标签")
+        self.tag_add_edit.returnPressed.connect(self._add_new_tag)
         form_layout.addRow(tags_label, self.tag_add_edit)
         
-        # 将表单布局添加到主布局
         main_layout.addLayout(form_layout)
         
-        # 创建可换行的标签容器
         self.tags_container = QWidget()
         self.tags_container.setStyleSheet("border: none; background: transparent;")
-        # 确保容器可以根据内容调整大小
         self.tags_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         
-        # 使用QVBoxLayout作为标签容器的主布局，用于垂直排列多行标签
         self.tags_vertical_layout = QVBoxLayout(self.tags_container)
-        self.tags_vertical_layout.setContentsMargins(0, 0, 0, 0)  # 移除容器边距
-        self.tags_vertical_layout.setSpacing(6)  # 设置行间距
+        self.tags_vertical_layout.setContentsMargins(0, 0, 0, 0)
+        self.tags_vertical_layout.setSpacing(6)
         
-        # 存储所有水平布局的列表
         self.tag_layouts = []
         self.tag_widgets = []
         
-        # 创建第一个水平布局
         self._create_new_row()
+        self._refresh_tags()  # Initialize tags display
         
-        # 添加已有的标签
-        for tag in self.tags:
-            self._add_tag_to_layout(tag)
-        
-        # 添加一个伸展项到垂直布局底部，确保所有标签行都靠左显示
         self.tags_vertical_layout.addStretch(1)
-        
-        # 将标签容器添加到主布局
         main_layout.addWidget(self.tags_container)
-                
         self.tab_widget.addTab(edit_tab, "编辑")
     
     def _create_new_row(self):
-        """创建一个新的水平布局行"""
         new_layout = QHBoxLayout()
         new_layout.setContentsMargins(0, 0, 0, 0)
-        new_layout.setSpacing(8)  # 设置标签间距
-        self.tags_vertical_layout.insertLayout(self.tags_vertical_layout.count() - 1, new_layout)  # 插入到伸展项之前
+        new_layout.setSpacing(8)
+        self.tags_vertical_layout.insertLayout(self.tags_vertical_layout.count() - 1, new_layout)
         self.tag_layouts.append(new_layout)
         return new_layout
         
@@ -127,50 +99,9 @@ class EditItemDialog(QDialog):
         label.setStyleSheet("border: none; background-color: transparent;")
         return label
         
-    def _add_tag_to_layout(self, tag):
-        """将标签添加到布局中，并处理自动换行"""
-        tag_widget = self._make_tag_widget(tag)
-        self.tag_widgets.append(tag_widget)
-        
-        # 确保至少有一个水平布局
-        if not self.tag_layouts:
-            self._create_new_row()
-            
-        # 获取最后一个水平布局
-        last_layout = self.tag_layouts[-1]
-        
-        # 计算当前行已占用的宽度（包括新标签）
-        total_width = tag_widget.sizeHint().width()
-        for i in range(last_layout.count()):
-            item = last_layout.itemAt(i)
-            widget = item.widget()
-            if widget:
-                total_width += widget.sizeHint().width() + last_layout.spacing()
-        
-        # 获取容器可用宽度
-        container_width = self.tags_container.size().width()
-        
-        # 改进：如果容器宽度还没确定（例如初始加载时），使用一个合理的默认值
-        if container_width <= 0:
-            container_width = self.width() - 40  # 使用对话框宽度减去边距作为默认值
-            
-        # 如果添加标签不会超出宽度，则直接添加到最后一行
-        if total_width <= container_width:
-            last_layout.addWidget(tag_widget)
-        else:
-            # 否则创建新行并添加标签
-            new_layout = self._create_new_row()
-            new_layout.addWidget(tag_widget)
-        
-        # 强制布局更新
-        self.tags_container.updateGeometry()
-        self.tags_container.repaint()
-
     def _make_tag_widget(self, tag, with_delete_button=True):
-        # 创建标签容器
         container = QWidget()
         container.setMinimumHeight(32)
-        # 设置固定高度但自适应宽度
         container.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         container.setStyleSheet("""
             QWidget {
@@ -181,10 +112,9 @@ class EditItemDialog(QDialog):
         """)
         
         layout = QHBoxLayout(container)
-        layout.setContentsMargins(12, 6, 8, 6)  # 调整边距，给文本和按钮留出空间
-        layout.setSpacing(8)  # 增加文本和按钮之间的间距
+        layout.setContentsMargins(12, 6, 8, 6)
+        layout.setSpacing(8)
         
-        # 创建标签文本
         tag_label = QLabel(tag)
         tag_label.setStyleSheet("""
             color: #0078D4;
@@ -193,12 +123,11 @@ class EditItemDialog(QDialog):
             padding: 0px;
         """)
         tag_label.setAlignment(Qt.AlignCenter)
-        # 添加到布局
         layout.addWidget(tag_label, 1)
+        
         if not with_delete_button:
             return container
         
-        # 创建删除按钮
         delete_button = QPushButton("x")
         delete_button.setFixedSize(20, 20)
         delete_button.setStyleSheet("""
@@ -218,60 +147,82 @@ class EditItemDialog(QDialog):
         delete_button.clicked.connect(lambda: self._remove_tag(tag, container))
         layout.addWidget(delete_button)
         
-        # 计算标签文本所需的宽度并设置最小宽度
-        text_width = tag_label.fontMetrics().boundingRect(tag).width() + 40  # 文本宽度 + 边距和按钮宽度
+        text_width = tag_label.fontMetrics().boundingRect(tag).width() + 40
         container.setMinimumWidth(text_width)
         
         return container
+
+    def _refresh_tags(self):
+        """Re-render all tags to ensure consistency"""
+        # Clear all existing tag widgets and layouts
+        for widget in self.tag_widgets:
+            widget.deleteLater()
+        for layout in self.tag_layouts:
+            while layout.count() > 0:
+                item = layout.takeAt(0)
+                if item.widget():
+                    item.widget().deleteLater()
+            self.tags_vertical_layout.removeItem(layout)
+        self.tag_widgets.clear()
+        self.tag_layouts.clear()
         
+        # Recreate initial row
+        self._create_new_row()
+        
+        # Re-add all tags
+        for tag in self.tags:
+            self._add_tag_to_layout(tag)
+        
+        self.tags_container.updateGeometry()
+        self.tags_container.repaint()
+
+    def _add_tag_to_layout(self, tag):
+        """Add a tag to the layout with proper width management"""
+        tag_widget = self._make_tag_widget(tag)
+        self.tag_widgets.append(tag_widget)
+        
+        if not self.tag_layouts:
+            self._create_new_row()
+        
+        last_layout = self.tag_layouts[-1]
+        total_width = tag_widget.sizeHint().width()
+        for i in range(last_layout.count()):
+            item = last_layout.itemAt(i)
+            widget = item.widget()
+            if widget:
+                total_width += widget.sizeHint().width() + last_layout.spacing()
+        
+        container_width = self.tags_container.width() or (self.width() - 40)
+        
+        if total_width <= container_width:
+            last_layout.addWidget(tag_widget)
+        else:
+            new_layout = self._create_new_row()
+            new_layout.addWidget(tag_widget)
+        
+        self.tags_container.updateGeometry()
+        self.tags_container.repaint()
+
     def _remove_tag(self, tag, widget):
-        """移除标签"""
+        """Remove a tag and re-render all tags"""
         if tag in self.tags and widget in self.tag_widgets:
-            # 从数据和控件列表中移除
             tag_index = self.tags.index(tag)
             self.tags.pop(tag_index)
             self.tag_widgets.pop(tag_index)
-            
-            # 从布局中移除
-            parent_layout = widget.parent().layout()
-            if parent_layout and parent_layout.count() > 1:
-                parent_layout.removeWidget(widget)
-            elif parent_layout and parent_layout.count() == 1:
-                # 如果是行中的最后一个标签，移除整行
-                if parent_layout in self.tag_layouts:
-                    self.tag_layouts.remove(parent_layout)
-                # 移除布局中的所有项目
-                while parent_layout.count() > 0:
-                    item = parent_layout.takeAt(0)
-                    if item.widget():
-                        item.widget().deleteLater()
             widget.deleteLater()
-            
-            # 确保至少有一个水平布局
-            if not self.tag_layouts:
-                self._create_new_row()
-            
-            # 强制布局更新
-            self.tags_container.updateGeometry()
-            self.tags_container.repaint()
+            self._refresh_tags()  # Re-render all tags to ensure consistency
 
     def _add_new_tag(self):
-        """处理添加新标签的逻辑"""
+        """Handle adding a new tag"""
         tag_text = self.tag_add_edit.text().strip()
-        if tag_text and tag_text not in self.tags:  # 确保标签不为空且不重复
-            self.tags.append(tag_text)  # 添加到数据模型
-            self._add_tag_to_layout(tag_text)  # 添加到UI布局
-            self.tag_add_edit.clear()  # 清空输入框
-            # 强制布局更新
-            self.tags_container.updateGeometry()
-            self.tags_container.repaint()
+        if tag_text and tag_text not in self.tags:
+            self.tags.append(tag_text)
+            self._refresh_tags()  # Re-render all tags
+            self.tag_add_edit.clear()
 
     def add_detail_tab(self):
-        """添加编辑器设置 tab"""
         editor_tab = QWidget()
         form_layout = QFormLayout()
-
-        # 添加文件类型选择
         page_type = self.markdown_data.get('page_type', 'markdown')
         if not page_type:
             page_type = 'markdown'
@@ -279,19 +230,16 @@ class EditItemDialog(QDialog):
         page_type_layout = QHBoxLayout()
         page_type_layout.addWidget(page_type_label)
         form_layout.addRow(self._make_label("文件类型："), page_type_layout)
-
         create_time = self.markdown_data.get('created_at', '')
         if create_time:
             create_time = create_time.strftime('%Y-%m-%d %H:%M:%S')
         create_time_label = self._make_label(create_time)
         form_layout.addRow(self._make_label("创建时间："), create_time_label)
-
         update_time = self.markdown_data.get('updated_at', '')
         if update_time:
             update_time = update_time.strftime('%Y-%m-%d %H:%M:%S')
         update_time_label = self._make_label(update_time)
         form_layout.addRow(self._make_label("更新时间："), update_time_label)
-
         file_size = self.markdown_data.get('file_size', '')
         if file_size:
             file_size = f"{file_size} bytes"
@@ -299,7 +247,6 @@ class EditItemDialog(QDialog):
             file_size = "0 bytes"
         file_size_label = self._make_label(file_size)
         form_layout.addRow(self._make_label("文件大小："), file_size_label)
-
         content_md5 = self.markdown_data.get('content_md5', '')
         if content_md5:
             content_md5 = f"{content_md5}"
@@ -307,7 +254,6 @@ class EditItemDialog(QDialog):
             content_md5 = ""
         content_md5_label = self._make_label(content_md5)
         form_layout.addRow(self._make_label("MD5值："), content_md5_label)
-
         editor_tab.setLayout(form_layout)
         self.tab_widget.addTab(editor_tab, "属性")
 
