@@ -94,3 +94,7 @@ fmt:
 # clean no used files
 clean:
 	rm -rf app.log config.db build dist
+
+run:
+	source .venv/bin/activate
+	python main.py --debug

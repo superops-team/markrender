@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import sys
+import os
+
 import traceback
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QFrame, QMessageBox)
@@ -44,20 +46,8 @@ class MainWindow(QMainWindow):
     def setup_ui(self):
         """设置UI界面"""
         # 初始化数据库路径，使用用户数据路径
-        import os
-        from platform import system
-        if system() == 'Windows':
-            user_data_dir = os.path.join(os.getenv('APPDATA'), 'markrender')
-        elif system() == 'Darwin':
-            user_data_dir = os.path.join(
-                os.path.expanduser('~'),
-                'Library',
-                'Application Support',
-                'markrender')
-        else:
-            user_data_dir = os.path.join(
-                os.path.expanduser('~'), '.local', 'share', 'markrender')
-        os.makedirs(user_data_dir, exist_ok=True)
+        from db.db_manager import get_user_data_dir
+        user_data_dir = get_user_data_dir()
         db_path = os.path.join(user_data_dir, 'data.db')
         logger.info(f'数据库路径初始化完成，路径为: {db_path}')
 
@@ -82,6 +72,7 @@ class MainWindow(QMainWindow):
         # 初始化 Markdown 编辑器
         self.markdown_editor = MarkdownEditor(self, '', '')
         self.sidebar = SidebarManager(self)
+
 
         # 创建自定义标题栏
         title_bar = QWidget()

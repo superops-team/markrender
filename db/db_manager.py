@@ -3,20 +3,29 @@
 import os
 from platform import system
 
+# 根据 PySide6 提供的参数来判断环境
+# 默认使用生产环境名称
+app_name = 'MarkRender'
+
+
 # 删除原来的路径定义
 # settings_db = 'settings.db'
 # data_db = 'data.db'
 
-app_name = 'MarkRender'
-
 def get_user_data_dir():
-    """统一管理多平台数据库路径"""
+    """
+    获取用户数据目录，根据不同操作系统返回不同路径。
+    支持 Windows、macOS 和 Linux。
+    """
+    app_data_path = os.getenv('MARKDOWN_RENDER_DATA')
+    if not app_data_path:
+        app_data_path = os.path.join(os.path.expanduser('~'), '.markdown_render')
     if system() == 'Windows':
-        user_data_dir = os.path.join(os.getenv('APPDATA'), app_name)
+        user_data_dir = os.path.join(app_data_path, app_name)
     elif system() == 'Darwin':
-        user_data_dir = os.path.expanduser(f'~/Library/Application Support/{app_name}')
+        user_data_dir = os.path.join(app_data_path, app_name)
     else:
-        user_data_dir = os.path.join(os.path.expanduser('~'), '.local', 'share', app_name)
+        user_data_dir = os.path.join(app_data_path, app_name)
 
     os.makedirs(user_data_dir, exist_ok=True)
     os.makedirs(user_data_dir + '/output', exist_ok=True)
