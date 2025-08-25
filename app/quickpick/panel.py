@@ -13,8 +13,9 @@ from PySide6.QtWidgets import (
     QPushButton,
     QSizePolicy,
     QAbstractItemView,
+    QMenu,
 )
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QIcon, QAction
 from PySide6.QtCore import Signal, QSize, Qt
 
 from utils.logger_utils import logger
@@ -88,15 +89,15 @@ class QuickPickPanel(QWidget):
         
         # 创建新建按钮
         self.new_btn = QPushButton()
-        # 设置可选中状态
-        self.new_btn.setCheckable(True)
-        # 初始图标（默认状态）
+        # 移除可选中状态
+        # self.new_btn.setCheckable(True)
+        # 初始图标
         self.new_btn.setIcon(QIcon(get_icon_path("pencil-square", selected=False)))
         self.new_btn.setIconSize(QSize(20, 20))
         # 应用统一侧边栏按钮样式
         self.new_btn.setStyleSheet(AppStyle().get_sidebar_button_style())
-        # 连接状态切换信号
-        self.new_btn.clicked.connect(self.create_new_item)
+        # 连接点击事件到显示菜单方法
+        self.new_btn.clicked.connect(self.show_create_menu)
         
         # 添加到水平布局
         search_layout.addWidget(self.search_input)
@@ -326,8 +327,30 @@ class QuickPickPanel(QWidget):
         except Exception as e:
             logger.error(f"删除历史记录失败: {e}")
             
-    def create_new_item(self):
-        """创建新记录"""
+    def show_create_menu(self):
+        """显示创建下拉菜单"""
+        # 创建菜单
+        menu = QMenu(self)
+        # 应用菜单样式
+        menu.setStyleSheet(AppStyle().get_menu_style())
+        
+        # 创建Markdown选项并添加图标
+        markdown_action = QAction("创建笔记", self)
+        markdown_action.triggered.connect(self.create_new_markdown_item)
+        
+        # 创建Board选项并添加图标
+        board_action = QAction("创建画布", self)
+        board_action.triggered.connect(self.create_new_board_item)
+        
+        # 添加选项到菜单
+        menu.addAction(markdown_action)
+        menu.addAction(board_action)
+        
+        # 在按钮下方显示菜单
+        menu.exec(self.new_btn.mapToGlobal(self.new_btn.rect().bottomLeft()))
+        
+    def create_new_markdown_item(self):
+        """创建新的Markdown记录"""
         from utils import time_utils
         timestamp = time_utils.now().strftime('%Y%m%d%H%M%S')
         new_item = {
@@ -336,6 +359,27 @@ class QuickPickPanel(QWidget):
             'tags': '',
             'status': 'processed',
             'page_type': 'markdown',
+            'converter': 'manual',
+        }
+        # 保存到数据库
+        self.markdown_manager.save_markdown(**new_item)
+        # 刷新快速选择列表
+        self.load_quickpick_items()
+        # 选择新创建的项目
+        if self.quickpick_list.count() > 0:
+            self.quickpick_list.setCurrentRow(0)
+            self.on_item_clicked(self.quickpick_list.model().index(0, 0))
+            
+    def create_new_board_item(self):
+        """创建新的Board记录"""
+        from utils import time_utils
+        timestamp = time_utils.now().strftime('%Y%m%d%H%M%S')
+        new_item = {
+            'title': 'Board-{}'.format(timestamp),
+            'content': '',
+            'tags': '',
+            'status': 'processed',
+            'page_type': 'board',
             'converter': 'manual',
         }
         # 保存到数据库

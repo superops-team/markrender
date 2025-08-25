@@ -583,3 +583,39 @@ QWidget {{
             border: none; /* 明确设置无边框 */
             {colors.get(tag_key, colors['default'])}
         """
+
+    def get_menu_style(self):
+        bg_color = '#ffffff' if not self.dark_mode else '#2d2d2d'
+        hover_color = '#E6F6FF' if not self.dark_mode else '#3a3a3a'
+        text_color = '#000000' if not self.dark_mode else '#ffffff'
+        border_color = '#ddd' if not self.dark_mode else '#444'
+        
+        return f"""
+        QMenu {{
+            background-color: {bg_color};
+            border: 1px solid {border_color};
+            border-radius: 4px;
+            padding: 4px;
+        }}
+        
+        QMenu::item {{
+            color: {text_color};
+            padding: 6px 32px 6px 28px;  /* Adjusted left padding for larger icons */
+            margin: 2px;
+            border-radius: 2px;
+        }}
+        
+        QMenu::item:selected {{
+            background-color: {hover_color};
+        }}
+        
+        QMenu::item:hover {{
+            background-color: {hover_color};
+        }}
+        
+        QMenu::separator {{
+            height: 1px;
+            background: {border_color};
+            margin: 4px 8px;
+        }}
+        """
