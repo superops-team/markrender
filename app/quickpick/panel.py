@@ -96,7 +96,7 @@ class QuickPickPanel(QWidget):
         # 应用统一侧边栏按钮样式
         self.new_btn.setStyleSheet(AppStyle().get_sidebar_button_style())
         # 连接状态切换信号
-        self.new_btn.clicked.connect(self.create_new_markdown)
+        self.new_btn.clicked.connect(self.create_new_item)
         
         # 添加到水平布局
         search_layout.addWidget(self.search_input)
@@ -326,8 +326,8 @@ class QuickPickPanel(QWidget):
         except Exception as e:
             logger.error(f"删除历史记录失败: {e}")
             
-    def create_new_markdown(self):
-        """创建新的markdown文档"""
+    def create_new_item(self):
+        """创建新记录"""
         from utils import time_utils
         timestamp = time_utils.now().strftime('%Y%m%d%H%M%S')
         new_item = {
