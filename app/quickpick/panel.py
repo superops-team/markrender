@@ -14,8 +14,9 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QAbstractItemView,
     QMenu,
+    QWidgetAction
 )
-from PySide6.QtGui import QIcon, QAction
+from PySide6.QtGui import QIcon
 from PySide6.QtCore import Signal, QSize, Qt
 
 from utils.logger_utils import logger
@@ -36,6 +37,7 @@ class QuickPickPanel(QWidget):
     def __init__(self, markdown_manager, parent=None):
         self.parent = parent
         super().__init__(parent)
+        self.app_style = AppStyle()
         self.markdown_manager = markdown_manager
         # 替换 MListView 为 QListWidget
         self.quickpick_list = QListWidget()
@@ -95,7 +97,7 @@ class QuickPickPanel(QWidget):
         self.new_btn.setIcon(QIcon(get_icon_path("pencil-square", selected=False)))
         self.new_btn.setIconSize(QSize(20, 20))
         # 应用统一侧边栏按钮样式
-        self.new_btn.setStyleSheet(AppStyle().get_sidebar_button_style())
+        self.new_btn.setStyleSheet(self.app_style.get_sidebar_button_style())
         # 连接点击事件到显示菜单方法
         self.new_btn.clicked.connect(self.show_create_menu)
         
@@ -111,7 +113,7 @@ class QuickPickPanel(QWidget):
         
         # 优化列表项选中样式，与全局风格保持一致
         self.quickpick_list.viewport().setMouseTracking(True)
-        self.quickpick_list.setStyleSheet(AppStyle().get_quickpick_panel())
+        self.quickpick_list.setStyleSheet(self.app_style.get_quickpick_panel())
         main_layout.addWidget(self.quickpick_list)
         # 设置布局后，添加样式表修改底色，这里以浅灰色为例
         self.setLayout(main_layout)
@@ -171,13 +173,11 @@ class QuickPickPanel(QWidget):
     def load_quickpick_items(self):
         """加载所有历史记录"""
         try:
-            logger.debug("开始加载历史记录...")
             self.all_quickpick_items = self.markdown_manager.load_items()
             if self.all_quickpick_items:
                 logger.info(f"成功加载 {len(self.all_quickpick_items)} 条记录")
             else:
                 logger.info("未找到记录")
-            logger.debug("调用 filter_quickpick 方法过滤记录...")
             self.filter_quickpick()
         except Exception as e:
             logger.error(f"加载记录失败: {e}", exc_info=True)
@@ -328,23 +328,69 @@ class QuickPickPanel(QWidget):
             logger.error(f"删除历史记录失败: {e}")
             
     def show_create_menu(self):
-        """显示创建下拉菜单"""
-        # 创建菜单
+        """显示创建菜单"""        
         menu = QMenu(self)
-        # 应用菜单样式
-        menu.setStyleSheet(AppStyle().get_menu_style())
         
-        # 创建Markdown选项并添加图标
-        markdown_action = QAction("创建笔记", self)
-        markdown_action.triggered.connect(self.create_new_markdown_item)
+        # 设置菜单样式 - 扁平化设计，减少边框和视觉噪点
+        menu.setStyleSheet(f"""
+            QMenu {{
+                background-color: {{self.app_style.get_background_color()}};
+                /*border: 1px solid {{self.app_style.get_border_color()}};*/
+                border-radius: 8px;
+                padding: 4px;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            }}
+            QMenu::item {{
+                color: transparent;
+                padding: 0px;
+            }}
+            QPushButton {{
+                border: none;
+                border-radius: 6px;  # 按钮也设置圆角，与菜单风格一致
+                transition: all 0.2s ease;
+            }}
+            QPushButton:hover {{
+                background-color: {{self.app_style.get_hover_color()}};
+                transform: translateY(-1px);
+            }}
+            QPushButton:pressed {{
+                background-color: {{self.app_style.get_hover_color()}};
+                transform: translateY(0px);
+            }}
+            QWidget {{
+                background-color: transparent;
+                border: none;
+            }}
+        """)
         
-        # 创建Board选项并添加图标
-        board_action = QAction("创建画布", self)
-        board_action.triggered.connect(self.create_new_board_item)
+        # 创建一个容器widget用于放置按钮
+        container = QWidget()
+        h_layout = QHBoxLayout(container)
+        h_layout.setSpacing(4)  # 更紧凑的间距
+        h_layout.setContentsMargins(4, 4, 4, 4)  # 设置内边距
         
-        # 添加选项到菜单
-        menu.addAction(markdown_action)
-        menu.addAction(board_action)
+        # 创建Markdown按钮
+        markdown_btn = QPushButton()
+        markdown_btn.setIcon(QIcon(get_icon_path("textarea")))
+        markdown_btn.setIconSize(QSize(22, 22))  # 优化图标尺寸
+        markdown_btn.setToolTip("创建笔记")  # 设置悬停提示
+        markdown_btn.clicked.connect(self.create_new_markdown_item)
+        
+        # 创建Board按钮
+        board_btn = QPushButton()
+        board_btn.setIcon(QIcon(get_icon_path("diagram")))
+        board_btn.setIconSize(QSize(22, 22))  # 优化图标尺寸
+        board_btn.setToolTip("创建画布")  # 设置悬停提示
+        board_btn.clicked.connect(self.create_new_board_item)
+        
+        # 将按钮添加到水平布局
+        h_layout.addWidget(markdown_btn)
+        h_layout.addWidget(board_btn)
+        
+        # 将容器添加到菜单中
+        menu_action = QWidgetAction(menu)
+        menu_action.setDefaultWidget(container)
+        menu.addAction(menu_action)
         
         # 在按钮下方显示菜单
         menu.exec(self.new_btn.mapToGlobal(self.new_btn.rect().bottomLeft()))

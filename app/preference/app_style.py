@@ -12,6 +12,7 @@ COLOR_BACKGROUND_LIGHT = '#fafafa'
 COLOR_BACKGROUND_DARK = '#1f1f1f'
 PRIMARY_BUTTON_BACKGROUND = '#0d6efd'
 PRIMARY_BUTTON_HOVER = '#0b5ed7'
+HOVER_COLOR = '#E6F6FF'
 # 添加选中状态图标颜色
 SIDEBAR_ICON_SELECTED = '#2591FF'
 LINE_COLOR = '#F2F2F2'
@@ -456,6 +457,12 @@ class AppStyle:
 
     def get_background_color(self):
         return WIDGET_BACKGROUND_LIGHT if not self.dark_mode else self.WIDGET_BACKGROUND_DARK
+    
+    def get_border_color(self):
+        return QColor(34, 184, 207, 0.3)
+    
+    def get_hover_color(self):
+        return HOVER_COLOR
     
     def get_editor_preview_background_color(self):
         return WIDGET_BACKGROUND_LIGHT if not self.dark_mode else self.WIDGET_BACKGROUND_DARK
