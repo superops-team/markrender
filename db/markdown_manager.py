@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from sqlalchemy.orm import sessionmaker
 from .models import Base, MarkdownFileHistory, MarkdownChangeHistory
-from db.db_manager import SingletonEngine
+from db.db_manager import SingletonEngine, get_user_data_dir
 from utils.hash_utils import calculate_md5
 from utils.logger_utils import logger  # 添加 logger 导入
 from utils import time_utils
@@ -87,6 +87,7 @@ class MarkdownManager:
             page_type=None,
         ):
         session = self.Session()
+        changed = False
         try:
             content_md5 = calculate_md5(content)
             now = time_utils.now()  # 获取当前北京时间
@@ -100,6 +101,7 @@ class MarkdownManager:
                         history.title = title
                     if content and content != history.content:
                         history.content = content
+                        changed = True
                     if file_path and file_path != history.file_path:
                         history.file_path = file_path
                     if theme_id and theme_id != history.theme_id:
@@ -125,6 +127,7 @@ class MarkdownManager:
                     raise ValueError(f"未找到 ID 为 {id} 的记录")
             else:
                 # 创建新记录
+                changed = True
                 new_history = MarkdownFileHistory(
                     title=title,
                     content=content,
@@ -143,13 +146,30 @@ class MarkdownManager:
                 )
                 session.add(new_history)
                 session.commit()
-                return new_history.id
+                id = new_history.id
+                return id
         except Exception as e:
             session.rollback()
             logger.error(f"Error saving markdown: {e}")
             raise e
         finally:
             session.close()
+            if id and content and changed:
+                self.sync_write_localdisk(id, content)
+
+    def sync_write_localdisk(self, id, content):
+        """
+        同步将内容写入本地磁盘
+        Args:
+            id: 记录ID
+            content: 内容
+        """
+        try:
+            with open(f'{get_user_data_dir()}/output/{id}.md', 'w') as f:
+                f.write(content)
+        except Exception as e:
+            logger.error(f"Error writing to local disk: {e}")
+
 
     def search_markdown(self, keyword=None, page_type=None):
         session = self.Session()
