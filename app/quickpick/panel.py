@@ -59,8 +59,8 @@ class QuickPickPanel(QWidget):
 
     def init_ui(self):
         main_layout = QVBoxLayout()
-        # 使用统一的间距系统，上右下左均为12px
-        main_layout.setContentsMargins(12, 12, 12, 12)
+        # 统一Editor区域的边距，确保高度对齐
+        main_layout.setContentsMargins(5, 5, 5, 5)
         # 创建搜索和新建按钮的水平布局
         search_layout = QHBoxLayout()
         search_layout.setSpacing(8)  # 使用统一的小间距

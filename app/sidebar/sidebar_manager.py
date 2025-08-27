@@ -28,7 +28,7 @@ class SidebarManager(QWidget):
     def init_ui(self):
         # 创建主布局
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(6, 8, 6, 8)  # 水平6px，36px按钮无边框+12px边距=48px
+        layout.setContentsMargins(8, 8, 9, 8)  # 最终精确调整：左8px，右9px，实现精准对齐
         layout.setSpacing(6)  # 按钮间距设置为6px符合设计规范
         layout.setAlignment(Qt.AlignmentFlag.AlignHCenter)  # 设置水平居中对齐
 

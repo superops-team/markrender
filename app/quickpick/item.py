@@ -175,7 +175,7 @@ class QuickPickItemDelegate(QStyledItemDelegate):
 
             # 修正预览文本的Y坐标位置，确保完整显示
             preview_y = text_rect.y() + 38  # 增加Y偏移量，从标题下方留出足够空间
-            
+
             # 在标题下方、时间左侧添加page_type标签
             type_label_font = QFont()
             type_label_font.setPointSize(9)  # 小字体
@@ -185,14 +185,14 @@ class QuickPickItemDelegate(QStyledItemDelegate):
                 painter.setPen(QColor(105, 112, 119))  # 选中状态的辅助文本颜色
             else:
                 painter.setPen(tag_color)  # 使用与图标相同的颜色
-            
+
             # 计算page_type标签宽度
             type_metrics = QFontMetrics(type_label_font)
             type_text_width = type_metrics.horizontalAdvance(page_type.upper())
-            
+
             # 绘制page_type标签
             painter.drawText(text_rect.x(), preview_y, page_type.upper())
-            
+
             # 调整时间显示位置，在page_type标签右侧
             time_x_offset = type_text_width + 12  # page_type标签宽度 + 12px间距
             painter.setFont(preview_font)  # 恢复预览文本字体
@@ -200,7 +200,7 @@ class QuickPickItemDelegate(QStyledItemDelegate):
                 painter.setPen(QColor(105, 112, 119))  # 选中状态的辅助文本
             else:
                 painter.setPen(QColor(141, 148, 153))  # 辅助文本颜色
-            
+
             painter.drawText(text_rect.x() + time_x_offset, preview_y, preview)
 
             # 鼠标悬停时绘制删除按钮 - 优化样式

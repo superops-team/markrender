@@ -345,14 +345,16 @@ QPushButton:pressed {{
 }}
 QPushButton:checked {{
     background-color: {NEUTRAL_0};
-    border-color: {PRIMARY_500};
+    border: 1px solid {PRIMARY_300};
     color: {PRIMARY_500};
     font-weight: 600;
+    padding: 2.5px;
 }}
 QPushButton:checked:hover {{
     background-color: {PRIMARY_50};
-    border-color: {PRIMARY_600};
+    border: 1px solid {PRIMARY_300};
     color: {PRIMARY_600};
+    padding: 2.5px;
 }}
 """
 

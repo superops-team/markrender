@@ -62,6 +62,8 @@ class MainWindow(QMainWindow):
 
         # 将顶部组件添加到主窗口
         central_widget = QWidget()
+        # 为中央部件添加圆角样式和统一背景色
+        central_widget.setStyleSheet(AppStyle().get_central_widget())
         self.main_layout = QVBoxLayout(central_widget)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.setSpacing(0)
@@ -105,17 +107,9 @@ class MainWindow(QMainWindow):
         # 添加边框容器
         border_frame = QFrame()
         border_frame.setFixedHeight(1)
-        border_frame.setFixedWidth(50)
+        border_frame.setFixedWidth(59)  # 最终精准调整：8+42+9=59px
         border_frame.setStyleSheet("background-color: {};".format(AppStyle().get_line_color()))
         self.main_layout.addWidget(border_frame)
-
-        # 主布局
-        central_widget = QWidget()
-        # 为中央部件添加圆角样式和统一背景色
-        central_widget.setStyleSheet(AppStyle().get_central_widget())
-        self.main_layout = QVBoxLayout(central_widget)
-        self.main_layout.setContentsMargins(0, 0, 0, 0)
-        self.main_layout.setSpacing(0)
 
         self.main_layout.addWidget(title_bar)
 
@@ -138,9 +132,9 @@ class MainWindow(QMainWindow):
         main_splitter.addWidget(self.sidebar)
         main_splitter.addWidget(right_splitter)
 
-        # 设置侧边栏宽度为 50，适配36px按钮+2px边框+12px边距
-        main_splitter.setSizes([50, int(self.width() - 50)])
-        self.sidebar.setFixedWidth(50)
+        # 设置sidebar宽度为52，适配对称边距配置（7+36+2边框+7=52px）
+        main_splitter.setSizes([59, int(self.width() - 59)])
+        self.sidebar.setFixedWidth(59)
 
         # 修改为使用 self.main_layout 添加组件
         self.main_layout.addWidget(main_splitter)
