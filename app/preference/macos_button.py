@@ -9,17 +9,19 @@ class MacOSButton(QPushButton):
     def __init__(self, button_type, parent=None):
         super().__init__(parent)
         self.button_type = button_type
-        self.setFixedSize(12, 12)  # 调整按钮尺寸为 12px
-        self.setStyleSheet("""
-            QPushButton {
+        # 使用统一的样式常量
+        from app.preference.style_constants import MACOS_BUTTON_SIZE, MACOS_BUTTON_RADIUS, SPACING_XS
+        self.setFixedSize(MACOS_BUTTON_SIZE, MACOS_BUTTON_SIZE)
+        self.setStyleSheet(f"""
+            QPushButton {{
                 border: none;
-                border-radius: 6px;
+                border-radius: {MACOS_BUTTON_RADIUS}px;
                 padding: 0px;
-                margin-right: 2px;  /* 缩小右侧间距 */
-            }
-            QPushButton:hover {
+                margin-right: {SPACING_XS}px;
+            }}
+            QPushButton:hover {{
                 background-color: rgba(0, 0, 0, 20);
-            }
+            }}
         """)
         self.setMouseTracking(True)
         self.hovered = False

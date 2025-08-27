@@ -28,37 +28,9 @@ class EditItemDialog(QDialog):
             self.tags = [tag.strip() for tag in tags_text.split(',') if tag.strip()]
         self.setWindowTitle(self.markdown_data.get('title', '查看详情'))
         self.setMinimumSize(640, 480)  # 稍微增大对话框尺寸
-        # 使用统一的设计令牌系统
-        self.setStyleSheet(f'''
-            EditItemDialog {{
-                background-color: white;
-                border-radius: 12px;
-            }}
-            QTabWidget::pane {{
-                border: 1px solid #EBEEF2;
-                border-radius: 8px;
-                background-color: white;
-            }}
-            QTabBar::tab {{
-                border: none;
-                padding: 12px 20px;
-                margin: 0px 2px;
-                border-radius: 6px 6px 0px 0px;
-                background-color: #F5F6F7;
-                color: #697077;
-                font-weight: 500;
-            }}
-            QTabBar::tab:selected {{
-                color: #2591FF;
-                background-color: white;
-                border-bottom: 2px solid #2591FF;
-                font-weight: 600;
-            }}
-            QTabBar::tab:hover {{
-                background-color: #E8F4FD;
-                color: #1E7CE8;
-            }}
-        ''')
+        # 使用统一的样式生成器
+        from app.preference.style_utils import create_dialog_style
+        self.setStyleSheet(create_dialog_style())
         self.init_ui()
 
     def init_ui(self):
@@ -108,15 +80,16 @@ class EditItemDialog(QDialog):
 
         main_layout.addLayout(form_layout)
 
-        # 优化标签容器样式
+        # 优化标签容器样式 - 使用设计令牌
+        from app.preference.style_constants import NEUTRAL_200, RADIUS_MD, NEUTRAL_50, SPACING_MD
         self.tags_container = QWidget()
-        self.tags_container.setStyleSheet('''
-            QWidget {
-                border: 1px solid #EBEEF2;
-                border-radius: 8px;
-                background-color: #FAFBFC;
-                padding: 12px;
-            }
+        self.tags_container.setStyleSheet(f'''
+            QWidget {{
+                border: 1px solid {NEUTRAL_200};
+                border-radius: {RADIUS_MD}px;
+                background-color: {NEUTRAL_50};
+                padding: {SPACING_MD}px;
+            }}
         ''')
         self.tags_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 
@@ -143,25 +116,27 @@ class EditItemDialog(QDialog):
         return new_layout
 
     def _make_label(self, name):
+        from app.preference.style_constants import NEUTRAL_700, FONT_SIZE_MD
         label = QLabel(name)
-        label.setStyleSheet('''
+        label.setStyleSheet(f'''
             border: none;
             background-color: transparent;
             font-weight: 600;
-            color: #4D5358;
-            font-size: 14px;
+            color: {NEUTRAL_700};
+            font-size: {FONT_SIZE_MD}px;
         ''')
         return label
 
     def _make_info_label(self, text):
         """创建信息显示标签"""
+        from app.preference.style_constants import NEUTRAL_600, FONT_SIZE_MD, SPACING_XS
         label = QLabel(text)
-        label.setStyleSheet('''
+        label.setStyleSheet(f'''
             border: none;
             background-color: transparent;
-            color: #697077;
-            font-size: 14px;
-            padding: 4px 0px;
+            color: {NEUTRAL_600};
+            font-size: {FONT_SIZE_MD}px;
+            padding: {SPACING_XS}px 0px;
         ''')
         return label
 
@@ -170,10 +145,11 @@ class EditItemDialog(QDialog):
         container.setMinimumHeight(36)  # 统一高度
         container.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         # 使用统一的设计令牌系统
+        from app.preference.style_constants import PRIMARY_500, PRIMARY_600, SPACING_LG, SPACING_SM
         container.setStyleSheet(f'''
             QWidget {{
-                background-color: #2591FF;
-                border: 1px solid #1E7CE8;
+                background-color: {PRIMARY_500};
+                border: 1px solid {PRIMARY_600};
                 border-radius: 18px;
             }}
         ''')

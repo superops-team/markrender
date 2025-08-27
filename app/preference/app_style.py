@@ -1,40 +1,17 @@
+# -*- coding: utf-8 -*-
+"""
+MarkRender 应用样式管理器
+统一管理整个应用的样式配置，通过导入设计令牌系统确保样式一致性
+"""
+
 from PySide6.QtGui import QColor
 from db.settings_manager import SettingsManager
+# 导入统一的样式常量
+from .style_constants import *
 
-# ========== 设计令牌系统 (Design Tokens) ==========
-# 按照Robin Williams四大设计原则建立统一的设计系统
+# ========== 向后兼容性设置 ==========
 
-# 主色调系统 - 蓝色系 (统一品牌色彩)
-PRIMARY_50 = '#E8F4FD'    # 最浅蓝色 - 用于背景高亮
-PRIMARY_100 = '#C3E2FB'   # 浅蓝色 - 用于悬停状态
-PRIMARY_200 = '#A1D2F8'   # 中浅蓝色
-PRIMARY_300 = '#7EC0F5'   # 中蓝色 - 用于边框
-PRIMARY_500 = '#2591FF'   # 主蓝色 - 主要交互色
-PRIMARY_600 = '#1E7CE8'   # 深蓝色 - 按压状态
-PRIMARY_700 = '#1A6BD1'   # 更深蓝色
-PRIMARY_900 = '#0F3A5F'   # 最深蓝色 - 用于文本
-
-# 中性色系统 (灰度色阶)
-NEUTRAL_0 = '#FFFFFF'     # 纯白色
-NEUTRAL_50 = '#FAFBFC'    # 背景白
-NEUTRAL_100 = '#F5F6F7'   # 浅灰背景
-NEUTRAL_200 = '#EBEEF2'   # 边框色
-NEUTRAL_300 = '#DDE1E6'   # 分割线
-NEUTRAL_400 = '#C1C7CD'   # 禁用文本
-NEUTRAL_500 = '#8D9499'   # 次要文本
-NEUTRAL_600 = '#697077'   # 辅助文本
-NEUTRAL_700 = '#4D5358'   # 主要文本
-NEUTRAL_900 = '#1C1E21'   # 标题文本
-
-# 语义化颜色 (状态色彩)
-SUCCESS_50 = '#F0F9F4'
-SUCCESS_500 = '#22C55E'
-WARNING_50 = '#FFFBEB'
-WARNING_500 = '#F59E0B'
-ERROR_50 = '#FEF2F2'
-ERROR_500 = '#EF4444'
-
-# 兼容性别名 (保持向后兼容)
+# 以下是向后兼容的颜色别名，逐步迁移到 style_constants.py 中
 COLOR_SELECTED = QColor(37, 145, 255, 38)  # PRIMARY_500 with alpha
 COLOR_HOVER = QColor(37, 145, 255, 25)     # PRIMARY_500 with alpha
 COLOR_DEFAULT_TEXT = QColor(28, 30, 33)    # NEUTRAL_900
@@ -49,40 +26,7 @@ HOVER_COLOR = PRIMARY_50
 SIDEBAR_ICON_SELECTED = PRIMARY_500
 LINE_COLOR = NEUTRAL_200
 
-# 间距系统 (基于8px网格)
-SPACING_XS = 4   # 0.25rem
-SPACING_SM = 8   # 0.5rem
-SPACING_MD = 12  # 0.75rem
-SPACING_LG = 16  # 1rem
-SPACING_XL = 24  # 1.5rem
-SPACING_2XL = 32 # 2rem
-SPACING_3XL = 48 # 3rem
-
-# 圆角系统
-RADIUS_SM = 4   # 小圆角
-RADIUS_MD = 8   # 中等圆角
-RADIUS_LG = 12  # 大圆角
-RADIUS_XL = 16  # 特大圆角
-RADIUS_PILL = 9999 # 胶囊形
-
-# 字体系统
-FONT_SIZE_XS = 11
-FONT_SIZE_SM = 12
-FONT_SIZE_MD = 14
-FONT_SIZE_LG = 16
-FONT_SIZE_XL = 18
-FONT_SIZE_2XL = 24
-
-# 行高系统
-LINE_HEIGHT_TIGHT = 1.2
-LINE_HEIGHT_NORMAL = 1.4
-LINE_HEIGHT_RELAXED = 1.6
-
-# 阴影系统
-SHADOW_SM = '0 1px 2px rgba(0, 0, 0, 0.05)'
-SHADOW_MD = '0 4px 6px rgba(0, 0, 0, 0.07)'
-SHADOW_LG = '0 10px 15px rgba(0, 0, 0, 0.1)'
-SHADOW_XL = '0 20px 25px rgba(0, 0, 0, 0.15)'
+# 以下是旧版样式定义，将逐步迁移到 style_constants.py
 
 # Tag 颜色映射表
 TAG_COLOR_MAP = {
@@ -106,38 +50,41 @@ DIALOG_BORDER_RADIUS = "QDialog { border-radius: 4px; }"
 WIDGET_BACKGROUND_LIGHT = "QWidget { background-color: #fafafa; }"
 WIDGET_BACKGROUND_DARK = "QWidget { background-color: #1f1f1f; }"
 
-# 导入对话框样式
-IMPORT_AREA = """
-QFrame {
-    border: 1px dashed #1990ff;
-    background-color: #f5f5f5;
-    margin: 10px;
-}
-QFrame:hover {
-    border-color: #0d6efd;
-    background-color: #e6e6e6;
-}"""
+# 导入对话框样式 - 使用设计令牌
+IMPORT_AREA = f"""
+QFrame {{
+    border: 1px dashed {PRIMARY_500};
+    background-color: {NEUTRAL_100};
+    margin: {SPACING_MD}px;
+    border-radius: {RADIUS_SM}px;
+}}
+QFrame:hover {{
+    border-color: {PRIMARY_600};
+    background-color: {NEUTRAL_200};
+}}"""
 
-IMPORT_LABEL = "background-color: #F0F3FF; padding: 10px; border-radius: 4px; color: #343a40;"
-INFO_LABEL = "color: #28a745; font-size: 13px;"
-FORMAT_LABEL = "color: #6c757d; font-size: 12px;"
-LOADING_LABEL = "font-size: 16px; color: #0d6efd;"
+# 标签样式 - 使用设计令牌
+IMPORT_LABEL = f"background-color: {PRIMARY_50}; padding: {SPACING_MD}px; border-radius: {RADIUS_SM}px; color: {NEUTRAL_700};"
+INFO_LABEL = f"color: {SUCCESS_500}; font-size: {FONT_SIZE_SM}px;"
+FORMAT_LABEL = f"color: {NEUTRAL_500}; font-size: {FONT_SIZE_XS}px;"
+LOADING_LABEL = f"font-size: {FONT_SIZE_LG}px; color: {PRIMARY_500};"
 
 OVERLAY_STYLE = """
 background-color: rgba(255, 255, 255, 1);
 """
 
-# 进度条样式
-PROGRESS_BAR = """
-QProgressBar {
-    border-radius: 4px;
+# 进度条样式 - 使用设计令牌
+PROGRESS_BAR = f"""
+QProgressBar {{
+    border-radius: {RADIUS_SM}px;
     text-align: center;
-    height: 8px;
-}
-QProgressBar::chunk {
-    background-color: #0d6efd;
-    border-radius: 4px;
-}"""
+    height: {PROGRESS_BAR_HEIGHT}px;
+    background-color: {NEUTRAL_200};
+}}
+QProgressBar::chunk {{
+    background-color: {PRIMARY_500};
+    border-radius: {RADIUS_SM}px;
+}}"""
 
 CONFIRM_BUTTON = f"""
 QPushButton {{
@@ -154,13 +101,10 @@ QPushButton {{
 QPushButton:hover {{
     background-color: {PRIMARY_600};
     border-color: {PRIMARY_700};
-    transform: translateY(-1px);
-    box-shadow: {SHADOW_SM};
 }}
 QPushButton:pressed {{
     background-color: {PRIMARY_700};
     border-color: {PRIMARY_900};
-    transform: translateY(0px);
 }}
 QPushButton:disabled {{
     background-color: {NEUTRAL_200};
@@ -188,18 +132,20 @@ QPushButton:hover::after {
 }
 """
 
-STATUS_STYLE = '''
-QStatusBar {
-    border: 2px solid #ddd; /* 边框样式 */
-    background-color: #fafafa; /* 使用统一背景色 */
-    color: #eaf3ff; /* 字体颜色 */
-    font-size: 12px; /* 字体大小 */
-    padding: 2px 20px 2px 32px; /* 上、右、下、左内边距，左侧设置为 32px */
-}
-QLabel {
-    margin-left: 15px; /* 标签间距 */
-    color: #C3C9D3; /* 新增标签字体颜色 */
-}
+# 状态栏样式 - 使用设计令牌
+STATUS_STYLE = f'''
+QStatusBar {{
+    border: {EDITOR_BORDER_WIDTH}px solid {NEUTRAL_300};
+    background-color: {NEUTRAL_50};
+    color: {NEUTRAL_500};
+    font-size: {FONT_SIZE_XS}px;
+    padding: {SPACING_XS}px {SPACING_XL}px {SPACING_XS}px {SPACING_2XL}px;
+    height: {STATUSBAR_HEIGHT}px;
+}}
+QLabel {{
+    margin-left: {SPACING_LG}px;
+    color: {NEUTRAL_400};
+}}
 '''
 
 LINE_EDIT = f"""
@@ -230,83 +176,81 @@ QLineEdit:disabled {{
 }}
 """
 
-MINIMIZE_BUTTON = """
-QPushButton {
-    background-color: #ffbd2e;
-    border-radius: 10px;
-    border: 1px solid #e09e24;
+# macOS 最小化按钮样式 - 使用设计令牌
+MINIMIZE_BUTTON_LEGACY = f"""
+QPushButton {{
+    background-color: {MACOS_YELLOW};
+    border-radius: {MACOS_BUTTON_RADIUS}px;
+    border: 1px solid {MACOS_YELLOW_BORDER};
     qproperty-flat: true;
-}
-QPushButton:hover {
-    background-color: #e09e24;
-    border: 1px solid #c28a20;
-}
-QPushButton:hover::after {
+}}
+QPushButton:hover {{
+    background-color: {MACOS_YELLOW_HOVER};
+    border: 1px solid {MACOS_YELLOW_BORDER};
+}}
+QPushButton:hover::after {{
     content: "-";
     color: rgba(0, 0, 0, 0.8);
     position: absolute;
-}
-"""
+}}"""
 
-MAXIMIZE_BUTTON = """
-QPushButton {
-    background-color: #27c93f;
-    border-radius: 10px;
-    border: 1px solid #22a535;
+# macOS 最大化按钮样式 - 使用设计令牌
+MAXIMIZE_BUTTON = f"""
+QPushButton {{
+    background-color: {MACOS_GREEN};
+    border-radius: {MACOS_BUTTON_RADIUS}px;
+    border: 1px solid {MACOS_GREEN_BORDER};
     qproperty-flat: true;
-}
-QPushButton:hover {
-    background-color: #22a535;
-    border: 1px solid #1e8f2f;
-}
-QPushButton:hover::after {
+}}
+QPushButton:hover {{
+    background-color: {MACOS_GREEN_HOVER};
+    border: 1px solid {MACOS_GREEN_BORDER};
+}}
+QPushButton:hover::after {{
     content: "+";
     color: rgba(0, 0, 0, 0.8);
-    font-family: "SF Pro Text", "Helvetica Neue", sans-serif;
-    font-size: 12px;
+    font-family: "{FONT_FAMILY_SYSTEM}";
+    font-size: {FONT_SIZE_XS}px;
     font-weight: 500;
     position: absolute;
     top: 50%;
     left: 50%;
-}
-"""
+}}"""
 
-# 顶部菜单样式
-TOP_MENU_BACKGROUND = "background: #f0f0f0;"
+# 顶部菜单样式 - 使用设计令牌
+TOP_MENU_BACKGROUND = f"background: {NEUTRAL_100};"
 
-# 编辑器样式
-EDITOR_PARENT = """
-QWidget {  /* 父容器样式 */
-    border: 2px solid #ddd;
-    padding: 0;
-}"""
+# 编辑器样式 - 使用设计令牌
+EDITOR_PARENT = f"""
+QWidget {{  /* 父容器样式 */
+    border: {EDITOR_BORDER_WIDTH}px solid {NEUTRAL_300};
+    padding: {EDITOR_PADDING}px;
+}}"""
 
-EDITOR_PREVIEW = """
-QWebEngineView {  /* 预览视图样式 */
+EDITOR_PREVIEW = f"""
+QWebEngineView {{  /* 预览视图样式 */
     border: none;
     background-color: transparent;
     margin: 0;
     padding: 0;
-}"""
+}}"""
 
-PRIMARY_BUTTON = """
-QPushButton {
-    background-color: #0d6efd;
-    color: white;
-    border-radius: 5px;
-    padding: 8px 16px;
-    font-size: 14px;
-}
-QPushButton:hover {
-    background-color: #0b5ed7;
-    border-radius: 5px;
-}
-"""
+# 主要按钮样式 - 使用设计令牌 (将会被新的CONFIRM_BUTTON替代)
+PRIMARY_BUTTON_LEGACY = f"""
+QPushButton {{
+    background-color: {PRIMARY_500};
+    color: {NEUTRAL_0};
+    border-radius: {RADIUS_SM}px;
+    padding: {SPACING_SM}px {SPACING_LG}px;
+    font-size: {FONT_SIZE_MD}px;
+}}
+QPushButton:hover {{
+    background-color: {PRIMARY_600};
+}}"""
 
 MAIN_WINDOW = """
 QMainWindow {{
     background-color: {};
-    overflow: hidden;
     border-top-left-radius: 8px;
     border-top-right-radius: 8px;
 }}
@@ -358,50 +302,27 @@ QPushButton:checked:hover {{
 }}
 """
 
-PROGRESS_BAR = """
-QProgressBar {
-    border-radius: 4px;
-    text-align: center;
-    height: 8px;
-}
-QProgressBar::chunk {
-    background-color: #0d6efd;
-    border-radius: 4px;
-}
-"""
 
-# 新增样式定义
-TITLE_BAR = """
-QWidget {
-    background-color: #f0f0f0;
-    font-size: 14px;
-    font-weight: bold;
-    border-bottom: 1px solid #c0c0c0;  /* 底部内侧边框 */
-}
-"""
 
-SIDEBAR = """
+# 标题栏样式 - 使用设计令牌
+TITLE_BAR = f"""
 QWidget {{
-    background-color: #fafafa;
-    border-right: 1px solid {};  /* 右侧内侧边框 */
-}}
-"""
+    background-color: {NEUTRAL_100};
+    font-size: {FONT_SIZE_MD}px;
+    font-weight: bold;
+    border-bottom: 1px solid {NEUTRAL_300};
+    height: {TITLEBAR_HEIGHT}px;
+}}"""
 
-MINIMIZE_BUTTON = """
-QPushButton {
-    background-color: #fdbc40;
-    border-radius: 10px;
-    min-width: 12px;
-    min-height: 12px;
-    max-width: 12px;
-    max-height: 12px;
-    border: 1px solid #e2a137;
-    margin-right: 6px;
-}
-QPushButton:hover {
-    background-color: #e2a137;
-}
-"""
+# 侧边栏样式 - 使用设计令牌
+SIDEBAR = f"""
+QWidget {{
+    background-color: {NEUTRAL_50};
+    border-right: 1px solid {NEUTRAL_300};
+    width: {SIDEBAR_WIDTH}px;
+}}"""
+
+
 
 MAXIMIZE_BUTTON = """
 QPushButton {
@@ -509,8 +430,6 @@ QListWidget::item:last {{
 QListWidget::item:hover {{
     background-color: {PRIMARY_50};
     border-color: {PRIMARY_100};
-    transform: translateY(-1px);
-    box-shadow: {SHADOW_SM};
 }}
 QListWidget::item:selected {{
     background-color: {PRIMARY_100};
@@ -623,7 +542,7 @@ class AppStyle:
         return LOADING_LABEL
 
     def get_primary_button(self):
-        return PRIMARY_BUTTON
+        return PRIMARY_BUTTON_LEGACY
 
     def get_overlay_style(self):
         return OVERLAY_STYLE
@@ -659,7 +578,7 @@ QWidget {{
         return STATUS_STYLE
 
     def get_minimize_button(self):
-        return MINIMIZE_BUTTON
+        return MINIMIZE_BUTTON_LEGACY
 
     def get_maximize_button(self):
         return MAXIMIZE_BUTTON

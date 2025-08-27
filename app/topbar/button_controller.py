@@ -18,36 +18,37 @@ class ButtonController(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setAlignment(Qt.AlignRight)
 
-        # 控制 history 面板显示/隐藏的按钮
+        # 控制 history 面板显示/隐藏的按钮 - 使用样式常量
+        from app.preference.style_constants import NEUTRAL_300, SPACING_XS
         self.history_btn = QToolButton()
         self.history_btn.setIcon(QIcon(get_icon_path('sidebar')))
         self.history_btn.setToolTip('显示/隐藏历史面板')
         self.history_btn.clicked.connect(self.toggle_history_panel)
-        self.history_btn.setStyleSheet('''
-            QToolButton {
+        self.history_btn.setStyleSheet(f'''
+            QToolButton {{
                 border: none;
-                padding: 2px;
-            }
-            QToolButton:hover {
-                background-color: #d0d0d0;
-            }
+                padding: {SPACING_XS}px;
+            }}
+            QToolButton:hover {{
+                background-color: {NEUTRAL_300};
+            }}
         ''')
         self.history_btn.setFixedSize(20, 20)  # 固定按钮大小
         layout.addWidget(self.history_btn)
 
-        # 控制 editor 编辑模式和预览模式的按钮
+        # 控制 editor 编辑模式和预览模式的按钮 - 使用样式常量
         self.mode_btn = QToolButton()
         self.mode_btn.setIcon(QIcon(get_icon_path('columns')))
         self.mode_btn.setToolTip('切换编辑/预览模式')
         self.mode_btn.clicked.connect(self.toggle_edit_mode)
-        self.mode_btn.setStyleSheet('''
-            QToolButton {
+        self.mode_btn.setStyleSheet(f'''
+            QToolButton {{
                 border: none;
-                padding: 2px;
-            }
-            QToolButton:hover {
-                background-color: #d0d0d0;
-            }
+                padding: {SPACING_XS}px;
+            }}
+            QToolButton:hover {{
+                background-color: {NEUTRAL_300};
+            }}
         ''')
         self.mode_btn.setFixedSize(20, 20)  # 固定按钮大小
         layout.addWidget(self.mode_btn)
@@ -59,23 +60,23 @@ class ButtonController(QWidget):
         # 修改为 InstantPopup 模式，点击整个按钮都会触发下拉菜单
         self.export_btn.setPopupMode(QToolButton.InstantPopup)
         
-        # 创建下拉菜单
+        # 创建下拉菜单 - 使用样式常量
+        from app.preference.style_constants import NEUTRAL_0, NEUTRAL_200, SPACING_XS, SPACING_XL
         export_menu = QMenu(self.export_btn)
-        # 可以继续保留之前设置的菜单样式
-        export_menu.setStyleSheet('''
-            QMenu {
-                border: 1px solid #d0d0d0;
-                background-color: white;
-                padding: 4px;
-                margin: 2px;
-            }
-            QMenu::item {
-                padding: 4px 24px 4px 24px;
+        export_menu.setStyleSheet(f'''
+            QMenu {{
+                border: 1px solid {NEUTRAL_200};
+                background-color: {NEUTRAL_0};
+                padding: {SPACING_XS}px;
+                margin: {SPACING_XS}px;
+            }}
+            QMenu::item {{
+                padding: {SPACING_XS}px {SPACING_XL}px {SPACING_XS}px {SPACING_XL}px;
                 margin: 0px;
-            }
-            QMenu::item:selected {
-                background-color: #d0d0d0;
-            }
+            }}
+            QMenu::item:selected {{
+                background-color: {NEUTRAL_200};
+            }}
         ''')
         formats = ['html', 'md', 'pdf', 'epub']
         for format in formats:
@@ -83,19 +84,19 @@ class ButtonController(QWidget):
             action.triggered.connect(lambda _, fmt=format: self.export_content(fmt))
         
         self.export_btn.setMenu(export_menu)
-        self.export_btn.setStyleSheet('''
-            QToolButton {
+        self.export_btn.setStyleSheet(f'''
+            QToolButton {{
                 border: none;
-                padding: 2px;
-                background: transparent; /* 显式设置背景为透明 */
-                selection-background-color: transparent; /* 设置选中背景为透明 */
-            }
-            QToolButton:hover {
-                background-color: #d0d0d0;
-            }
-            QToolButton::menu-indicator {
-                image: none; /* 移除菜单指示器可能产生的线条 */
-            }
+                padding: {SPACING_XS}px;
+                background: transparent;
+                selection-background-color: transparent;
+            }}
+            QToolButton:hover {{
+                background-color: {NEUTRAL_300};
+            }}
+            QToolButton::menu-indicator {{
+                image: none;
+            }}
         ''')
         self.export_btn.setFixedSize(20, 20)  # 固定按钮大小
         layout.addWidget(self.export_btn)

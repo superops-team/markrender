@@ -318,43 +318,9 @@ class QuickPickPanel(QWidget):
         """显示创建菜单"""
         menu = QMenu(self)
 
-        # 设置菜单样式 - 使用统一的设计系统
-        menu.setStyleSheet('''
-            QMenu {
-                background-color: white;
-                border: 1px solid #EBEEF2;
-                border-radius: 8px;
-                padding: 8px;
-                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
-            }
-            QMenu::item {
-                color: transparent;
-                padding: 0px;
-                margin: 2px;
-            }
-            QPushButton {
-                border: none;
-                border-radius: 8px;
-                background-color: transparent;
-                padding: 12px;
-                transition: all 0.2s ease;
-                min-width: 44px;
-                min-height: 44px;
-            }
-            QPushButton:hover {
-                background-color: #E8F4FD;
-                transform: translateY(-1px);
-                box-shadow: 0 2px 4px rgba(37, 145, 255, 0.15);
-            }
-            QPushButton:pressed {
-                background-color: #C3E2FB;
-                transform: translateY(0px);
-            }
-            QWidget {
-                background-color: transparent;
-                border: none;
-            }
-        ''')
+        # 使用统一的菜单样式生成器
+        from app.preference.style_utils import create_menu_style
+        menu.setStyleSheet(create_menu_style())
 
         # 创建一个容器widget用于放置按钮
         container = QWidget()
@@ -473,9 +439,9 @@ class QuickPickPanel(QWidget):
         # 设置按钮
         delete_btn = msg_box.addButton('删除', QMessageBox.AcceptRole)
 
-        # 设置删除按钮为红色
-        delete_btn.setStyleSheet(
-            'QPushButton { color: white; background-color: #ff4444; border-radius: 4px; padding: 5px 15px; } QPushButton:hover { background-color: #cc0000; }')
+        # 设置删除按钮样式 - 使用统一的样式生成器
+        from app.preference.style_utils import danger_button
+        delete_btn.setStyleSheet(danger_button())
 
         msg_box.exec_()
 
