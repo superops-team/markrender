@@ -1,8 +1,8 @@
 from PySide6.QtWidgets import (
     QVBoxLayout,
     QListWidget,
-    QListWidgetItem, 
-    QLineEdit, 
+    QListWidgetItem,
+    QLineEdit,
     QWidget,
     QInputDialog,
     QHBoxLayout,
@@ -59,70 +59,57 @@ class QuickPickPanel(QWidget):
 
     def init_ui(self):
         main_layout = QVBoxLayout()
-        # 设置主布局内容边距，上右下左均为5px
-        main_layout.setContentsMargins(5, 5, 5, 5)
-        
+        # 使用统一的间距系统，上右下左均为12px
+        main_layout.setContentsMargins(12, 12, 12, 12)
         # 创建搜索和新建按钮的水平布局
         search_layout = QHBoxLayout()
-        search_layout.setSpacing(5)
-        
+        search_layout.setSpacing(8)  # 使用统一的小间距
+        search_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)  # 垂直居中对齐
+
         # 创建美观的搜索框
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("搜索历史记录...")
-        self.search_input.setStyleSheet('''
-            QLineEdit {
-                border: 2px solid #ddd;
-                border-radius: 15px;
-                padding: 8px 15px;
-                font-size: 14px;
-            }
-            QLineEdit:hover {
-                border-color: #E6F6FF;
-                background-color: #F5F9FF;
-            }
-            QLineEdit:focus {
-                border-color: #2591FF;
-                background-color: white;
-                outline: none;
-            }
-        ''')
+        # 使用统一的样式系统
+        self.search_input.setStyleSheet(self.app_style.get_line_edit())
+        self.search_input.setMinimumHeight(40)  # 统一高度，改善对齐
+        self.search_input.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.search_input.textChanged.connect(self.filter_quickpick)
         self.search_input.returnPressed.connect(self.filter_quickpick)
-        
+
         # 创建新建按钮
         self.new_btn = QPushButton()
-        # 移除可选中状态
-        # self.new_btn.setCheckable(True)
         # 初始图标
         self.new_btn.setIcon(QIcon(get_icon_path("pencil-square", selected=False)))
         self.new_btn.setIconSize(QSize(20, 20))
+        # 设置固定尺寸，与搜索框对齐
+        self.new_btn.setFixedSize(40, 40)
         # 应用统一侧边栏按钮样式
         self.new_btn.setStyleSheet(self.app_style.get_sidebar_button_style())
         # 连接点击事件到显示菜单方法
         self.new_btn.clicked.connect(self.show_create_menu)
-        
+
         # 添加到水平布局
         search_layout.addWidget(self.search_input)
         search_layout.addWidget(self.new_btn)
-        
+
         # 添加到主布局
         main_layout.addLayout(search_layout)
-        
-        # 设置搜索框和历史列表之间的间距为5px
-        main_layout.setSpacing(5)
-        
+
+        # 设置搜索框和历史列表之间的间距为8px
+        main_layout.setSpacing(8)
+
         # 优化列表项选中样式，与全局风格保持一致
         self.quickpick_list.viewport().setMouseTracking(True)
         self.quickpick_list.setStyleSheet(self.app_style.get_quickpick_panel())
         main_layout.addWidget(self.quickpick_list)
-        # 设置布局后，添加样式表修改底色，这里以浅灰色为例
+        # 设置布局后，设置统一的背景色
         self.setLayout(main_layout)
 
-        # 设置控件边角样式，与搜索框保持一致，并设置白色背景
+        # 简化整体样式，与全局设计保持一致
         self.setStyleSheet('''
-            QWidget {
-                border: 2px solid #ddd;
+            QuickPickPanel {
                 background-color: white;
+                border: none;
             }
         ''')
 
@@ -162,7 +149,7 @@ class QuickPickPanel(QWidget):
                 if current_id == data['id']:
                     logger.debug(f"点击的是当前正在查看的历史记录项: {data['id']}，跳过处理")
                     return
-            
+
             # 存储待切换的项数据
             self.switch_pending = data
             # 在切换前保存当前 markdown 内容
@@ -235,7 +222,7 @@ class QuickPickPanel(QWidget):
                     # 处理Web通信返回的响应
                     content = response.get('content', '') if response else ''
                     handle_content(content)
-                
+
                 # 发送消息请求获取Markdown内容
                 self.parent.markdown_editor.web_comm.send_message('getMarkdown', {}, handle_web_response)
                 logger.debug("已发送获取Markdown内容的Web通信请求")
@@ -326,75 +313,81 @@ class QuickPickPanel(QWidget):
                 logger.warning(f'无法删除历史记录: {data}')
         except Exception as e:
             logger.error(f"删除历史记录失败: {e}")
-            
+
     def show_create_menu(self):
-        """显示创建菜单"""        
+        """显示创建菜单"""
         menu = QMenu(self)
-        
-        # 设置菜单样式 - 扁平化设计，减少边框和视觉噪点
-        menu.setStyleSheet(f"""
-            QMenu {{
-                background-color: {{self.app_style.get_background_color()}};
-                /*border: 1px solid {{self.app_style.get_border_color()}};*/
+
+        # 设置菜单样式 - 使用统一的设计系统
+        menu.setStyleSheet('''
+            QMenu {
+                background-color: white;
+                border: 1px solid #EBEEF2;
                 border-radius: 8px;
-                padding: 4px;
-                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            }}
-            QMenu::item {{
+                padding: 8px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+            }
+            QMenu::item {
                 color: transparent;
                 padding: 0px;
-            }}
-            QPushButton {{
+                margin: 2px;
+            }
+            QPushButton {
                 border: none;
-                border-radius: 6px;  # 按钮也设置圆角，与菜单风格一致
+                border-radius: 8px;
+                background-color: transparent;
+                padding: 12px;
                 transition: all 0.2s ease;
-            }}
-            QPushButton:hover {{
-                background-color: {{self.app_style.get_hover_color()}};
+                min-width: 44px;
+                min-height: 44px;
+            }
+            QPushButton:hover {
+                background-color: #E8F4FD;
                 transform: translateY(-1px);
-            }}
-            QPushButton:pressed {{
-                background-color: {{self.app_style.get_hover_color()}};
+                box-shadow: 0 2px 4px rgba(37, 145, 255, 0.15);
+            }
+            QPushButton:pressed {
+                background-color: #C3E2FB;
                 transform: translateY(0px);
-            }}
-            QWidget {{
+            }
+            QWidget {
                 background-color: transparent;
                 border: none;
-            }}
-        """)
-        
+            }
+        ''')
+
         # 创建一个容器widget用于放置按钮
         container = QWidget()
         h_layout = QHBoxLayout(container)
-        h_layout.setSpacing(4)  # 更紧凑的间距
-        h_layout.setContentsMargins(4, 4, 4, 4)  # 设置内边距
-        
+        h_layout.setSpacing(6)  # 提升亲密性，减少间距
+        h_layout.setContentsMargins(8, 8, 8, 8)  # 统一内边距
+
         # 创建Markdown按钮
         markdown_btn = QPushButton()
         markdown_btn.setIcon(QIcon(get_icon_path("textarea")))
-        markdown_btn.setIconSize(QSize(22, 22))  # 优化图标尺寸
+        markdown_btn.setIconSize(QSize(24, 24))  # 统一图标尺寸
         markdown_btn.setToolTip("创建笔记")  # 设置悬停提示
         markdown_btn.clicked.connect(self.create_new_markdown_item)
-        
+
         # 创建Board按钮
         board_btn = QPushButton()
         board_btn.setIcon(QIcon(get_icon_path("diagram")))
-        board_btn.setIconSize(QSize(22, 22))  # 优化图标尺寸
+        board_btn.setIconSize(QSize(24, 24))  # 统一图标尺寸
         board_btn.setToolTip("创建画布")  # 设置悬停提示
         board_btn.clicked.connect(self.create_new_board_item)
-        
+
         # 将按钮添加到水平布局
         h_layout.addWidget(markdown_btn)
         h_layout.addWidget(board_btn)
-        
+
         # 将容器添加到菜单中
         menu_action = QWidgetAction(menu)
         menu_action.setDefaultWidget(container)
         menu.addAction(menu_action)
-        
+
         # 在按钮下方显示菜单
         menu.exec(self.new_btn.mapToGlobal(self.new_btn.rect().bottomLeft()))
-        
+
     def create_new_markdown_item(self):
         """创建新的Markdown记录"""
         from utils import time_utils
@@ -415,7 +408,7 @@ class QuickPickPanel(QWidget):
         if self.quickpick_list.count() > 0:
             self.quickpick_list.setCurrentRow(0)
             self.on_item_clicked(self.quickpick_list.model().index(0, 0))
-            
+
     def create_new_board_item(self):
         """创建新的Board记录"""
         from utils import time_utils

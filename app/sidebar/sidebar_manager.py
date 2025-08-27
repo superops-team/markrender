@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (
     QSizePolicy,
 )
 from PySide6.QtGui import QIcon
-from PySide6.QtCore import QSize
+from PySide6.QtCore import QSize, Qt
 from .settings_dialog import SettingsDialog
 from utils import get_icon_path
 from db.markdown_manager import MarkdownManager
@@ -22,79 +22,60 @@ class SidebarManager(QWidget):
         self.parent = parent
         self.app_style = AppStyle()  # 添加样式实例
         self.init_ui()
-        # 设置侧边栏背景色
-        self.setStyleSheet('''
-            QWidget {
-                background-color: #fafafa;
-            }
-        ''')
+        # 设置侧边栏背景色和样式
+        self.setStyleSheet(self.app_style.get_sidebar())
 
     def init_ui(self):
         # 创建主布局
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        layout.setContentsMargins(6, 8, 6, 8)  # 水平6px，36px按钮无边框+12px边距=48px
+        layout.setSpacing(6)  # 按钮间距设置为6px符合设计规范
+        layout.setAlignment(Qt.AlignmentFlag.AlignHCenter)  # 设置水平居中对齐
 
-        # 创建顶部按钮组
+        # 创建首页按钮
         self.file_browse_btn = QPushButton()
         self.init_sidebar_button(
-            self.file_browse_btn, 
-            "home", 
+            self.file_browse_btn,
+            "home",
             self.on_file_browse_toggled
         )
-        
+
+        # 创建导入按钮
         self.import_btn = QPushButton()
         self.init_sidebar_button(
-            self.import_btn, 
-            "plus-square", 
+            self.import_btn,
+            "plus-square",
             self.on_import_toggled
         )
-        
-        # 假设在类中已经保存了 HistoryPanel 实例
+
+        # 连接事件
         if hasattr(self.parent, 'quickpick_panel'):
-            self.file_browse_btn.clicked.connect(
-                lambda: self.file_browse_btn.setChecked(True))
             self.file_browse_btn.clicked.connect(
                 self.parent.quickpick_panel.load_quickpick_items)
 
-        self.import_btn = QPushButton()
-        self.import_btn.setIcon(
-            QIcon(get_icon_path("plus-square")))  # 需替换为实际图标路径
-        self.import_btn.setIconSize(QSize(25, 25))
-        # 应用统一样式并移除flat属性
-        self.import_btn.setStyleSheet(AppStyle().get_sidebar_button_style())
-        # 设置按钮可选中
-        self.import_btn.setCheckable(True)
-        self.import_btn.clicked.connect(self.handle_import)
-
-        # 将顶部按钮添加到布局
-        layout.addWidget(self.file_browse_btn)
-        layout.addWidget(self.import_btn)
+        # 将顶部按钮添加到布局，使用居中对齐
+        layout.addWidget(self.file_browse_btn, 0, Qt.AlignmentFlag.AlignHCenter)
+        layout.addWidget(self.import_btn, 0, Qt.AlignmentFlag.AlignHCenter)
 
         # 添加弹性空间，使设置按钮位于底部
         layout.addSpacerItem(
             QSpacerItem(
                 20,
                 40,
-                QSizePolicy.Minimum,
-                QSizePolicy.Expanding))
+                QSizePolicy.Policy.Minimum,
+                QSizePolicy.Policy.Expanding))
 
         # 创建设置按钮
         self.settings_btn = QPushButton()
-        self.settings_btn.setIcon(
-            QIcon(get_icon_path("settings")))
-        self.settings_btn.setIconSize(QSize(25, 25))
-        # 应用统一样式并移除flat属性
-        self.settings_btn.setStyleSheet(AppStyle().get_sidebar_button_style())
-        # 设置按钮可选中
-        self.settings_btn.setCheckable(True)
+        self.init_sidebar_button(
+            self.settings_btn,
+            "settings",
+            lambda checked, icon_name: self.show_settings_dialog() if checked else None
+        )
+        layout.addWidget(self.settings_btn, 0, Qt.AlignmentFlag.AlignHCenter)
 
-        # 绑定点击事件
-        self.settings_btn.clicked.connect(self.show_settings_dialog)
-        layout.addWidget(self.settings_btn)
-
-        # 设置布局策略
-        self.setLayout(layout)
+        # 设置默认选中首页按钮
+        self.file_browse_btn.setChecked(True)
 
     def handle_import(self):
         self.import_btn.setChecked(True)
@@ -110,24 +91,28 @@ class SidebarManager(QWidget):
         self.settings_dialog.exec()
 
     def init_sidebar_button(self, button: QPushButton, icon_name: str, toggle_slot):
-        """初始化侧边栏按钮并设置图标切换"""
-        # 设置初始图标（默认状态）
-        button.setIcon(QIcon(get_icon_path(icon_name)))
-        button.setIconSize(QSize(25, 25))
+        """初始化侧边栏按钮并设置图标"""
+        # 统一使用普通状态的图标，通过CSS控制颜色
+        button.setIcon(QIcon(get_icon_path(icon_name, selected=False)))
+        button.setIconSize(QSize(20, 20))  # 调整图标尺寸为20x20px
+        button.setFixedSize(36, 36)  # 调整按钮尺寸为36x36px符合规范
         button.setStyleSheet(self.app_style.get_sidebar_button_style())
         button.setCheckable(True)
         button.toggled.connect(lambda checked: toggle_slot(checked, icon_name))
 
-    def update_button_icon(self, button: QPushButton, icon_name: str, is_selected: bool):
-        """更新按钮图标（直接切换预定义SVG）"""
-        button.setIcon(QIcon(get_icon_path(icon_name, selected=is_selected)))
-
     def on_file_browse_toggled(self, checked, icon_name="home"):
-        self.update_button_icon(self.file_browse_btn, icon_name, checked)
-        if checked and hasattr(self.parent, 'quickpick_panel'):
-            self.parent.quickpick_panel.load_quickpick_items()
+        """处理首页按钮切换"""
+        if checked:
+            # 取消其他按钮的选中状态
+            self.import_btn.setChecked(False)
+            self.settings_btn.setChecked(False)
+            if hasattr(self.parent, 'quickpick_panel'):
+                self.parent.quickpick_panel.load_quickpick_items()
 
     def on_import_toggled(self, checked, icon_name="plus-square"):
-        self.update_button_icon(self.import_btn, icon_name, checked)
+        """处理导入按钮切换"""
         if checked:
+            # 取消其他按钮的选中状态
+            self.file_browse_btn.setChecked(False)
+            self.settings_btn.setChecked(False)
             self.handle_import()

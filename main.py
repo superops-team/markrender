@@ -30,9 +30,9 @@ class MainWindow(QMainWindow):
     def showEvent(self, event):
         """窗口显示时根据窗口状态设置样式"""
         super().showEvent(event)
-        if not self.isMaximized(): 
+        if not self.isMaximized():
             self.setStyleSheet(AppStyle().get_main_style())
-        else: 
+        else:
             self.setStyleSheet(AppStyle().get_main_style_color())
 
     def toggle_maximize(self):
@@ -105,7 +105,7 @@ class MainWindow(QMainWindow):
         # 添加边框容器
         border_frame = QFrame()
         border_frame.setFixedHeight(1)
-        border_frame.setFixedWidth(45)
+        border_frame.setFixedWidth(50)
         border_frame.setStyleSheet("background-color: {};".format(AppStyle().get_line_color()))
         self.main_layout.addWidget(border_frame)
 
@@ -118,7 +118,7 @@ class MainWindow(QMainWindow):
         self.main_layout.setSpacing(0)
 
         self.main_layout.addWidget(title_bar)
-        
+
         # 修改为创建主分割器，使用 PySide6 原生的 QSplitter
         main_splitter = QSplitter(Qt.Horizontal)
         main_splitter.setStyleSheet(AppStyle().get_main_splitter())
@@ -128,7 +128,7 @@ class MainWindow(QMainWindow):
         right_splitter.setStyleSheet(AppStyle().get_right_splitter())
         # 隐藏分割条并禁用拖拽功能
         right_splitter.setHandleWidth(0)
-        
+
         right_splitter.addWidget(self.quickpick_panel)
         right_splitter.addWidget(self.markdown_editor)
         initial_right_sizes = [int(self.width() * 0.2), int(self.width() * 0.8)]
@@ -138,13 +138,13 @@ class MainWindow(QMainWindow):
         main_splitter.addWidget(self.sidebar)
         main_splitter.addWidget(right_splitter)
 
-        # 设置侧边栏宽度为 60，并禁止调整大小
-        main_splitter.setSizes([45, int(self.width() - 45)])
-        self.sidebar.setFixedWidth(45)
+        # 设置侧边栏宽度为 50，适配36px按钮+2px边框+12px边距
+        main_splitter.setSizes([50, int(self.width() - 50)])
+        self.sidebar.setFixedWidth(50)
 
         # 修改为使用 self.main_layout 添加组件
         self.main_layout.addWidget(main_splitter)
-        
+
         self.setCentralWidget(central_widget)
 
         # 连接历史列表项选中信号
