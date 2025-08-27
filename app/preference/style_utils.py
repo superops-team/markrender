@@ -295,3 +295,32 @@ def large_button():
 def ghost_button():
     """幽灵按钮快捷样式"""
     return create_button_style("ghost", "md")
+
+# 在文件末尾添加
+
+def create_toolbar_menu_style():
+    """创建工具栏菜单样式"""
+    return f"""
+    QMenu {{
+        background-color: {NEUTRAL_0};
+        border: 1px solid {NEUTRAL_200};
+        border-radius: {RADIUS_SM}px;
+        padding: 8px;
+        min-width: 140px;
+    }}
+    QMenu::item {{
+        color: {NEUTRAL_700};
+        padding: 10px 14px;
+        margin: 2px;
+        border-radius: {RADIUS_SM}px;
+        font-size: {FONT_SIZE_SM}px;
+        min-height: 24px;
+    }}
+    QMenu::item:selected {{
+        background-color: {PRIMARY_50};
+        color: {PRIMARY_700};
+    }}
+    QMenu::item:pressed {{
+        background-color: {PRIMARY_100};
+    }}
+    """
