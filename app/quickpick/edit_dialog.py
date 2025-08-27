@@ -1,6 +1,5 @@
 from PySide6.QtWidgets import (
     QDialog,
-    QTabWidget,
     QVBoxLayout,
     QWidget,
     QLabel,
@@ -9,7 +8,8 @@ from PySide6.QtWidgets import (
     QPushButton,
     QHBoxLayout,
     QSizePolicy,
-    QComboBox
+    QComboBox,
+    QFrame
 )
 from PySide6.QtCore import Qt
 from app.preference import AppStyle
@@ -28,6 +28,11 @@ class EditItemDialog(QDialog):
             self.tags = [tag.strip() for tag in tags_text.split(',') if tag.strip()]
         self.setWindowTitle(self.markdown_data.get('title', '查看详情'))
         self.setMinimumSize(640, 480)  # 稍微增大对话框尺寸
+        
+        # 设置窗口标志，尝试解决macOS上的圆角显示问题
+        from PySide6.QtCore import Qt
+        self.setWindowFlags(Qt.Dialog | Qt.WindowCloseButtonHint)
+        
         # 使用统一的样式生成器
         from app.preference.style_utils import create_dialog_style
         self.setStyleSheet(create_dialog_style())
@@ -35,28 +40,93 @@ class EditItemDialog(QDialog):
 
     def init_ui(self):
         layout = QVBoxLayout()
-        layout.setContentsMargins(20, 20, 20, 20)  # 增加内边距
+        layout.setContentsMargins(16, 16, 16, 16)  # 减少内边距，避免影响圆角显示
         layout.setSpacing(16)  # 统一间距
 
-        self.tab_widget = QTabWidget()
-        self.add_edit_tab()
-        self.add_detail_tab()
+        # 创建主内容区域，合并原来的编辑和属性内容
+        main_content = QWidget()
+        # 确保主内容区域无样式干扰，保持纯净背景
+        main_content.setStyleSheet("""
+            QWidget {
+                background-color: transparent;
+                border: none;
+                border-radius: 0px;
+            }
+        """)
+        main_layout = QVBoxLayout(main_content)
+        main_layout.setContentsMargins(24, 24, 24, 24)
+        main_layout.setSpacing(20)
 
-        # 优化保存按钮样式
+        # 添加编辑区域
+        self.add_edit_content(main_layout)
+        
+        # 添加分隔线
+        separator = QFrame()
+        separator.setFrameShape(QFrame.HLine)
+        separator.setFrameShadow(QFrame.Sunken)
+        from app.preference.style_constants import NEUTRAL_200
+        separator.setStyleSheet(f"border: 1px solid {NEUTRAL_200};")
+        main_layout.addWidget(separator)
+        
+        # 添加属性区域
+        self.add_detail_content(main_layout)
+
+        # 优化保存按钮样式 - 使用紧凑设计符合对话框设计规范
         save_button = QPushButton("保存设置")
-        save_button.setStyleSheet(self.app_style.get_confirm_button_style())
-        save_button.setMinimumHeight(44)  # 统一按钮高度
+        # 使用自定义样式覆盖默认的确认按钮样式，减少padding和高度
+        from app.preference.style_constants import (
+            PRIMARY_500, PRIMARY_600, PRIMARY_700, PRIMARY_900,
+            NEUTRAL_0, NEUTRAL_200, NEUTRAL_400,
+            RADIUS_SM, FONT_SIZE_MD, SPACING_SM, SPACING_MD
+        )
+        save_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {PRIMARY_500};
+                color: {NEUTRAL_0};
+                border: 1px solid {PRIMARY_600};
+                border-radius: {RADIUS_SM}px;
+                padding: {SPACING_SM}px {SPACING_MD}px;  /* 更紧凑的padding: 8px 12px */
+                font-size: {FONT_SIZE_MD}px;
+                font-weight: 600;
+                min-width: 80px;
+                min-height: 24px;  /* 更小的最小高度 */
+                max-height: 24px;  /* 限制最大高度 */
+                margin-bottom: 8px;  /* 增加底部边距，避免影响对话框圆角 */
+            }}
+            QPushButton:hover {{
+                background-color: {PRIMARY_600};
+                border-color: {PRIMARY_700};
+            }}
+            QPushButton:pressed {{
+                background-color: {PRIMARY_700};
+                border-color: {PRIMARY_900};
+            }}
+            QPushButton:disabled {{
+                background-color: {NEUTRAL_200};
+                color: {NEUTRAL_400};
+                border-color: {NEUTRAL_200};
+            }}
+        """)
+        save_button.setAutoDefault(False)  # 防止回车键触发保存，避免tag输入时对话框意外关闭
         save_button.clicked.connect(self.accept)
 
-        layout.addWidget(self.tab_widget)
+        layout.addWidget(main_content)
         layout.addWidget(save_button)
         self.setLayout(layout)
 
-    def add_edit_tab(self):
-        edit_tab = QWidget()
-        main_layout = QVBoxLayout(edit_tab)
-        main_layout.setContentsMargins(24, 24, 24, 24)  # 增加内边距
-        main_layout.setSpacing(20)  # 增加间距提升可读性
+    def add_edit_content(self, parent_layout):
+        """添加编辑内容区域"""
+        # 添加标题
+        title_label = QLabel("编辑信息")
+        from app.preference.style_constants import NEUTRAL_900, FONT_SIZE_LG
+        title_label.setStyleSheet(f"""
+            color: {NEUTRAL_900};
+            font-size: {FONT_SIZE_LG}px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        """)
+        parent_layout.addWidget(title_label)
+        
         form_layout = QFormLayout()
         form_layout.setContentsMargins(0, 0, 0, 0)
         form_layout.setSpacing(16)  # 统一间距
@@ -75,18 +145,19 @@ class EditItemDialog(QDialog):
         self.tag_add_edit.setMinimumWidth(500)
         self.tag_add_edit.setStyleSheet(self.app_style.get_line_edit())
         self.tag_add_edit.setPlaceholderText("按回车添加标签")
+        # 确保回车键只用于添加标签，不会触发对话框关闭
         self.tag_add_edit.returnPressed.connect(self._add_new_tag)
         form_layout.addRow(tags_label, self.tag_add_edit)
 
-        main_layout.addLayout(form_layout)
+        parent_layout.addLayout(form_layout)
 
-        # 优化标签容器样式 - 使用设计令牌
-        from app.preference.style_constants import NEUTRAL_200, RADIUS_MD, NEUTRAL_50, SPACING_MD
+        # 优化标签容器样式 - 移除圆角，保持视觉层次统一
+        from app.preference.style_constants import NEUTRAL_200, NEUTRAL_50, SPACING_MD
         self.tags_container = QWidget()
         self.tags_container.setStyleSheet(f'''
             QWidget {{
                 border: 1px solid {NEUTRAL_200};
-                border-radius: {RADIUS_MD}px;
+                border-radius: 0px;  /* 移除圆角，与对话框整体设计保持一致 */
                 background-color: {NEUTRAL_50};
                 padding: {SPACING_MD}px;
             }}
@@ -104,8 +175,7 @@ class EditItemDialog(QDialog):
         self._refresh_tags()  # Initialize tags display
 
         self.tags_vertical_layout.addStretch(1)
-        main_layout.addWidget(self.tags_container)
-        self.tab_widget.addTab(edit_tab, "编辑")
+        parent_layout.addWidget(self.tags_container)
 
     def _create_new_row(self):
         new_layout = QHBoxLayout()
@@ -144,12 +214,12 @@ class EditItemDialog(QDialog):
         container = QWidget()
         container.setMinimumHeight(36)  # 统一高度
         container.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
-        # 使用统一的设计令牌系统
-        from app.preference.style_constants import PRIMARY_500, PRIMARY_600, SPACING_LG, SPACING_SM
+        # 使用青色系作为用户添加的标签，与列表页面markdown的绿色区分
+        from app.preference.style_constants import INFO_500, INFO_600, SPACING_LG, SPACING_SM
         container.setStyleSheet(f'''
             QWidget {{
-                background-color: {PRIMARY_500};
-                border: 1px solid {PRIMARY_600};
+                background-color: {INFO_500};
+                border: 1px solid {INFO_600};
                 border-radius: 18px;
             }}
         ''')
@@ -196,6 +266,52 @@ class EditItemDialog(QDialog):
 
         # 计算容器宽度
         text_width = tag_label.fontMetrics().boundingRect(tag).width() + 60  # 增加宽度
+        container.setMinimumWidth(text_width)
+
+        return container
+
+    def _make_page_type_widget(self, page_type):
+        """创建文件类型标签，使用与列表页面一致的颜色映射"""
+        container = QWidget()
+        container.setMinimumHeight(36)  # 统一高度
+        container.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        
+        # 导入列表页面的颜色映射，确保一致性
+        from app.quickpick.item import QuickPickItemDelegate
+        delegate = QuickPickItemDelegate()
+        type_color = delegate.tag_color_map.get(page_type.lower(), delegate.default_color)
+        
+        # 将QColor转换为CSS颜色字符串
+        bg_color = f'rgb({type_color.red()}, {type_color.green()}, {type_color.blue()})'
+        # 创建稍深的边框颜色（降低亮度）
+        border_color = f'rgb({max(0, type_color.red()-20)}, {max(0, type_color.green()-20)}, {max(0, type_color.blue()-20)})'
+        
+        container.setStyleSheet(f'''
+            QWidget {{
+                background-color: {bg_color};
+                border: 1px solid {border_color};
+                border-radius: 18px;
+            }}
+        ''')
+
+        layout = QHBoxLayout(container)
+        layout.setContentsMargins(16, 8, 16, 8)  # 对称内边距，无删除按钮
+        layout.setSpacing(8)
+
+        type_label = QLabel(page_type.upper())  # 大写显示文件类型
+        type_label.setStyleSheet('''
+            color: white;
+            background-color: transparent;
+            border: none;
+            padding: 0px;
+            font-weight: 600;
+            font-size: 12px;
+        ''')
+        type_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(type_label, 1)
+
+        # 计算容器宽度
+        text_width = type_label.fontMetrics().boundingRect(page_type.upper()).width() + 32
         container.setMinimumWidth(text_width)
 
         return container
@@ -261,19 +377,40 @@ class EditItemDialog(QDialog):
             self._refresh_tags()  # Re-render all tags to ensure consistency
 
     def _add_new_tag(self):
-        """Handle adding a new tag"""
-        tag_text = self.tag_add_edit.text().strip()
-        if tag_text and tag_text not in self.tags:
-            self.tags.append(tag_text)
-            self._refresh_tags()  # Re-render all tags
+        """处理添加新标签，确保不会意外关闭对话框"""
+        try:
+            tag_text = self.tag_add_edit.text().strip()
+            if tag_text and tag_text not in self.tags:
+                self.tags.append(tag_text)
+                self._refresh_tags()  # Re-render all tags
+                self.tag_add_edit.clear()
+                # 确保焦点保持在输入框上，方便继续添加标签
+                self.tag_add_edit.setFocus()
+            elif tag_text in self.tags:
+                # 如果标签已存在，清空输入框并显示提示
+                self.tag_add_edit.clear()
+                self.tag_add_edit.setPlaceholderText("标签已存在，请输入其他标签")
+                # 2秒后恢复原始提示
+                from PySide6.QtCore import QTimer
+                QTimer.singleShot(2000, lambda: self.tag_add_edit.setPlaceholderText("按回车添加标签"))
+        except Exception as e:
+            # 在发生错误时不应该关闭对话框
+            print(f"添加标签时发生错误: {e}")
             self.tag_add_edit.clear()
 
-    def add_detail_tab(self):
-        editor_tab = QWidget()
-        main_layout = QVBoxLayout(editor_tab)
-        main_layout.setContentsMargins(24, 24, 24, 24)
-        main_layout.setSpacing(20)
-
+    def add_detail_content(self, parent_layout):
+        """添加详细信息区域"""
+        # 添加标题
+        detail_title = QLabel("文件属性")
+        from app.preference.style_constants import NEUTRAL_900, FONT_SIZE_LG
+        detail_title.setStyleSheet(f"""
+            color: {NEUTRAL_900};
+            font-size: {FONT_SIZE_LG}px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        """)
+        parent_layout.addWidget(detail_title)
+        
         form_layout = QFormLayout()
         form_layout.setSpacing(16)
         form_layout.setLabelAlignment(Qt.AlignTop)
@@ -282,7 +419,7 @@ class EditItemDialog(QDialog):
         page_type = self.markdown_data.get('page_type', 'markdown')
         if not page_type:
             page_type = 'markdown'
-        page_type_label = self._make_tag_widget(page_type, False)
+        page_type_label = self._make_page_type_widget(page_type)  # 使用专门的橙色样式
         page_type_layout = QHBoxLayout()
         page_type_layout.addWidget(page_type_label)
         page_type_layout.addStretch()  # 添加弹性空间
@@ -320,10 +457,8 @@ class EditItemDialog(QDialog):
         content_md5_label = self._make_info_label(content_md5)
         form_layout.addRow(self._make_label("MD5值："), content_md5_label)
 
-        main_layout.addLayout(form_layout)
-        main_layout.addStretch()  # 添加弹性空间
-        editor_tab.setLayout(main_layout)
-        self.tab_widget.addTab(editor_tab, "属性")
+        parent_layout.addLayout(form_layout)
+        parent_layout.addStretch()  # 添加弹性空间
 
     def get_new_title(self):
         return self.title_edit.text()
@@ -331,54 +466,4 @@ class EditItemDialog(QDialog):
     def get_new_tags(self):
         return ','.join(self.tags)
 
-    def add_detail_tab(self):
-        editor_tab = QWidget()
-        main_layout = QVBoxLayout(editor_tab)
-        main_layout.setContentsMargins(24, 24, 24, 24)
-        main_layout.setSpacing(20)
 
-        form_layout = QFormLayout()
-        form_layout.setSpacing(16)
-        form_layout.setLabelAlignment(Qt.AlignTop)
-
-        # 文件类型显示
-        page_type = self.markdown_data.get('page_type', 'markdown')
-        if not page_type:
-            page_type = 'markdown'
-        page_type_label = self._make_tag_widget(page_type, False)
-        page_type_layout = QHBoxLayout()
-        page_type_layout.addWidget(page_type_label)
-        page_type_layout.addStretch()  # 添加弹性空间
-        form_layout.addRow(self._make_label("文件类型："), page_type_layout)
-
-        # 创建时间
-        create_time = self.markdown_data.get('created_at', '')
-        if create_time:
-            create_time = create_time.strftime('%Y-%m-%d %H:%M:%S')
-        create_time_label = self._make_info_label(create_time)
-        form_layout.addRow(self._make_label("创建时间："), create_time_label)
-
-        # 更新时间
-        update_time = self.markdown_data.get('updated_at', '')
-        if update_time:
-            update_time = update_time.strftime('%Y-%m-%d %H:%M:%S')
-        update_time_label = self._make_info_label(update_time)
-        form_layout.addRow(self._make_label("更新时间："), update_time_label)
-
-        # 文件大小
-        file_size = self.markdown_data.get('file_size', '')
-        if file_size:
-            file_size = f"{file_size:,} bytes"  # 添加千位分隔符
-        else:
-            file_size = "0 bytes"
-        file_size_label = self._make_info_label(file_size)
-        form_layout.addRow(self._make_label("文件大小："), file_size_label)
-
-        # MD5值
-        content_md5 = self.markdown_data.get('content_md5', '')
-        if content_md5:
-            content_md5 = f"{content_md5}"
-        else:
-            content_md5 = "未计算"
-        content_md5_label = self._make_info_label(content_md5)
-        form_layout.addRow(self._make_label("MD5值："), content_md5_label)

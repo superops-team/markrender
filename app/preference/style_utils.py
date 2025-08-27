@@ -193,33 +193,12 @@ def create_dialog_style():
     return f"""
     QDialog {{
         background-color: {NEUTRAL_0};
+        border: 1px solid {NEUTRAL_200};
         border-radius: {RADIUS_LG}px;
-        border: 1px solid {NEUTRAL_200};
-    }}
-    QTabWidget::pane {{
-        border: 1px solid {NEUTRAL_200};
-        border-radius: {RADIUS_MD}px;
-        background-color: {NEUTRAL_0};
-    }}
-    QTabBar::tab {{
-        background-color: transparent;
-        color: {NEUTRAL_600};
-        padding: {SPACING_SM}px {SPACING_LG}px;
-        margin-right: {SPACING_XS}px;
-        border-top-left-radius: {RADIUS_SM}px;
-        border-top-right-radius: {RADIUS_SM}px;
-        border: 1px solid transparent;
-    }}
-    QTabBar::tab:selected {{
-        color: {PRIMARY_500};
-        background-color: {NEUTRAL_0};
-        border: 1px solid {NEUTRAL_200};
-        border-bottom: 1px solid {NEUTRAL_0};
-        font-weight: 600;
-    }}
-    QTabBar::tab:hover {{
-        background-color: {PRIMARY_50};
-        color: {PRIMARY_600};
+        border-top-left-radius: {RADIUS_LG}px;
+        border-top-right-radius: {RADIUS_LG}px;
+        border-bottom-left-radius: {RADIUS_LG}px;
+        border-bottom-right-radius: {RADIUS_LG}px;
     }}
     """
 
