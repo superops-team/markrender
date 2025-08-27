@@ -12,6 +12,17 @@ from utils.path import get_icon_path
 from utils.time_utils import get_readable_time, format_datetime
 
 
+# 首先添加必要的导入
+from app.preference.style_constants import (
+    NEUTRAL_600, NEUTRAL_500, NEUTRAL_900, 
+    NEUTRAL_200,  # 确保单独列出NEUTRAL_200
+    PRIMARY_50, PRIMARY_100, PRIMARY_300, PRIMARY_700, PRIMARY_600,
+    SPACING_XS, SPACING_SM, SPACING_MD, SPACING_LG,
+    RADIUS_SM, RADIUS_MD,
+    FONT_SIZE_XS, FONT_SIZE_SM, FONT_SIZE_MD
+)
+
+
 class QuickPickItemDelegate(QStyledItemDelegate):
     # 使用统一的设计令牌系统定义tag颜色映射表
     tag_color_map = {
@@ -77,15 +88,15 @@ class QuickPickItemDelegate(QStyledItemDelegate):
     def paint(self, painter: QPainter, option: QStyleOptionViewItem, index):
         painter.save()
 
-        # 改善选中和悬停状态的对比度
+        # 改善选中和悬停状态的对比度 - 对齐和对比度优化
         if option.state & QStyle.State_Selected:
-            painter.setBrush(QColor(195, 226, 251))  # 更明显的选中背景
+            painter.setBrush(QColor(PRIMARY_100))  # 更明显的选中背景，增强对比度
             painter.setPen(Qt.NoPen)
-            painter.drawRoundedRect(option.rect.adjusted(4, 2, -4, -2), 8, 8)  # 圆角矩形
+            painter.drawRoundedRect(option.rect.adjusted(SPACING_SM, SPACING_XS, -SPACING_SM, -SPACING_XS), RADIUS_MD, RADIUS_MD)  # 使用统一圆角
         elif option.state & QStyle.State_MouseOver:
-            painter.setBrush(QColor(232, 244, 253))  # 浅蓝色悬停背景
+            painter.setBrush(QColor(PRIMARY_50))  # 浅蓝色悬停背景
             painter.setPen(Qt.NoPen)
-            painter.drawRoundedRect(option.rect.adjusted(4, 2, -4, -2), 8, 8)
+            painter.drawRoundedRect(option.rect.adjusted(SPACING_SM, SPACING_XS, -SPACING_SM, -SPACING_XS), RADIUS_MD, RADIUS_MD)
         else:
             painter.setPen(Qt.NoPen)
 
@@ -102,43 +113,43 @@ class QuickPickItemDelegate(QStyledItemDelegate):
             # 只显示时间，不显示"创建时间："前缀
             preview = item_created_at
 
-            # 优化边距和布局
-            margin = 16  # 增加边距提升可读性
+            # 优化边距和布局 - 使用统一间距
+            margin = SPACING_LG  # 增加边距提升可读性
             text_rect = option.rect.adjusted(margin, margin, -margin, -margin)
 
             # 获取文件类型对应的颜色
             tag_color = self.tag_color_map.get(page_type.lower(), self.default_color)
 
-            # 优化图标尺寸和位置
+            # 优化图标尺寸和位置 - 对齐优化
             icon_size = 18  # 稍微增大图标
             tag_width = icon_size + 10
             tag_height = icon_size + 10
             tag_x = text_rect.x()
             tag_y = text_rect.y() + 2
 
-            # 绘制更美观的标签背景
+            # 绘制更美观的标签背景 - 重复原则（使用统一圆角）
             painter.setBrush(tag_color)
             painter.setPen(Qt.NoPen)
-            painter.drawRoundedRect(tag_x, tag_y, tag_width, tag_height, 6, 6)  # 圆角半径增大
+            painter.drawRoundedRect(tag_x, tag_y, tag_width, tag_height, RADIUS_SM, RADIUS_SM)  # 统一圆角半径
             # 获取并绘制图标
             icon = self._get_icon_for_file_type(page_type)
-            # 图标在圆角矩形中的位置，居中显示
+            # 图标在圆角矩形中的位置，居中显示 - 对齐优化
             icon_x = tag_x + (tag_width - icon_size) // 2
             icon_y = tag_y + (tag_height - icon_size) // 2
             painter.drawPixmap(icon_x, icon_y, icon.pixmap(icon_size, icon_size))
 
-            # 调整标题的起始位置，避免和标签重叠
-            text_rect = text_rect.adjusted(tag_width + 12, 0, 0, 0)  # 增加间距
+            # 调整标题的起始位置，避免和标签重叠 - 亲密性优化
+            text_rect = text_rect.adjusted(tag_width + SPACING_MD, 0, 0, 0)  # 使用统一间距
 
-            # 绘制标题 - 优化字体和颜色
+            # 绘制标题 - 优化字体和颜色 - 对比度优化
             title_font = QFont()
             title_font.setBold(True)
-            title_font.setPointSize(14)  # 调整字体大小保证内容显示
+            title_font.setPointSize(FONT_SIZE_MD)  # 使用统一字体大小
             painter.setFont(title_font)
             if option.state & QStyle.State_Selected:
-                painter.setPen(QColor(26, 107, 209))  # 更深的蓝色
+                painter.setPen(QColor(PRIMARY_700))  # 更深的蓝色，增强对比度
             else:
-                painter.setPen(QColor(28, 30, 33))  # 深灰色文本
+                painter.setPen(QColor(NEUTRAL_900))  # 深灰色文本，增强对比度
 
             # 计算标题可用宽度，保留时间显示空间
             available_width = text_rect.width() - 120  # 保留120px给时间显示
@@ -150,22 +161,22 @@ class QuickPickItemDelegate(QStyledItemDelegate):
 
             # 绘制修改时间 - 优化亲密性
             time_font = QFont()
-            time_font.setPointSize(10)  # 调整字体大小
+            time_font.setPointSize(FONT_SIZE_XS)  # 使用统一字体大小
             painter.setFont(time_font)
             if option.state & QStyle.State_Selected:
-                painter.setPen(QColor(30, 113, 185))  # 选中状态蓝色
+                painter.setPen(QColor(PRIMARY_600))  # 选中状态蓝色，增强对比度
             else:
-                painter.setPen(QColor(141, 148, 153))  # 中性灰色
-            time_x = text_rect.x() + title_width + 12  # 调整间距
+                painter.setPen(QColor(NEUTRAL_500))  # 中性灰色
+            time_x = text_rect.x() + title_width + SPACING_SM  # 使用统一间距
             painter.drawText(time_x, title_y, formatted_time)
 
             # 绘制预览 - 优化布局和颜色，确保文本完整显示
             preview_font = QFont()
-            preview_font.setPointSize(11)  # 增大字体尺寸从10px到11px
+            preview_font.setPointSize(FONT_SIZE_SM)  # 使用统一字体大小
             if option.state & QStyle.State_Selected:
-                painter.setPen(QColor(105, 112, 119))  # 选中状态的辅助文本
+                painter.setPen(QColor(NEUTRAL_600))  # 选中状态的辅助文本，增强对比度
             else:
-                painter.setPen(QColor(141, 148, 153))  # 辅助文本颜色
+                painter.setPen(QColor(NEUTRAL_500))  # 辅助文本颜色
             painter.setFont(preview_font)
 
             # 计算预览文本可用宽度，避免被删除按钮遮挡
@@ -173,16 +184,16 @@ class QuickPickItemDelegate(QStyledItemDelegate):
             preview_metrics = painter.fontMetrics()
             elided_preview = preview_metrics.elidedText(preview, Qt.TextElideMode.ElideRight, preview_available_width)
 
-            # 修正预览文本的Y坐标位置，确保完整显示
+            # 修正预览文本的Y坐标位置，确保完整显示 - 对齐优化
             preview_y = text_rect.y() + 38  # 增加Y偏移量，从标题下方留出足够空间
 
             # 在标题下方、时间左侧添加page_type标签
             type_label_font = QFont()
-            type_label_font.setPointSize(9)  # 小字体
+            type_label_font.setPointSize(FONT_SIZE_XS)  # 使用统一字体大小
             type_label_font.setBold(True)
             painter.setFont(type_label_font)
             if option.state & QStyle.State_Selected:
-                painter.setPen(QColor(105, 112, 119))  # 选中状态的辅助文本颜色
+                painter.setPen(QColor(NEUTRAL_600))  # 选中状态的辅助文本颜色
             else:
                 painter.setPen(tag_color)  # 使用与图标相同的颜色
 
@@ -193,13 +204,13 @@ class QuickPickItemDelegate(QStyledItemDelegate):
             # 绘制page_type标签
             painter.drawText(text_rect.x(), preview_y, page_type.upper())
 
-            # 调整时间显示位置，在page_type标签右侧
-            time_x_offset = type_text_width + 12  # page_type标签宽度 + 12px间距
+            # 调整时间显示位置，在page_type标签右侧 - 亲密性优化
+            time_x_offset = type_text_width + SPACING_SM  # page_type标签宽度 + 统一间距
             painter.setFont(preview_font)  # 恢复预览文本字体
             if option.state & QStyle.State_Selected:
-                painter.setPen(QColor(105, 112, 119))  # 选中状态的辅助文本
+                painter.setPen(QColor(NEUTRAL_600))  # 选中状态的辅助文本
             else:
-                painter.setPen(QColor(141, 148, 153))  # 辅助文本颜色
+                painter.setPen(QColor(NEUTRAL_500))  # 辅助文本颜色
 
             painter.drawText(text_rect.x() + time_x_offset, preview_y, preview)
 
@@ -207,7 +218,7 @@ class QuickPickItemDelegate(QStyledItemDelegate):
             if option.state & QStyle.State_MouseOver:
                 button_width = 24  # 稍微增大按钮
                 button_height = 24
-                button_x = option.rect.right() - button_width - 16  # 增加边距
+                button_x = option.rect.right() - button_width - SPACING_LG  # 使用统一间距
                 button_y = option.rect.top() + (option.rect.height() - button_height) // 2
                 # 扩大点击区域，四周各增加 8 像素
                 padding = 8
@@ -227,13 +238,14 @@ class QuickPickItemDelegate(QStyledItemDelegate):
                 # 非悬停状态清除存储的删除按钮区域
                 index.model().setData(index, None, Qt.UserRole + 1)
 
-        # 绘制分割线 - 优化样式
+        # 在paint方法中使用时也确保正确引用
+        # 绘制分割线 - 优化样式 - 对齐优化
         if option.state & QStyle.State_Selected:
-            painter.setPen(QPen(QColor(161, 210, 248), 1))  # 选中状态使用浅蓝色
+            painter.setPen(QPen(QColor(PRIMARY_300), 1))  # 选中状态使用浅蓝色，增强对比度
         else:
-            painter.setPen(QPen(QColor(235, 238, 242), 1))  # 非选中状态使用浅灰色
+            painter.setPen(QPen(QColor(NEUTRAL_200), 1))  # 非选中状态使用浅灰色
         line_y = option.rect.bottom() - 1
-        margin = 16  # 使用统一的边距
+        margin = SPACING_LG  # 使用统一的边距
         painter.drawLine(option.rect.left() + margin, line_y, option.rect.right() - margin, line_y)
 
         painter.restore()
