@@ -39,7 +39,7 @@ class MacOSButton(QPushButton):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
-        
+
         path = QPainterPath()
         path.addEllipse(self.rect())
         painter.fillPath(path, self._get_button_color())

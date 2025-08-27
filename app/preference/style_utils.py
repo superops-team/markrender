@@ -16,31 +16,53 @@ def create_menu_style():
     QMenu {{
         background-color: {NEUTRAL_0};
         border: 1px solid {NEUTRAL_200};
-        border-radius: {RADIUS_MD}px;
-        padding: {SPACING_SM}px;
+        border-radius: {RADIUS_SM}px;
+        padding: {SPACING_XS}px;
+        min-width: 80px;
     }}
     QMenu::item {{
-        color: transparent;
-        padding: 0px;
-        margin: {SPACING_XS}px;
+        color: {NEUTRAL_700};
+        padding: {SPACING_XS}px {SPACING_SM}px;
+        margin: 1px;
+        border-radius: {RADIUS_SM}px;
+        font-size: {FONT_SIZE_SM}px;
+    }}
+    QMenu::item:selected {{
+        background-color: {PRIMARY_50};
+        color: {PRIMARY_700};
+    }}
+    QMenu::item:pressed {{
+        background-color: {PRIMARY_100};
     }}
     QPushButton {{
         border: none;
-        border-radius: {RADIUS_MD}px;
+        border-radius: {RADIUS_SM}px;
         background-color: transparent;
-        padding: {SPACING_MD}px;
-        min-width: {BUTTON_HEIGHT_LG}px;
-        min-height: {BUTTON_HEIGHT_LG}px;
+        color: {NEUTRAL_700};
+        padding: {SPACING_XS}px;
+        min-width: 32px;
+        min-height: 32px;
+        max-width: 40px;
+        max-height: 40px;
+        font-size: {FONT_SIZE_SM}px;
     }}
     QPushButton:hover {{
         background-color: {PRIMARY_50};
+        color: {PRIMARY_700};
     }}
     QPushButton:pressed {{
         background-color: {PRIMARY_100};
     }}
     QWidget {{
-        background-color: transparent;
+        background-color: {NEUTRAL_0};
         border: none;
+    }}
+    QLabel {{
+        color: {NEUTRAL_600};
+        font-size: 10px;
+        font-weight: 500;
+        padding: 1px;
+        margin: 0px;
     }}
     """
 
@@ -84,7 +106,7 @@ def create_button_style(button_type="primary", size="md"):
         "secondary": {
             "bg": NEUTRAL_0,
             "color": NEUTRAL_700,
-            "border": NEUTRAL_300,
+    
             "hover_bg": NEUTRAL_50,
             "hover_border": NEUTRAL_400,
             "pressed_bg": NEUTRAL_100,

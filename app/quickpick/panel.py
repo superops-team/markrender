@@ -14,7 +14,8 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QAbstractItemView,
     QMenu,
-    QWidgetAction
+    QWidgetAction,
+    QLabel
 )
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import Signal, QSize, Qt
@@ -325,26 +326,59 @@ class QuickPickPanel(QWidget):
         # 创建一个容器widget用于放置按钮
         container = QWidget()
         h_layout = QHBoxLayout(container)
-        h_layout.setSpacing(6)  # 提升亲密性，减少间距
-        h_layout.setContentsMargins(8, 8, 8, 8)  # 统一内边距
+        h_layout.setSpacing(4)  # 紧密间距
+        h_layout.setContentsMargins(6, 4, 6, 4)  # 精简内边距
 
-        # 创建Markdown按钮
+        # 导入需要的样式常量
+        from app.preference.style_constants import NEUTRAL_600, FONT_SIZE_XS
+
+        # 创建 Markdown 按钮组合（紧凑设计）
+        markdown_container = QWidget()
+        markdown_container.setFixedSize(36, 48)  # 固定小尺寸
+        markdown_layout = QVBoxLayout(markdown_container)
+        markdown_layout.setSpacing(2)  # 最小间距
+        markdown_layout.setContentsMargins(0, 0, 0, 0)
+        
         markdown_btn = QPushButton()
         markdown_btn.setIcon(QIcon(get_icon_path("textarea")))
-        markdown_btn.setIconSize(QSize(24, 24))  # 统一图标尺寸
-        markdown_btn.setToolTip("创建笔记")  # 设置悬停提示
+        markdown_btn.setIconSize(QSize(20, 20))  # 紧凑图标尺寸
+        markdown_btn.setFixedSize(32, 32)  # 固定按钮尺寸
+        markdown_btn.setToolTip("创建笔记")
         markdown_btn.clicked.connect(self.create_new_markdown_item)
+        
+        # 创建紧凑的 Markdown 标签
+        markdown_label = QLabel("笔记")
+        markdown_label.setAlignment(Qt.AlignCenter)
+        markdown_label.setFixedHeight(12)  # 固定标签高度
+        
+        markdown_layout.addWidget(markdown_btn, 0, Qt.AlignCenter)
+        markdown_layout.addWidget(markdown_label, 0, Qt.AlignCenter)
 
-        # 创建Board按钮
+        # 创建 Board 按钮组合（紧凑设计）
+        board_container = QWidget()
+        board_container.setFixedSize(36, 48)  # 固定小尺寸
+        board_layout = QVBoxLayout(board_container)
+        board_layout.setSpacing(2)  # 最小间距
+        board_layout.setContentsMargins(0, 0, 0, 0)
+        
         board_btn = QPushButton()
         board_btn.setIcon(QIcon(get_icon_path("diagram")))
-        board_btn.setIconSize(QSize(24, 24))  # 统一图标尺寸
-        board_btn.setToolTip("创建画布")  # 设置悬停提示
+        board_btn.setIconSize(QSize(20, 20))  # 紧凑图标尺寸
+        board_btn.setFixedSize(32, 32)  # 固定按钮尺寸
+        board_btn.setToolTip("创建画布")
         board_btn.clicked.connect(self.create_new_board_item)
+        
+        # 创建紧凑的 Board 标签
+        board_label = QLabel("画布")
+        board_label.setAlignment(Qt.AlignCenter)
+        board_label.setFixedHeight(12)  # 固定标签高度
+        
+        board_layout.addWidget(board_btn, 0, Qt.AlignCenter)
+        board_layout.addWidget(board_label, 0, Qt.AlignCenter)
 
-        # 将按钮添加到水平布局
-        h_layout.addWidget(markdown_btn)
-        h_layout.addWidget(board_btn)
+        # 将按钮组合添加到水平布局
+        h_layout.addWidget(markdown_container)
+        h_layout.addWidget(board_container)
 
         # 将容器添加到菜单中
         menu_action = QWidgetAction(menu)
