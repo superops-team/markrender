@@ -106,7 +106,7 @@ def create_button_style(button_type="primary", size="md"):
         "secondary": {
             "bg": NEUTRAL_0,
             "color": NEUTRAL_700,
-    
+            "border": NEUTRAL_300,  # 添加缺失的border键
             "hover_bg": NEUTRAL_50,
             "hover_border": NEUTRAL_400,
             "pressed_bg": NEUTRAL_100,
