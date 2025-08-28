@@ -177,13 +177,46 @@ class MainWindow(QMainWindow):
         if self.current_file:
             self.quickpick_panel.select_quickpick_item(self.current_file)
 
+    def _on_editor_close_ready(self):
+        """当编辑器准备好关闭时的处理"""
+        logger.info("接收到编辑器关闭准备信号，开始关闭主窗口")
+        # 由主窗口统一控制关闭流程，确保原子性
+        self.close()
+
     def closeEvent(self, event):
         """在窗口关闭前保存未保存的笔记并清理线程"""
         try:
-            # 调用编辑器的关闭事件处理线程
-            self.markdown_editor.closeEvent(event)
+            # 快速检查编辑器状态
+            if (hasattr(self, 'markdown_editor') and self.markdown_editor and
+                not getattr(self.markdown_editor, '_close_ready', False)):
+                
+                logger.debug("主窗口关闭: 检查编辑器状态")
+                
+                # 传递一个临时事件给编辑器
+                from PySide6.QtCore import QEvent
+                temp_event = QEvent(QEvent.Type.Close)
+                
+                # 调用编辑器的关闭事件处理
+                self.markdown_editor.closeEvent(temp_event)
+                
+                # 如果编辑器需要等待保存，则等待完成
+                if not temp_event.isAccepted():
+                    logger.debug("编辑器正在保存，主窗口等待...")
+                    event.ignore()
+                    return
+                    
+            logger.debug("主窗口正常关闭")
+            # 所有准备工作完成，接受关闭事件
+            event.accept()
+            
+        except Exception as e:
+            logger.error(f"主窗口关闭时出错: {e}")
+            # 出错时也接受关闭事件，避免无法退出
+            event.accept()
         except Exception as e:
             logger.error(f"退出前保存笔记失败: {str(e)}")
+            # 即使出错也要允许关闭，避免应用卡死
+            
         # 调用父类的关闭事件处理
         super().closeEvent(event)
 

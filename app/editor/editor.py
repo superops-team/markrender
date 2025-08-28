@@ -36,6 +36,9 @@ class MarkdownDocument(QObject):
         if not self._suppress_change_notification:
             self._text = text
             self._debounce_timer.start(self._debounce_interval)
+            # 通知编辑器有内容变化
+            if hasattr(self, 'parent') and self.parent and hasattr(self.parent(), 'on_document_modified'):
+                self.parent().on_document_modified(text, source="user")
 
     def _emit_delayed_change(self):
         """延迟发射内容变化信号"""
@@ -193,16 +196,22 @@ class MarkdownEditor(QWidget):
         """标记文档为已修改，source: user/program"""
         if self.last_saved_text is None:
             self.last_saved_text = text
+            self.document_modified = False  # 初始化时不算修改
             return
         
         # 程序更新不触发修改标记
         if source == "program":
             self.last_saved_text = text
+            self.document_modified = False
             return
-            
-        # 使用更智能的比较，避免空格等微小变化
+        
+        # 用户修改时检查内容是否真的发生了变化（忽略空格等微小变化）
         if text.strip() != self.last_saved_text.strip():
             self.document_modified = True
+            logger.debug(f"文档已修改，新内容长度: {len(text)}")
+        else:
+            self.document_modified = False
+            logger.debug("文档内容未变化")
 
     def save_markdown_content(self, data):
         """线程安全的保存方法"""
@@ -402,30 +411,104 @@ class MarkdownEditor(QWidget):
         # 1. 停止自动保存定时器
         if hasattr(self, 'auto_save_timer'):
             self.auto_save_timer.stop()
-            logger.info("Auto-save timer stopped")
+            logger.debug("Auto-save timer stopped")
 
-        # 2. 退出前保存文件
-        if hasattr(self, 'web_comm') and self.document and self.document.file_id:
-            logger.info(f"退出前获取文档对象: {self.document.file_id}")
-            
-            def save_markdown(response):
-                content = response.get('content')
-                if content:
-                    logger.debug(f"退出前保存文档对象: {self.document.file_id}, 内容长度: {len(content)}")
-                    self.markdown_manager.save_markdown(id=self.document.file_id, content=content)
-                else:
-                    logger.debug(f"退出前保存文档对象失败: {self.document.file_id}, 错误信息: {response}")
-                
-                # 保存完成后再清理资源
-                self._cleanup_resources()
-            
-            self.web_comm.send_message("getMarkdown", {}, callback=save_markdown)
-            # 阻止事件默认处理，等待保存完成
-            event.ignore()
-            return
+        # 2. 快速检查是否真的需要保存
+        need_save = self._check_if_save_needed()
+        
+        if need_save:
+            logger.info(f"检测到需要保存文档: {self.document.file_id}")
+            self._perform_save_and_close(event)
+        else:
+            logger.debug("无需保存，直接关闭")
+            self._cleanup_and_close()
     
-        # 如果没有需要保存的文档，直接清理资源
-        self._cleanup_resources()
+    def _check_if_save_needed(self):
+        """快速检查是否需要保存"""
+        # 基本条件检查
+        if not (hasattr(self, 'web_comm') and self.web_comm):
+            return False
+        if not (hasattr(self, 'document') and self.document and self.document.file_id):
+            return False
+        if not (hasattr(self, 'page_loaded') and self.page_loaded):
+            return False
+        
+        # 检查是否有修改需要保存
+        if hasattr(self, 'document_modified') and not self.document_modified:
+            logger.debug("文档未修改，跳过保存")
+            return False
+            
+        return True
+    
+    def _perform_save_and_close(self, event):
+        """执行保存并关闭流程"""
+        # 设置较短的超时定时器（1.5秒后强制关闭）
+        if not hasattr(self, '_close_timeout_timer'):
+            self._close_timeout_timer = QTimer()
+            self._close_timeout_timer.setSingleShot(True)
+            self._close_timeout_timer.timeout.connect(self._force_close)
+        
+        self._close_timeout_timer.start(1500)  # 1.5秒超时，减少延迟
+        
+        def save_markdown(response):
+            # 停止超时定时器
+            if hasattr(self, '_close_timeout_timer'):
+                self._close_timeout_timer.stop()
+                
+            # 快速处理保存响应
+            try:
+                content = response.get('content', '') if response else ''
+                if content and self.document.file_id:
+                    self.markdown_manager.save_markdown(id=self.document.file_id, content=content)
+                    logger.debug(f"文档已保存: {self.document.file_id}")
+            except Exception as e:
+                logger.error(f"保存文档时出错: {e}")
+            
+            # 保存完成后立即关闭
+            self._cleanup_and_close()
+        
+        # 尝试快速获取内容并保存
+        try:
+            success = self.web_comm.send_message("getMarkdown", {}, callback=save_markdown)
+            if not success:
+                logger.warning("发送getMarkdown消息失败，1.5秒后强制关闭")
+            
+            # 阻止事件默认处理，等待保存完成或超时
+            event.ignore()
+        except Exception as e:
+            logger.error(f"发送getMarkdown消息时出错: {e}")
+            # 发送失败，停止超时定时器并直接关闭
+            if hasattr(self, '_close_timeout_timer'):
+                self._close_timeout_timer.stop()
+            self._cleanup_and_close()
+    
+    def _force_close(self):
+        """强制关闭 - 超时时调用"""
+        logger.warning("关闭超时（1.5秒），强制清理资源并关闭")
+        self._cleanup_and_close()
+    
+    def _cleanup_and_close(self):
+        """清理资源并通知关闭"""
+        try:
+            self._cleanup_resources()
+        except Exception as e:
+            logger.error(f"清理资源时出错: {e}")
+        
+        # 标记编辑器已经准备好关闭
+        self._close_ready = True
+        
+        # 通知父窗口编辑器已经准备好关闭，但不直接关闭父窗口
+        # 让主窗口控制整个关闭流程，避免组件分离
+        if self.parent() and hasattr(self.parent(), '_on_editor_close_ready'):
+            self.parent()._on_editor_close_ready()
+        elif self.parent():
+            # 如果父窗口没有_on_editor_close_ready方法，则标记为准备关闭
+            # 但不触发关闭，由父窗口自己控制关闭时机
+            logger.info("编辑器已准备关闭，等待主窗口统一关闭")
+        else:
+            # 如果没有父窗口，直接退出应用
+            from PySide6.QtWidgets import QApplication
+            QTimer.singleShot(0, QApplication.quit)
         
     def _cleanup_resources(self):
         # 3. 清理线程池资源
