@@ -181,7 +181,7 @@ class MainWindow(QMainWindow):
             # 根据页面类型路由到不同的处理逻辑
             if page_type == PageType.MARKDOWN:
                 self._handle_markdown_page(quickpick_item)
-            elif page_type == PageType.BOARD:
+            elif page_type == PageType.EXCALIDRAW:
                 self._handle_board_page(quickpick_item)
             elif page_type == PageType.LANDING:
                 self._handle_landing_page(quickpick_item)

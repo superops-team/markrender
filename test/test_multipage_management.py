@@ -98,7 +98,7 @@ class MultiPageTestWindow(QMainWindow):
         page_tests_layout.addWidget(self.create_markdown_btn)
         
         self.create_board_btn = QPushButton("🎨 创建Board页面")
-        self.create_board_btn.clicked.connect(lambda: self.test_create_page(PageType.BOARD))
+        self.create_board_btn.clicked.connect(lambda: self.test_create_page(PageType.EXCALIDRAW))
         self.create_board_btn.setStyleSheet(self.get_button_style())
         page_tests_layout.addWidget(self.create_board_btn)
         
@@ -228,7 +228,7 @@ class MultiPageTestWindow(QMainWindow):
         
         try:
             # 测试枚举值
-            types = [PageType.MARKDOWN, PageType.BOARD, PageType.LANDING, PageType.MOCK_TEST]
+            types = [PageType.MARKDOWN, PageType.EXCALIDRAW, PageType.LANDING, PageType.MOCK_TEST]
             
             for page_type in types:
                 # 测试HTML文件映射
@@ -279,7 +279,7 @@ class MultiPageTestWindow(QMainWindow):
             
             # 测试字符串转换
             config2 = PageConfig(page_type="board")
-            assert config2.page_type == PageType.BOARD, "字符串转PageType失败"
+            assert config2.page_type == PageType.EXCALIDRAW, "字符串转PageType失败"
             
             self.add_test_result("页面配置测试", True, "所有配置选项工作正常")
             self.update_status("页面配置测试通过")
@@ -326,7 +326,7 @@ class MultiPageTestWindow(QMainWindow):
             self.test_page_manager,
             self.test_page_config,
             lambda: self.test_create_page(PageType.MARKDOWN),
-            lambda: self.test_create_page(PageType.BOARD),
+            lambda: self.test_create_page(PageType.EXCALIDRAW),
             lambda: self.test_create_page(PageType.LANDING),
         ]
         

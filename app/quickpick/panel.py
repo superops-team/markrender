@@ -362,7 +362,7 @@ class QuickPickPanel(QWidget):
         board_layout.setContentsMargins(0, 0, 0, 0)
         
         board_btn = QPushButton()
-        board_btn.setIcon(QIcon(get_icon_path("diagram")))
+        board_btn.setIcon(QIcon(get_icon_path("excalidraw")))
         board_btn.setIconSize(QSize(20, 20))  # 紧凑图标尺寸
         board_btn.setFixedSize(32, 32)  # 固定按钮尺寸
         board_btn.setToolTip("创建画布")
@@ -418,7 +418,7 @@ class QuickPickPanel(QWidget):
             'content': '',
             'tags': '',
             'status': 'processed',
-            'page_type': 'board',
+            'page_type': 'excalidraw',
             'page_engine': 'excalidraw',
             'converter': 'manual',
         }

@@ -114,7 +114,7 @@ def update_editor_and_previewer(self, quickpick_item):
     
     if page_type == PageType.MARKDOWN:
         self._handle_markdown_page(quickpick_item)
-    elif page_type == PageType.BOARD:
+    elif page_type == PageType.EXCALIDRAW:
         self._handle_board_page(quickpick_item)
     elif page_type == PageType.LANDING:
         self._handle_landing_page(quickpick_item)
@@ -124,7 +124,7 @@ def update_editor_and_previewer(self, quickpick_item):
 ```python
 # 在应用启动时预加载常用页面
 page_manager.preload_page_type(PageType.MARKDOWN, web_comm)
-page_manager.preload_page_type(PageType.BOARD, web_comm)
+page_manager.preload_page_type(PageType.EXCALIDRAW, web_comm)
 page_manager.preload_page_type(PageType.LANDING, web_comm)
 ```
 

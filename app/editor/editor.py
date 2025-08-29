@@ -130,7 +130,7 @@ class MarkRenderEditor(QWidget):
         # 预加载页面
         self.page_manager.preload_page_type(PageType.MARKDOWN, self.web_comm)
         self.page_manager.preload_page_type(PageType.LANDING, self.web_comm)
-        self.page_manager.preload_page_type(PageType.BOARD, self.web_comm)
+        self.page_manager.preload_page_type(PageType.EXCALIDRAW, self.web_comm)
         
         # 初始创建默认的Markdown页面作为主显示区域
         self.preview = self.page_manager.get_or_create_page(
@@ -813,8 +813,8 @@ class MarkRenderEditor(QWidget):
     def handle_set_board_id(self, data):
         """处理设置BoardId消息"""
         try:
-            board_id = data.get('boardId', '')
-            page_id = data.get('pageId', '')
+            board_id = data.get('id', '')
+            page_id = data.get('id', '')
             title = data.get('title', '')
             
             logger.info(f"处理setBoardId消息: boardId={board_id}, pageId={page_id}, title={title}")
@@ -838,7 +838,6 @@ class MarkRenderEditor(QWidget):
         """处理前端返回的Excalidraw数据"""
         try:
             elements = data.get('elements', [])
-            app_state = data.get('appState', {})
             files = data.get('files', {})
             
             logger.debug(f"收到Excalidraw数据响应: {len(elements)}个元素, {len(files)}个文件")

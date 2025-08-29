@@ -17,7 +17,6 @@ from db import db_manager
 class PageType(Enum):
     """页面类型枚举，定义所有支持的页面类型"""
     MARKDOWN = "markdown"
-    BOARD = "board"
     LANDING = "landing"
     EXCALIDRAW = "excalidraw"
     
@@ -26,7 +25,6 @@ class PageType(Enum):
         """获取对应的HTML文件名"""
         mapping = {
             PageType.MARKDOWN: "cherry-markdown/index.html",
-            PageType.BOARD: "excalidraw/index.html", 
             PageType.LANDING: "landing.html",
             PageType.EXCALIDRAW: "excalidraw/index.html"  # 修复路径，指向excalidraw文件夹中的index.html
         }
@@ -37,7 +35,6 @@ class PageType(Enum):
         """获取页面类型的显示名称"""
         mapping = {
             PageType.MARKDOWN: "Markdown编辑器",
-            PageType.BOARD: "画板编辑器", 
             PageType.LANDING: "首页",
             PageType.EXCALIDRAW: "绘图板"
         }
@@ -406,7 +403,7 @@ class WebPageManager(QObject):
             return self.pages[page_id]
         
         # 对于Board/Excalidraw类型，每个page_id都创建独立实例以确保数据隔离
-        if page_type in [PageType.BOARD, PageType.EXCALIDRAW]:
+        if page_type == PageType.EXCALIDRAW:
             logger.info(f"为 {page_type.value} 创建独立页面实例: {page_id}")
             config = PageConfig(
                 page_type=page_type,

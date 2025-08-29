@@ -40,6 +40,8 @@ class QuickPickItemDelegate(QStyledItemDelegate):
         'pptx': QColor(239, 68, 68),
         'epub': QColor(34, 197, 94),
         'board': QColor(168, 85, 247),    # 创意紫色
+        'excalidraw': QColor(168, 85, 247),    # 创意紫色
+
     }
     default_color = QColor(156, 163, 175)  # 中性灰色
 
@@ -59,6 +61,7 @@ class QuickPickItemDelegate(QStyledItemDelegate):
         'pptx': 'card-checklist',
         'epub': 'book',
         'board': 'diagram',
+        'excalidraw': 'excalidraw',
     }
 
     def __init__(self, parent=None):
