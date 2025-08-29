@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{plugin.name}} - MarkRender</title>
+    
+    <!-- 必需的核心库 -->
+    <script src="../shared/webchannel-core.js"></script>
+    
+    <!-- 通用样式 -->
+    <link rel="stylesheet" href="../shared/common.css">
+    
+    <!-- 插件特定样式 -->
+    <link rel="stylesheet" href="assets/css/style.css">
+    
+    <style>
+        /* 插件容器样式 */
+        #plugin-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* 加载状态 */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        
+        .loading-content {
+            text-align: center;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #1890ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* 错误状态 */
+        .error-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .error-icon {
+            font-size: 64px;
+            color: #f5222d;
+            margin-bottom: 16px;
+        }
+        
+        .error-title {
+            font-size: 18px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        .error-message {
+            color: #666;
+            margin-bottom: 16px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 插件容器 -->
+    <div id="plugin-container" class="plugin-container" data-plugin-id="{{plugin.id}}">
+        
+        <!-- 工具栏 (可选) -->
+        <div id="plugin-toolbar" class="plugin-toolbar" style="display: none;">
+            <div class="plugin-toolbar-group">
+                <button class="plugin-btn plugin-btn-icon" id="save-btn" title="保存 (Ctrl+S)">
+                    💾
+                </button>
+                <button class="plugin-btn plugin-btn-icon" id="export-btn" title="导出">
+                    📤
+                </button>
+            </div>
+            <div class="plugin-toolbar-separator"></div>
+            <div class="plugin-toolbar-group">
+                <select class="plugin-select" id="theme-select">
+                    <option value="light">浅色主题</option>
+                    <option value="dark">深色主题</option>
+                </select>
+            </div>
+        </div>
+        
+        <!-- 主内容区域 -->
+        <div id="plugin-content" class="plugin-content">
+            <!-- 插件具体内容将在这里渲染 -->
+        </div>
+        
+        <!-- 状态栏 (可选) -->
+        <div id="plugin-statusbar" class="plugin-statusbar" style="display: none;">
+            <div class="plugin-statusbar-left">
+                <span id="status-text">就绪</span>
+                <span id="word-count"></span>
+            </div>
+            <div class="plugin-statusbar-right">
+                <span id="save-status">已保存</span>
+                <span id="connection-status">已连接</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 加载遮罩 -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">正在加载插件...</div>
+        </div>
+    </div>
+    
+    <!-- 错误容器 -->
+    <div id="error-container" class="error-container" style="display: none;">
+        <div class="error-icon">⚠️</div>
+        <div class="error-title">插件加载失败</div>
+        <div class="error-message" id="error-message">发生了未知错误</div>
+        <button class="plugin-btn plugin-btn-primary" onclick="location.reload()">重新加载</button>
+    </div>
+    
+    <!-- 插件特定脚本 -->
+    <script src="assets/js/main.js"></script>
+    
+    <script>
+        /**
+         * 标准插件初始化脚本
+         * 所有插件都应该遵循这个初始化流程
+         */
+        
+        class StandardPlugin extends PluginBase {
+            constructor(options) {
+                super(options);
+                
+                // UI元素引用
+                this.elements = {
+                    container: document.getElementById('plugin-container'),
+                    toolbar: document.getElementById('plugin-toolbar'),
+                    content: document.getElementById('plugin-content'),
+                    statusbar: document.getElementById('plugin-statusbar'),
+                    loadingOverlay: document.getElementById('loading-overlay'),
+                    errorContainer: document.getElementById('error-container'),
+                    saveBtn: document.getElementById('save-btn'),
+                    exportBtn: document.getElementById('export-btn'),
+                    themeSelect: document.getElementById('theme-select'),
+                    statusText: document.getElementById('status-text'),
+                    saveStatus: document.getElementById('save-status'),
+                    connectionStatus: document.getElementById('connection-status')
+                };
+                
+                // 绑定事件
+                this.bindEvents();
+            }
+            
+            /**
+             * 绑定标准事件
+             */
+            bindEvents() {
+                // 保存按钮
+                if (this.elements.saveBtn) {
+                    this.addEventListener(this.elements.saveBtn, 'click', () => this.handleSave());
+                }
+                
+                // 导出按钮
+                if (this.elements.exportBtn) {
+                    this.addEventListener(this.elements.exportBtn, 'click', () => this.handleExport());
+                }
+                
+                // 主题切换
+                if (this.elements.themeSelect) {
+                    this.addEventListener(this.elements.themeSelect, 'change', (e) => {
+                        this.changeTheme(e.target.value);
+                    });
+                }
+                
+                // 键盘快捷键
+                this.addEventListener(document, 'keydown', (e) => {
+                    if (e.ctrlKey || e.metaKey) {
+                        switch (e.key) {
+                            case 's':
+                                e.preventDefault();
+                                this.handleSave();
+                                break;
+                            case 'e':
+                                e.preventDefault();
+                                this.handleExport();
+                                break;
+                        }
+                    }
+                });
+                
+                // WebChannel状态监听
+                this.addEventListener(document, 'webchannelReady', () => {
+                    this.onWebChannelReady();
+                });
+            }
+            
+            /**
+             * 插件初始化
+             */
+            async onInit() {
+                await super.onInit();
+                
+                try {
+                    // 显示工具栏和状态栏
+                    this.showUI();
+                    
+                    // 加载插件配置
+                    await this.loadPluginConfig();
+                    
+                    // 初始化插件内容
+                    await this.initializeContent();
+                    
+                    // 隐藏加载遮罩
+                    this.hideLoading();
+                    
+                    this.updateStatus('插件加载成功');
+                    
+                } catch (error) {
+                    console.error('插件初始化失败:', error);
+                    this.showError('初始化失败', error.message);
+                }
+            }
+            
+            /**
+             * 页面准备就绪
+             */
+            async onPageReady(pageId) {
+                await super.onPageReady(pageId);
+                
+                try {
+                    // 加载页面数据
+                    const data = await this.loadPageData(pageId);
+                    
+                    // 渲染内容
+                    await this.renderContent(data);
+                    
+                    this.updateStatus(`页面 ${pageId} 加载完成`);
+                    
+                } catch (error) {
+                    console.error('页面加载失败:', error);
+                    this.showError('页面加载失败', error.message);
+                }
+            }
+            
+            /**
+             * WebChannel连接就绪
+             */
+            onWebChannelReady() {
+                this.updateConnectionStatus(true);
+                console.log('🔗 WebChannel连接就绪');
+            }
+            
+            /**
+             * 显示UI元素
+             */
+            showUI() {
+                if (this.elements.toolbar) {
+                    this.elements.toolbar.style.display = 'flex';
+                }
+                if (this.elements.statusbar) {
+                    this.elements.statusbar.style.display = 'flex';
+                }
+            }
+            
+            /**
+             * 隐藏加载遮罩
+             */
+            hideLoading() {
+                if (this.elements.loadingOverlay) {
+                    this.elements.loadingOverlay.style.display = 'none';
+                }
+            }
+            
+            /**
+             * 显示错误
+             */
+            showError(title, message) {
+                this.hideLoading();
+                
+                if (this.elements.errorContainer) {
+                    document.getElementById('error-message').textContent = message;
+                    this.elements.errorContainer.style.display = 'flex';
+                }
+                
+                this.updateStatus(`错误: ${title}`);
+            }
+            
+            /**
+             * 更新状态文本
+             */
+            updateStatus(text) {
+                if (this.elements.statusText) {
+                    this.elements.statusText.textContent = text;
+                }
+            }
+            
+            /**
+             * 更新连接状态
+             */
+            updateConnectionStatus(connected) {
+                if (this.elements.connectionStatus) {
+                    this.elements.connectionStatus.textContent = connected ? '已连接' : '连接断开';
+                    this.elements.connectionStatus.style.color = connected ? '#52c41a' : '#f5222d';
+                }
+            }
+            
+            /**
+             * 更新保存状态
+             */
+            updateSaveStatus(saved) {
+                if (this.elements.saveStatus) {
+                    this.elements.saveStatus.textContent = saved ? '已保存' : '未保存';
+                    this.elements.saveStatus.style.color = saved ? '#52c41a' : '#faad14';
+                }
+            }
+            
+            /**
+             * 加载插件配置
+             */
+            async loadPluginConfig() {
+                try {
+                    const config = await this.getConfig('plugin');
+                    if (config && config.theme) {
+                        this.changeTheme(config.theme);
+                        if (this.elements.themeSelect) {
+                            this.elements.themeSelect.value = config.theme;
+                        }
+                    }
+                } catch (error) {
+                    console.warn('加载插件配置失败:', error);
+                }
+            }
+            
+            /**
+             * 切换主题
+             */
+            async changeTheme(theme) {
+                document.body.className = `theme-${theme}`;
+                
+                try {
+                    await this.setConfig('theme', theme);
+                } catch (error) {
+                    console.warn('保存主题设置失败:', error);
+                }
+            }
+            
+            /**
+             * 处理保存操作
+             */
+            async handleSave() {
+                try {
+                    this.updateStatus('保存中...');
+                    await this.saveCurrentContent();
+                    this.updateSaveStatus(true);
+                    this.showNotification('保存成功', 'success');
+                    this.updateStatus('已保存');
+                } catch (error) {
+                    console.error('保存失败:', error);
+                    this.showNotification('保存失败: ' + error.message, 'error');
+                    this.updateStatus('保存失败');
+                }
+            }
+            
+            /**
+             * 处理导出操作
+             */
+            async handleExport() {
+                try {
+                    this.updateStatus('导出中...');
+                    const data = await this.exportPage('json');
+                    
+                    // 下载文件
+                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `page-${this.pageId || 'unknown'}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    this.showNotification('导出成功', 'success');
+                    this.updateStatus('导出完成');
+                } catch (error) {
+                    console.error('导出失败:', error);
+                    this.showNotification('导出失败: ' + error.message, 'error');
+                    this.updateStatus('导出失败');
+                }
+            }
+            
+            // ===== 子类需要重写的方法 =====
+            
+            /**
+             * 初始化插件内容 (子类应该重写)
+             */
+            async initializeContent() {
+                console.warn('initializeContent 方法未实现');
+            }
+            
+            /**
+             * 渲染内容 (子类应该重写)
+             */
+            async renderContent(data) {
+                console.warn('renderContent 方法未实现');
+            }
+            
+            /**
+             * 保存当前内容 (子类应该重写)
+             */
+            async saveCurrentContent() {
+                console.warn('saveCurrentContent 方法未实现');
+            }
+        }
+        
+        // 初始化插件
+        document.addEventListener('DOMContentLoaded', function() {
+            // 获取插件配置
+            const container = document.getElementById('plugin-container');
+            const pluginId = container.getAttribute('data-plugin-id');
+            
+            // 创建插件实例
+            window.pluginInstance = new StandardPlugin({
+                container: container,
+                pluginId: pluginId,
+                config: {} // 可以从其他地方加载配置
+            });
+            
+            // 等待WebChannel准备就绪后初始化
+            if (window.webChannelCore && window.webChannelCore.isInitialized) {
+                window.pluginInstance.onInit();
+            } else {
+                document.addEventListener('webchannelReady', () => {
+                    window.pluginInstance.onInit();
+                });
+            }
+        });
+        
+        // 导出标准插件类供自定义插件继承
+        window.StandardPlugin = StandardPlugin;
+    </script>
+</body>
+</html>

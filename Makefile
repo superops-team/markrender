@@ -15,7 +15,7 @@ onefile:
 		--icon "./icons/app.icns" \
 		--add-data "icons/app.icns:." \
 		--add-data "icons:icons" \
-		--add-data "app/editor/resources:app/editor/resources" \
+		--add-data "app/editor/plugins:app/editor/plugins" \
 		--noconfirm \
 		--hidden-import "numpy" \
 		--exclude-module "PyQt5" \

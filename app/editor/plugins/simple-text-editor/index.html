@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简单文本编辑器 - MarkRender</title>
+    
+    <!-- 必需的核心库 -->
+    <script src="../shared/webchannel-core.js"></script>
+    
+    <!-- 通用样式 -->
+    <link rel="stylesheet" href="../shared/common.css">
+    
+    <!-- 插件特定样式 -->
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+    <!-- 插件容器 -->
+    <div id="plugin-container" class="plugin-container" data-plugin-id="simple-text-editor">
+        
+        <!-- 工具栏 -->
+        <div id="plugin-toolbar" class="plugin-toolbar">
+            <div class="plugin-toolbar-group">
+                <button class="plugin-btn plugin-btn-icon" id="save-btn" title="保存 (Ctrl+S)">
+                    💾
+                </button>
+                <button class="plugin-btn plugin-btn-icon" id="export-btn" title="导出">
+                    📤
+                </button>
+                <div class="plugin-toolbar-separator"></div>
+                <button class="plugin-btn plugin-btn-icon" id="find-btn" title="查找替换 (Ctrl+F)">
+                    🔍
+                </button>
+                <button class="plugin-btn plugin-btn-icon" id="settings-btn" title="设置">
+                    ⚙️
+                </button>
+            </div>
+            
+            <div class="plugin-toolbar-group">
+                <label class="toolbar-label">字体大小：</label>
+                <select class="plugin-select" id="font-size-select">
+                    <option value="12">12px</option>
+                    <option value="14">14px</option>
+                    <option value="16">16px</option>
+                    <option value="18">18px</option>
+                    <option value="20">20px</option>
+                    <option value="24">24px</option>
+                </select>
+                
+                <label class="toolbar-label">主题：</label>
+                <select class="plugin-select" id="theme-select">
+                    <option value="light">浅色</option>
+                    <option value="dark">深色</option>
+                </select>
+            </div>
+        </div>
+        
+        <!-- 查找替换面板 -->
+        <div id="find-replace-panel" class="find-replace-panel" style="display: none;">
+            <div class="find-replace-row">
+                <input type="text" id="find-input" class="plugin-input" placeholder="查找...">
+                <button class="plugin-btn" id="find-next-btn">下一个</button>
+                <button class="plugin-btn" id="find-prev-btn">上一个</button>
+                <button class="plugin-btn plugin-btn-icon" id="close-find-btn">✕</button>
+            </div>
+            <div class="find-replace-row">
+                <input type="text" id="replace-input" class="plugin-input" placeholder="替换为...">
+                <button class="plugin-btn" id="replace-btn">替换</button>
+                <button class="plugin-btn" id="replace-all-btn">全部替换</button>
+            </div>
+        </div>
+        
+        <!-- 主编辑区域 -->
+        <div id="plugin-content" class="plugin-content">
+            <div class="editor-container">
+                <div id="line-numbers" class="line-numbers" style="display: none;"></div>
+                <textarea id="text-editor" class="text-editor" placeholder="开始输入您的文本内容..."></textarea>
+            </div>
+        </div>
+        
+        <!-- 状态栏 -->
+        <div id="plugin-statusbar" class="plugin-statusbar">
+            <div class="plugin-statusbar-left">
+                <span id="status-text">就绪</span>
+                <span id="word-count">字数: 0</span>
+                <span id="line-count">行数: 1</span>
+                <span id="cursor-position">位置: 1:1</span>
+            </div>
+            <div class="plugin-statusbar-right">
+                <span id="save-status">已保存</span>
+                <span id="connection-status">已连接</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 加载遮罩 -->
+    <div id="loading-overlay" class="plugin-loading">
+        <div class="plugin-loading-spinner"></div>
+        <div class="plugin-loading-text">正在加载文本编辑器...</div>
+    </div>
+    
+    <!-- 错误容器 -->
+    <div id="error-container" class="plugin-error" style="display: none;">
+        <div class="plugin-error-icon">⚠️</div>
+        <div class="plugin-error-title">插件加载失败</div>
+        <div class="plugin-error-message" id="error-message">发生了未知错误</div>
+        <button class="plugin-error-retry" onclick="location.reload()">重新加载</button>
+    </div>
+    
+    <!-- 设置模态框 -->
+    <div id="settings-modal" class="plugin-modal">
+        <div class="plugin-modal-content">
+            <div class="plugin-modal-header">
+                <h3 class="plugin-modal-title">编辑器设置</h3>
+                <button class="plugin-modal-close" id="close-settings-btn">✕</button>
+            </div>
+            <div class="plugin-modal-body">
+                <div class="setting-group">
+                    <label>
+                        <input type="checkbox" id="word-wrap-checkbox"> 自动换行
+                    </label>
+                </div>
+                <div class="setting-group">
+                    <label>
+                        <input type="checkbox" id="line-numbers-checkbox"> 显示行号
+                    </label>
+                </div>
+                <div class="setting-group">
+                    <label>
+                        <input type="checkbox" id="auto-save-checkbox"> 自动保存
+                    </label>
+                </div>
+                <div class="setting-group">
+                    <label>
+                        自动保存间隔（秒）:
+                        <input type="number" id="save-interval-input" min="1" max="60" value="5" class="plugin-input">
+                    </label>
+                </div>
+            </div>
+            <div class="plugin-modal-footer">
+                <button class="plugin-btn plugin-btn-primary" id="save-settings-btn">保存设置</button>
+                <button class="plugin-btn" id="cancel-settings-btn">取消</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 插件脚本 -->
+    <script src="assets/js/main.js"></script>
+</body>
+</html>
