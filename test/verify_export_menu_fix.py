@@ -80,10 +80,10 @@ class ExportMenuVerificationWindow(QMainWindow):
         
         # 创建依赖对象
         self.quickpick_panel = QWidget()
-        self.markdown_editor = MockMarkdownEditor()
+        self.markrender_editor = MockMarkRenderEditor()
         
         # 创建ButtonController
-        self.button_controller = ButtonController(self, self.quickpick_panel, self.markdown_editor)
+        self.button_controller = ButtonController(self, self.quickpick_panel, self.markrender_editor)
         topbar_layout.addWidget(self.button_controller)
         
         layout.addWidget(topbar_container)
@@ -222,7 +222,7 @@ class ExportMenuVerificationWindow(QMainWindow):
         else:
             self.result_label.setText("❌ 无法找到导出按钮")
 
-class MockMarkdownEditor:
+class MockMarkRenderEditor:
     """模拟的Markdown编辑器"""
     def export_file(self, format_type):
         print(f"✅ 导出功能测试成功: {format_type}")

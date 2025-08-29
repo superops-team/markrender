@@ -23,8 +23,8 @@ except ImportError as e:
     print(f"⚠️  模块导入失败: {e}")
     HAS_MODULES = False
 
-class MockMarkdownEditor:
-    """模拟Markdown编辑器"""
+class MockMarkRenderEditor:
+    """模拟MarkRender编辑器"""
     def export_content(self, format_type):
         print(f"✅ 模拟导出: {format_type}")
 

@@ -15,8 +15,8 @@ from db.settings_manager import SettingsManager
 from app.editor.export_manager import ExportManager
 
 
-class MarkdownDocument(QObject):
-    text_changed = Signal(str)  # 文档内容变更信号
+class MarkRenderDoc(QObject):
+    text_changed = Signal(str)  # 内容变更信号
     content_changed = Signal(str)  # Web端内容变化时触发
 
     def __init__(self, file_id, file_name):
@@ -71,7 +71,7 @@ class MarkdownDocument(QObject):
     text = Property(str, get_text, set_text, notify=text_changed)
 
 
-class MarkdownEditor(QWidget):
+class MarkRenderEditor(QWidget):
     def __init__(self, parent=None, file_id="", file_name=""):
         super().__init__(parent)
         # 初始化线程池管理器
@@ -82,17 +82,17 @@ class MarkdownEditor(QWidget):
         
         # 初始化页面管理器
         self.page_manager = WebPageManager()
-        self.page_id = "markdown_editor"  # 使用固定页面ID
+        self.page_id = "markrender_editor"  # 使用固定页面ID
         
         # 初始化文档
-        self.document = MarkdownDocument(file_id, file_name)
+        self.document = MarkRenderDoc(file_id, file_name)
         # 注册文档到通信管理器
         if file_id:
             self.web_comm.document_map[file_id] = self.document
             self.file_id = file_id
             
         # 初始化其他组件
-        self.markdown_manager = MarkRenderManager()
+        self.markrender_manager = MarkRenderManager()
         self.last_saved_text = None
         
         # 建立信号连接
@@ -127,7 +127,7 @@ class MarkdownEditor(QWidget):
         from app.editor.webengine import PageType
         logger.info("开始预加载常用页面类型...")
         
-        # 预加载Markdown和Landing页面
+        # 预加载页面
         self.page_manager.preload_page_type(PageType.MARKDOWN, self.web_comm)
         self.page_manager.preload_page_type(PageType.LANDING, self.web_comm)
         self.page_manager.preload_page_type(PageType.BOARD, self.web_comm)
@@ -320,7 +320,7 @@ class MarkdownEditor(QWidget):
             self.preview = new_widget
             new_widget.show()
 
-    def save_markdown_content(self, data):
+    def save_markrender_content(self, data):
         """线程安全的保存方法"""
         try:
             data = json.loads(data) if isinstance(data, str) else data
@@ -329,7 +329,7 @@ class MarkdownEditor(QWidget):
                 return {"error": "无文件ID"}
             
             # 数据库操作通常是线程安全的
-            success = self.markdown_manager.save_markdown(
+            success = self.markrender_manager.save_item(
                 id=self.document.file_id,
                 content=content,
             )
@@ -355,7 +355,7 @@ class MarkdownEditor(QWidget):
             def handle_save_content(content):
                 if content:
                     # 保存到数据库
-                    success = self.markdown_manager.save_markdown(
+                    success = self.markrender_manager.save_item(
                         id=self.document.file_id, 
                         content=content
                     )
@@ -368,7 +368,7 @@ class MarkdownEditor(QWidget):
                         logger.error("保存到数据库失败")
                         
             # 获取当前内容并保存
-            self.get_markdown(handle_save_content)
+            self.get_content(handle_save_content)
             return True
             
         except Exception as e:
@@ -407,7 +407,7 @@ class MarkdownEditor(QWidget):
     def set_file_name(self, file_name):
         self.document.file_name = file_name
 
-    def get_markdown(self, callback):
+    def get_content(self, callback):
         """获取markdown内容"""
         # 设置5秒超时
         timeout_timer = QTimer()
@@ -420,7 +420,7 @@ class MarkdownEditor(QWidget):
 
         # 发送获取请求
         self.web_comm.send_message(
-            'getMarkdown',
+            'getContent',
             callback=lambda response: (
                 timeout_timer.stop(),
                 callback(response)
@@ -476,21 +476,30 @@ class MarkdownEditor(QWidget):
             self.page_loaded = True
             logger.debug("WebChannel初始化完成")
             
-            # 通过channel注册web端事件
-            self.web_comm.send_message("registerEditorEvents", {})
-            # 通过channel设置内容变化监听
-            self.web_comm.send_message("setupContentChangeListener", {
-                "callback": "contentChanged"
-            })
+            # 延迟发送消息，确保JavaScript完全初始化
+            # 使用QTimer延迟300ms后发送
+            def send_delayed_messages():
+                try:
+                    # 通过channel注册web端事件
+                    self.web_comm.send_message("registerEditorEvents", {})
+                    # 通过channel设置内容变化监听
+                    self.web_comm.send_message("setupContentChangeListener", {
+                        "callback": "contentChanged"
+                    })
+                except Exception as e:
+                    logger.error(f"发送延迟消息失败: {e}")
+            
+            from PySide6.QtCore import QTimer
+            QTimer.singleShot(300, send_delayed_messages)
         else:
             logger.error("页面加载失败")
             self.page_loaded = False
 
-    def update_markdown_content(self, item):
-        """更新 Markdown 内容"""
+    def update_content(self, item):
+        """更新页面内容"""
         try:
             # 使用线程池提交内容加载任务
-            loader = ContentLoader(item.file_id, self.markdown_manager)
+            loader = ContentLoader(item.file_id, self.markrender_manager)
             self.thread_pool.submit_task(f"load_{item.file_id}", loader, self.on_content_loaded)
         except Exception as e:
             logger.error(f"更新 Markdown 内容失败: {str(e)}")
@@ -557,7 +566,7 @@ class MarkdownEditor(QWidget):
         
         self._close_timeout_timer.start(1500)  # 1.5秒超时，减少延迟
         
-        def save_markdown(response):
+        def save_content(response):
             # 停止超时定时器
             if hasattr(self, '_close_timeout_timer'):
                 self._close_timeout_timer.stop()
@@ -566,7 +575,7 @@ class MarkdownEditor(QWidget):
             try:
                 content = response.get('content', '') if response else ''
                 if content and self.document.file_id:
-                    self.markdown_manager.save_markdown(id=self.document.file_id, content=content)
+                    self.markrender_manager.save_item(id=self.document.file_id, content=content)
                     logger.debug(f"文档已保存: {self.document.file_id}")
             except Exception as e:
                 logger.error(f"保存文档时出错: {e}")
@@ -576,14 +585,14 @@ class MarkdownEditor(QWidget):
         
         # 尝试快速获取内容并保存
         try:
-            success = self.web_comm.send_message("getMarkdown", {}, callback=save_markdown)
+            success = self.web_comm.send_message("getContent", {}, callback=save_content)
             if not success:
-                logger.warning("发送getMarkdown消息失败，1.5秒后强制关闭")
+                logger.warning("发送getContent消息失败，1.5秒后强制关闭")
             
             # 阻止事件默认处理，等待保存完成或超时
             event.ignore()
         except Exception as e:
-            logger.error(f"发送getMarkdown消息时出错: {e}")
+            logger.error(f"发送getContent消息时出错: {e}")
             # 发送失败，停止超时定时器并直接关闭
             if hasattr(self, '_close_timeout_timer'):
                 self._close_timeout_timer.stop()
@@ -633,24 +642,14 @@ class MarkdownEditor(QWidget):
     def init_web_handlers(self):
         """初始化Web发起请求处理器 - 线程安全版本"""
         # Markdown编辑器相关 - 使用异步处理，但确保线程安全
-        self.web_comm.register_python_handler('autoSave', self.save_markdown_content, is_async=True)
+        self.web_comm.register_python_handler('autoSave', self.handle_set_content, is_async=True)
         self.web_comm.register_python_handler('contentChanged', self.handle_content_changed, is_async=False)
-        self.web_comm.register_python_handler('getMarkdown', self.handle_get_markdown, is_async=False)
-        self.web_comm.register_python_handler('setValue', self.handle_set_value, is_async=False)
+        self.web_comm.register_python_handler('getContent', self.handle_get_content, is_async=False)
+        self.web_comm.register_python_handler('setValue', self.handle_set_content, is_async=False)
         self.web_comm.register_python_handler('setCurrentFileId', self.handle_set_file_id, is_async=False)
         
         # WebChannel基本通信相关
         self.web_comm.register_python_handler('frontendReady', self.handle_frontend_ready, is_async=False)
-        
-        # Board画板相关（旧版本兼容）
-        self.web_comm.register_python_handler('saveBoard', self.save_board_content, is_async=True)
-        self.web_comm.register_python_handler('loadBoard', self.load_board_content, is_async=False)
-        self.web_comm.register_python_handler('exportBoard', self.export_board, is_async=True)
-        
-        # TLDraw白板相关
-        self.web_comm.register_python_handler('saveTLDrawBoard', self.save_tldraw_board, is_async=True)
-        self.web_comm.register_python_handler('loadTLDrawBoard', self.load_tldraw_board, is_async=False)
-        self.web_comm.register_python_handler('exportTLDrawBoard', self.export_tldraw_board, is_async=True)
         
         # Excalidraw白板相关
         self.web_comm.register_python_handler('save_excalidraw_board', self.save_excalidraw_board, is_async=True)
@@ -699,7 +698,7 @@ class MarkdownEditor(QWidget):
                     logger.error(f"Excalidraw数据格式无效: {e}")
                     return {"success": False, "error": "数据格式无效"}
             
-            success = self.markdown_manager.save_markdown(
+            success = self.markrender_manager.save_item(
                 id=board_id,
                 content=drawing_data or '',
                 page_type='excalidraw'  # 使用excalidraw类型
@@ -728,7 +727,7 @@ class MarkdownEditor(QWidget):
                 return {"success": False, "error": "缺少boardId"}
             
             # 从数据库加载数据
-            board_data = self.markdown_manager.get_detail(board_id)
+            board_data = self.markrender_manager.get_detail(board_id)
             
             if board_data and board_data.get('content'):
                 # 验证和解析Excalidraw数据
@@ -814,7 +813,7 @@ class MarkdownEditor(QWidget):
     def handle_set_board_id(self, data):
         """处理设置BoardId消息"""
         try:
-            board_id = data.get('boardId')
+            board_id = data.get('boardId', '')
             page_id = data.get('pageId', '')
             title = data.get('title', '')
             
@@ -855,169 +854,6 @@ class MarkdownEditor(QWidget):
         except Exception as e:
             logger.error(f"处理Excalidraw数据响应失败: {str(e)}")
             return {"success": False, "error": str(e)}
-
-    # ========================= TLDraw白板相关方法 =========================
-    
-    def save_tldraw_board(self, data):
-        """保存TLDraw白板数据"""
-        try:
-            board_id = data.get('boardId')
-            drawing_data = data.get('drawingData')
-            metadata = data.get('metadata', {})
-            
-            if not board_id:
-                return {"success": False, "error": "缺少boardId"}
-            
-            # 使用markrender_manager保存数据，将tldraw数据作为content存储
-            success = self.markdown_manager.save_markdown(
-                id=board_id,
-                content=drawing_data or '',
-                page_type='tldraw'  # 使用page_type区分内容类型
-            )
-            
-            if success:
-                logger.info(f"TLDraw白板数据保存成功: {board_id}")
-                return {
-                    "success": True,
-                    "board_id": board_id,
-                    "data_length": len(drawing_data) if drawing_data else 0
-                }
-            else:
-                logger.error(f"TLDraw白板数据保存失败: {board_id}")
-                return {"success": False, "error": "数据库保存失败"}
-                
-        except Exception as e:
-            logger.error(f"TLDraw保存失败: {str(e)}")
-            return {"success": False, "error": str(e)}
-    
-    def load_tldraw_board(self, data):
-        """加载TLDraw白板数据"""
-        try:
-            board_id = data.get('boardId')
-            
-            if not board_id:
-                return {"success": False, "error": "缺少boardId"}
-            
-            # 从数据库加载数据
-            board_data = self.markdown_manager.get_detail(board_id)
-            
-            if board_data and board_data.get('content'):
-                logger.info(f"TLDraw白板数据加载成功: {board_id}")
-                return {
-                    "success": True,
-                    "data": {
-                        "drawingData": board_data['content'],
-                        "metadata": {
-                            "timestamp": board_data.get('updated_at', ''),
-                            "content_type": 'tldraw'
-                        }
-                    }
-                }
-            else:
-                logger.info(f"TLDraw白板数据不存在: {board_id}")
-                return {"success": True, "data": None}  # 返回成功但数据为空
-                
-        except Exception as e:
-            logger.error(f"TLDraw加载失败: {str(e)}")
-            return {"success": False, "error": str(e)}
-    
-    def export_tldraw_board(self, data):
-        """导出TLDraw白板"""
-        try:
-            board_id = data.get('boardId')
-            export_format = data.get('format', 'png')
-            drawing_data = data.get('drawingData')
-            
-            if not board_id:
-                return {"success": False, "error": "缺少boardId"}
-            
-            # 这里可以实现具体的导出逻辑
-            # 目前先返回成功，后续可以扩展为真正的文件导出
-            logger.info(f"TLDraw白板导出请求: {board_id} -> {export_format}")
-            
-            return {
-                "success": True,
-                "board_id": board_id,
-                "format": export_format,
-                "message": f"白板已导出为 {export_format.upper()} 格式"
-            }
-            
-        except Exception as e:
-            logger.error(f"TLDraw导出失败: {str(e)}")
-            return {"success": False, "error": str(e)}
-    
-    # ========================= Board画板相关方法 =========================
-    
-    def save_board_content(self, data):
-        """保存Board画板内容（兼容旧版本）"""
-        try:
-            board_id = data.get('boardId')
-            image_data = data.get('imageData')
-            metadata = data.get('metadata', {})
-            
-            if not board_id:
-                return {"success": False, "error": "缺少boardId"}
-            
-            success = self.markdown_manager.save_markdown(
-                id=board_id,
-                content=image_data or '',
-                page_type='board'  # 使用page_type区分内容类型
-            )
-            
-            if success:
-                logger.info(f"Board画板内容保存成功: {board_id}")
-                return {"success": True, "board_id": board_id}
-            else:
-                return {"success": False, "error": "数据库保存失败"}
-                
-        except Exception as e:
-            logger.error(f"Board保存失败: {str(e)}")
-            return {"success": False, "error": str(e)}
-    
-    def load_board_content(self, data):
-        """加载Board画板内容（兼容旧版本）"""
-        try:
-            board_id = data.get('boardId')
-            
-            if not board_id:
-                return {"success": False, "error": "缺少boardId"}
-            
-            board_data = self.markdown_manager.get_detail(board_id)
-            
-            if board_data and board_data.get('content'):
-                return {
-                    "success": True,
-                    "data": {
-                        "imageData": board_data['content'],
-                        "metadata": {
-                            "timestamp": board_data.get('updated_at', '')
-                        }
-                    }
-                }
-            else:
-                return {"success": True, "data": None}
-                
-        except Exception as e:
-            logger.error(f"Board加载失败: {str(e)}")
-            return {"success": False, "error": str(e)}
-    
-    def export_board(self, data):
-        """导出Board画板（兼容旧版本）"""
-        try:
-            board_id = data.get('boardId')
-            export_format = data.get('format', 'png')
-            
-            logger.info(f"Board画板导出请求: {board_id} -> {export_format}")
-            
-            return {
-                "success": True,
-                "board_id": board_id,
-                "format": export_format
-            }
-            
-        except Exception as e:
-            logger.error(f"Board导出失败: {str(e)}")
-            return {"success": False, "error": str(e)}
     
     # ========================= 通用方法 =========================
     
@@ -1036,7 +872,7 @@ class MarkdownEditor(QWidget):
             logger.error(f"处理内容变化失败: {str(e)}")
             return {"success": False, "error": str(e)}
     
-    def handle_get_markdown(self, data):
+    def handle_get_content(self, data):
         """获取Markdown内容"""
         try:
             if hasattr(self, 'document') and self.document:
@@ -1048,7 +884,7 @@ class MarkdownEditor(QWidget):
             logger.error(f"获取Markdown内容失败: {str(e)}")
             return {"success": False, "error": str(e)}
     
-    def handle_set_value(self, data):
+    def handle_set_content(self, data):
         """设置内容值"""
         try:
             content = data.get('content', '')

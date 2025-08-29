@@ -16,12 +16,12 @@ def test_editor_close_mechanism():
         print("=" * 50)
         
         # 检查编辑器文件是否存在修复
-        from app.editor.editor import MarkdownEditor
-        print("✅ MarkdownEditor 导入成功")
+        from app.editor.editor import MarkRenderEditor
+        print("✅ MarkRenderEditor 导入成功")
         
         # 检查_cleanup_and_close方法的修复
         import inspect
-        source = inspect.getsource(MarkdownEditor._cleanup_and_close)
+        source = inspect.getsource(MarkRenderEditor._cleanup_and_close)
         
         # 检查关键修复点
         fixes_to_check = [

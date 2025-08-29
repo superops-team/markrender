@@ -83,10 +83,10 @@ class ExportMenuDiagnosisWindow(QMainWindow):
         
         # 创建模拟依赖
         self.quickpick_panel = QWidget()
-        self.markdown_editor = MockMarkdownEditor()
+        self.markrender_editor =  MockMarkRenderEditor()
         
         # 创建原始ButtonController
-        self.button_controller = ButtonController(self, self.quickpick_panel, self.markdown_editor)
+        self.button_controller = ButtonController(self, self.quickpick_panel, self.markrender_editor)
         test_layout.addWidget(self.button_controller)
         
         # 独立菜单测试
@@ -340,8 +340,8 @@ class ExportMenuDiagnosisWindow(QMainWindow):
         self.info_label.setText(result_text)
         print(result_text)
 
-class MockMarkdownEditor:
-    """模拟的Markdown编辑器"""
+class MockMarkRenderEditor:
+    """模拟的MarkRender编辑器"""
     def export_file(self, format_type):
         print(f"模拟导出: {format_type}")
 

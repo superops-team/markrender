@@ -183,7 +183,7 @@ class AutoSaveWorker(QRunnable):
         super().__init__()
         self.file_id = file_id
         self.content = content
-        self.markdown_manager = MarkRenderManager()
+        self.markrender_manager = MarkRenderManager()
         self.result = None
         self.canceled = False
 
@@ -191,7 +191,7 @@ class AutoSaveWorker(QRunnable):
         if self.canceled:
             return False
         try:
-            success = self.markdown_manager.save_markdown(
+            success = self.markrender_manager.save_item(
                 id=self.file_id, content=self.content)
             return success  # 不需要转为字符串
         except Exception as e:
@@ -210,12 +210,12 @@ class ContentLoader(QRunnable):
     def __init__(self, file_id):
         super().__init__()
         self.file_id = file_id
-        self.markdown_manager = MarkRenderManager()
+        self.markrender_manager = MarkRenderManager()
         self.result = None
 
     def run(self):
         try:
-            self.result = self.markdown_manager.get_content(self.file_id)
+            self.result = self.markrender_manager.get_content(self.file_id)
             return self.result
         except Exception as e:
             logger.error(f"内容加载失败: {str(e)}")

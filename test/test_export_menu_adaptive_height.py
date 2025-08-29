@@ -19,7 +19,7 @@ from app.topbar.button_controller import ButtonController
 from app.preference.style_utils import create_toolbar_menu_style
 from utils.path import get_icon_path
 
-class MockMarkdownEditor:
+class MockMarkRenderEditor:
     """模拟Markdown编辑器"""
     def export_content(self, format_type):
         print(f"✅ 模拟导出: {format_type}")
@@ -118,10 +118,10 @@ class ExportMenuAdaptiveHeightTest(QMainWindow):
         
         # 创建模拟依赖
         self.quickpick_panel = QWidget()
-        self.markdown_editor = MockMarkdownEditor()
+        self.markrender_editor = MockMarkRenderEditor()
         
         # 创建ButtonController
-        self.button_controller = ButtonController(self, self.quickpick_panel, self.markdown_editor)
+        self.button_controller = ButtonController(self, self.quickpick_panel, self.markrender_editor)
         test_layout.addWidget(self.button_controller)
         
         layout.addWidget(test_container)

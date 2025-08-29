@@ -1,5 +1,5 @@
-from .editor import MarkdownEditor
+from .editor import MarkRenderEditor
 
 __all__ = [
-    'MarkdownEditor'
+    'MarkRenderEditor'
 ]

@@ -66,6 +66,9 @@ declare global {
     qt?: QtWebChannelTransport;
     QWebChannel?: any;
     handlePythonMessage?: (action: string, data: any, requestId?: string) => void;
+    webChannelManager?: ExcalidrawWebChannelManager;
+    pendingMessages?: Array<{ action: string; data: any; requestId?: string }>;
+    pendingExcalidrawMessages?: Array<{ action: string; data: any; requestId?: string }>;
   }
 }
 
@@ -118,6 +121,28 @@ class ExcalidrawWebChannelManager {
       this.logger.error('全局消息处理函数设置失败');
     } else {
       this.logger.debug('全局消息处理函数设置成功');
+    }
+    
+    // 处理可能缓存的消息
+    if (window.pendingMessages && Array.isArray(window.pendingMessages)) {
+      this.logger.info(`处理 ${window.pendingMessages.length} 条通用缓存消息`);
+      window.pendingMessages.forEach((msg: any) => {
+        if (window.handlePythonMessage) {
+          window.handlePythonMessage(msg.action, msg.data, msg.requestId);
+        }
+      });
+      window.pendingMessages = [];
+    }
+    
+    // 处理Excalidraw特定的缓存消息
+    if (window.pendingExcalidrawMessages && Array.isArray(window.pendingExcalidrawMessages)) {
+      this.logger.info(`处理 ${window.pendingExcalidrawMessages.length} 条Excalidraw缓存消息`);
+      window.pendingExcalidrawMessages.forEach((msg: any) => {
+        if (window.handlePythonMessage) {
+          window.handlePythonMessage(msg.action, msg.data, msg.requestId);
+        }
+      });
+      window.pendingExcalidrawMessages = [];
     }
   }
 
@@ -415,6 +440,9 @@ class ExcalidrawWebChannelManager {
 
 // 创建全局实例
 const webChannelManager = new ExcalidrawWebChannelManager();
+
+// 立即设置到window对象上，供模板中的handlePythonMessage使用
+window.webChannelManager = webChannelManager;
 
 // 立即设置正确的页面类型
 webChannelManager.state.pageType = 'excalidraw';

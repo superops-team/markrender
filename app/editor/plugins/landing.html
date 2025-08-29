@@ -268,28 +268,6 @@
             requestCounter: 0
         };
 
-        // 立即定义全局消息处理函数，防止早期调用失败
-        window.handlePythonMessage = function (action, data, requestId) {
-            console.log('Landing页面收到Python消息:', action, data, 'requestId:', requestId);
-            
-            switch (action) {
-                case 'updateRecentFiles':
-                    updateRecentFilesList(data.files || []);
-                    break;
-                case 'showWelcomeMessage':
-                    showNotification(data.message || '欢迎使用MarkRender!', 'success');
-                    break;
-                case 'registerEditorEvents':
-                    console.log('Landing页面收到registerEditorEvents请求（忽略）');
-                    break;
-                case 'setupContentChangeListener':
-                    console.log('Landing页面收到setupContentChangeListener请求（忽略）');
-                    break;
-                default:
-                    console.warn('Landing页面未处理的命令:', action);
-            }
-        };
-
         // 注册Landing页面消息处理器
         function registerLandingHandlers() {
             // Landing页面特有的消息处理器
@@ -315,6 +293,9 @@
 
         // 初始化WebChannel通信（使用核心库）
         function initWebChannel() {
+            // 首先注册Landing页面消息处理器
+            registerLandingHandlers();
+            
             return window.WebChannelManager.init('landing')
                 .then(() => {
                     appState.isChannelReady = true;

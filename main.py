@@ -7,7 +7,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QFrame, QMessageBox)
 from utils.logger_utils import logger
 from PySide6.QtWidgets import QSplitter
-from app.editor import MarkdownEditor
+from app.editor import MarkRenderEditor
 from app.statusbar import StatusBar
 from app.quickpick import QuickPickPanel
 from app.sidebar import SidebarManager
@@ -68,11 +68,11 @@ class MainWindow(QMainWindow):
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.setSpacing(0)
         # 初始化quickpick面板
-        self.markdown_manager = MarkRenderManager(db_path)
-        self.quickpick_panel = QuickPickPanel(self.markdown_manager, self)
+        self.markrender_manager = MarkRenderManager(db_path)
+        self.quickpick_panel = QuickPickPanel(self.markrender_manager, self)
         self.sidebar_manager = SidebarManager(parent=self)
-        # 初始化 Markdown 编辑器
-        self.markdown_editor = MarkdownEditor(self, '', '')
+        # 初始化  编辑器
+        self.editor = MarkRenderEditor(self, '', '')
         self.sidebar = SidebarManager(self)
 
 
@@ -100,7 +100,7 @@ class MainWindow(QMainWindow):
         title_bar_layout.addStretch()
 
         # 添加按钮控制区域
-        self.button_controller = ButtonController(self, self.quickpick_panel, self.markdown_editor)
+        self.button_controller = ButtonController(self, self.quickpick_panel, self.editor)
         self.button_controller.setFixedHeight(20)  # 固定按钮区域高度
         title_bar_layout.addWidget(self.button_controller)
 
@@ -124,7 +124,7 @@ class MainWindow(QMainWindow):
         right_splitter.setHandleWidth(0)
 
         right_splitter.addWidget(self.quickpick_panel)
-        right_splitter.addWidget(self.markdown_editor)
+        right_splitter.addWidget(self.editor)
         initial_right_sizes = [int(self.width() * 0.2), int(self.width() * 0.8)]
         right_splitter.setSizes(initial_right_sizes)
 
@@ -157,7 +157,7 @@ class MainWindow(QMainWindow):
 
     def update_theme(self, theme):
         """切换主题"""
-        self.markdown_editor.update_theme(theme)
+        self.editor.update_theme(theme)
 
     def update_editor_and_previewer(self, quickpick_item):
         """更新编辑区和预览区内容，支持多页面类型路由"""
@@ -192,7 +192,7 @@ class MainWindow(QMainWindow):
             # 更新状态栏
             content = quickpick_item.get('content', '')
             if content == '':
-                content = self.markdown_manager.get_detail(quickpick_item.get('id', ''))['content']
+                content = self.markrender_manager.get_detail(quickpick_item.get('id', ''))['content']
             
             self.status_bar.update_file_size(len(content))
             self.status_bar.update_word_count(len(content))
@@ -211,13 +211,13 @@ class MainWindow(QMainWindow):
         try:
             # 使用统一的page_id来复用相同类型的页面
             page_id = "markdown_unified"
-            page_manager = self.markdown_editor.page_manager
+            page_manager = self.editor.page_manager
             
             # 获取或创建markdown页面
             markdown_view = page_manager.get_or_create_page(
                 page_id=page_id,
                 page_type=PageType.MARKDOWN,
-                backend_interface=self.markdown_editor.web_comm
+                backend_interface=self.editor.web_comm
             )
             
             if markdown_view:
@@ -234,25 +234,25 @@ class MainWindow(QMainWindow):
                 # 获取内容
                 content = quickpick_item.get('content', '')
                 if content == '':
-                    content = self.markdown_manager.get_detail(quickpick_item.get('id', ''))['content']
+                    content = self.markrender_manager.get_detail(quickpick_item.get('id', ''))['content']
                 
                 # 更新Markdown编辑器内容（但不重新创建页面）
-                self.markdown_editor.set_file_id(quickpick_item.get('id', ''))
-                self.markdown_editor.set_file_name(quickpick_item.get('title', ''))
-                self.markdown_editor.set_text_content(content)
+                self.editor.set_file_id(quickpick_item.get('id', ''))
+                self.editor.set_file_name(quickpick_item.get('title', ''))
+                self.editor.set_text_content(content)
                 
                 # 确保Markdown编辑器可见
-                self.markdown_editor.show()
+                self.editor.show()
                 
-                logger.debug(f"Markdown页面内容更新完成: {quickpick_item.get('title')}")
+                logger.debug(f"页面内容更新完成: {quickpick_item.get('title')}")
                 
             else:
-                logger.error(f"创建Markdown页面失败: {page_id}")
+                logger.error(f"创建页面失败: {page_id}")
                 
         except Exception as e:
-            logger.error(f"Markdown页面处理失败: {e}", exc_info=True)
+            logger.error(f"页面处理失败: {e}", exc_info=True)
         
-        logger.debug(f"Markdown页面处理完成")
+        logger.debug(f"页面处理完成")
     
     def _handle_board_page(self, quickpick_item):
         """处理Board画板页面 - 修复版本，为每个board项目创建独立的页面实例"""
@@ -266,7 +266,7 @@ class MainWindow(QMainWindow):
             # 重要修复：使用board项目的ID作为page_id，确保每个board项目有独立的页面实例
             board_id = quickpick_item.get('id', '')
             page_id = f"board_{board_id}"  # 为每个board项目创建唯一的page_id
-            page_manager = self.markdown_editor.page_manager
+            page_manager = self.editor.page_manager
             
             logger.info(f"创建独立Board页面实例: {page_id} (board_id: {board_id})")
             
@@ -276,11 +276,11 @@ class MainWindow(QMainWindow):
             board_web_comm = WebCommunicationManager(page_id=page_id)
             
             # 初始化Board页面的WebChannel处理器
-            board_web_comm.register_python_handler('setBoardId', self.markdown_editor.handle_set_board_id, is_async=False)
-            board_web_comm.register_python_handler('frontendReady', self.markdown_editor.handle_frontend_ready, is_async=False)
-            board_web_comm.register_python_handler('save_excalidraw_board', self.markdown_editor.save_excalidraw_board, is_async=True)
-            board_web_comm.register_python_handler('load_excalidraw_board', self.markdown_editor.load_excalidraw_board, is_async=False)
-            board_web_comm.register_python_handler('export_excalidraw_board', self.markdown_editor.export_excalidraw_board, is_async=True)
+            board_web_comm.register_python_handler('setBoardId', self.editor.handle_set_board_id, is_async=False)
+            board_web_comm.register_python_handler('frontendReady', self.editor.handle_frontend_ready, is_async=False)
+            board_web_comm.register_python_handler('save_excalidraw_board', self.editor.save_excalidraw_board, is_async=True)
+            board_web_comm.register_python_handler('load_excalidraw_board', self.editor.load_excalidraw_board, is_async=False)
+            board_web_comm.register_python_handler('export_excalidraw_board', self.editor.export_excalidraw_board, is_async=True)
             
             board_view = page_manager.get_or_create_page(
                 page_id=page_id,
@@ -358,13 +358,13 @@ class MainWindow(QMainWindow):
         try:
             # 使用多页面管理器创建或获取Landing页面
             page_id = "landing_main"
-            page_manager = self.markdown_editor.page_manager
+            page_manager = self.editor.page_manager
             
             # 获取或创建Landing页面
             landing_view = page_manager.get_or_create_page(
                 page_id=page_id,
                 page_type=PageType.LANDING,
-                backend_interface=self.markdown_editor.web_comm
+                backend_interface=self.editor.web_comm
             )
             
             if landing_view:
@@ -374,7 +374,7 @@ class MainWindow(QMainWindow):
                     logger.info(f"Landing页面加载成功: {page_id}")
                     
                     # 发送欢迎消息
-                    self.markdown_editor.web_comm.send_message('showWelcomeMessage', {
+                    self.editor.web_comm.send_message('showWelcomeMessage', {
                         'message': '欢迎使用MarkRender!'
                     })
                 else:
@@ -418,8 +418,8 @@ class MainWindow(QMainWindow):
         """在窗口关闭前保存未保存的笔记并清理线程"""
         try:
             # 快速检查编辑器状态
-            if (hasattr(self, 'markdown_editor') and self.markdown_editor and
-                not getattr(self.markdown_editor, '_close_ready', False)):
+            if (hasattr(self, 'editor') and self.editor and
+                not getattr(self.editor, '_close_ready', False)):
                 
                 logger.debug("主窗口关闭: 检查编辑器状态")
                 
@@ -428,7 +428,7 @@ class MainWindow(QMainWindow):
                 temp_event = QEvent(QEvent.Type.Close)
                 
                 # 调用编辑器的关闭事件处理
-                self.markdown_editor.closeEvent(temp_event)
+                self.editor.closeEvent(temp_event)
                 
                 # 如果编辑器需要等待保存，则等待完成
                 if not temp_event.isAccepted():

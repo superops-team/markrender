@@ -30,6 +30,12 @@ window.WebChannelManager = (function() {
         debug: (msg, ...args) => console.debug(`[WebChannel-${state.pageType}] ${msg}`, ...args)
     };
 
+    // 注册消息处理器
+    function registerMessageHandler(action, handler) {
+        state.messageHandlers.set(action, handler);
+        logger.debug(`注册消息处理器: ${action}`);
+    }
+
     // 立即定义全局消息处理函数，防止早期调用失败
     window.handlePythonMessage = function(action, data, requestId) {
         logger.debug('收到Python消息:', action, data, 'requestId:', requestId);
@@ -45,6 +51,15 @@ window.WebChannelManager = (function() {
             logger.warn(`未注册的消息类型: ${action}`);
         }
     };
+    
+    // 预先注册一些兼容性消息处理器，防止警告
+    registerMessageHandler('registerEditorEvents', (data, requestId) => {
+        logger.debug('忽略编辑器消息: registerEditorEvents');
+    });
+    
+    registerMessageHandler('setupContentChangeListener', (data, requestId) => {
+        logger.debug('忽略编辑器消息: setupContentChangeListener');
+    });
 
     // WebChannel初始化（带重试机制）
     function initWebChannel(pageType = 'unknown') {
@@ -163,12 +178,6 @@ window.WebChannelManager = (function() {
             logger.error('解析响应失败:', e);
             throw e;
         }
-    }
-
-    // 注册消息处理器
-    function registerMessageHandler(action, handler) {
-        state.messageHandlers.set(action, handler);
-        logger.debug(`注册消息处理器: ${action}`);
     }
 
     // 注销消息处理器

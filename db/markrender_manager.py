@@ -73,7 +73,7 @@ class MarkRenderManager:
         finally:
             session.close()
     
-    def save_markdown(
+    def save_item(
             self,
             id=None,
             title='',
@@ -167,7 +167,7 @@ class MarkRenderManager:
             if id and content and changed:
                 self.sync_write_localdisk(id, content)
 
-    def sync_write_localdisk(self, id, content):
+    def sync_write_localdisk(self, id, content, page_type=None, page_engine=None):
         """
         同步将内容写入本地磁盘
         Args:
@@ -175,13 +175,18 @@ class MarkRenderManager:
             content: 内容
         """
         try:
-            with open(f'{get_user_data_dir()}/output/{id}.md', 'w') as f:
+            suffix = 'markrender'
+            if page_type == 'markdown':
+                suffix = 'md'
+            if page_engine == 'excalidraw':
+                suffix = 'excalidraw'
+            with open(f'{get_user_data_dir()}/output/{id}.{suffix}', 'w') as f:
                 f.write(content)
         except Exception as e:
             logger.error(f"Error writing to local disk: {e}")
 
 
-    def search_markdown(self, keyword=None, page_type=None):
+    def search_item(self, keyword=None, page_type=None):
         session = self.Session()
         try:
             if keyword:

@@ -9,7 +9,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QHBoxLayout, QLabel
+from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QLabel
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QFont
 
@@ -42,10 +42,10 @@ class TopBarVerificationWindow(QMainWindow):
         
         # 创建模拟的history panel和markdown editor
         self.history_panel = QWidget()
-        self.markdown_editor = MockMarkdownEditor()
+        self.markrender_editor = MockMarkRenderEditor()
         
         # 创建实际的ButtonController
-        self.button_controller = ButtonController(self, self.history_panel, self.markdown_editor)
+        self.button_controller = ButtonController(self, self.history_panel, self.markrender_editor)
         self.button_controller.setStyleSheet("""
             QWidget {
                 background-color: #ffffff;
@@ -200,7 +200,7 @@ class TopBarVerificationWindow(QMainWindow):
         # 打印到控制台
         print(result_text)
 
-class MockMarkdownEditor:
+class MockMarkRenderEditor:
     """模拟的Markdown编辑器，用于测试"""
     def export_file(self, format_type):
         print(f"模拟导出: {format_type}")

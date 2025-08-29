@@ -35,11 +35,11 @@ class QuickPickPanel(QWidget):
     # 修改信号，传递完整的历史记录项
     quickpick_item_selected = Signal(dict)
 
-    def __init__(self, markdown_manager, parent=None):
+    def __init__(self, markrender_manager, parent=None):
         self.parent = parent
         super().__init__(parent)
         self.app_style = AppStyle()
-        self.markdown_manager = markdown_manager
+        self.markrender_manager = markrender_manager
         # 替换 MListView 为 QListWidget
         self.quickpick_list = QListWidget()
         # 设置 sizePolicy 为 Expanding
@@ -129,7 +129,7 @@ class QuickPickPanel(QWidget):
                 self.quickpick_list.model().setData(index, item_data, Qt.UserRole)
                 # 调用数据库更新逻辑，需根据实际情况实现
                 if 'id' in item_data:
-                    self.markdown_manager.save_markdown(
+                    self.markrender_manager.save_item(
                         id=item_data['id'],
                         title=new_title,
                         tags=item_data['tags'],
@@ -161,7 +161,7 @@ class QuickPickPanel(QWidget):
     def load_quickpick_items(self):
         """加载所有历史记录"""
         try:
-            self.all_quickpick_items = self.markdown_manager.load_items()
+            self.all_quickpick_items = self.markrender_manager.load_items()
             if self.all_quickpick_items:
                 logger.info(f"成功加载 {len(self.all_quickpick_items)} 条记录")
             else:
@@ -208,7 +208,7 @@ class QuickPickPanel(QWidget):
             # 获取当前内容，使用异步回调确保获取到最新内容
             def handle_content(content):
                 if current_file_id:
-                    self.markdown_manager.save_markdown(
+                    self.markrender_manager.save_item(
                         id=current_file_id,
                         content=content
                     )
@@ -217,26 +217,26 @@ class QuickPickPanel(QWidget):
                 self.save_complete.emit()
 
             # 通过Web通信方式获取编辑器内容
-            if hasattr(self.parent.markdown_editor, 'web_comm') and hasattr(self.parent.markdown_editor.web_comm, 'send_message'):
+            if hasattr(self.parent.editor, 'web_comm') and hasattr(self.parent.editor.web_comm, 'send_message'):
                 def handle_web_response(response):
                     logger.debug(f"切换item前收到Web通信响应: {response}")
                     # 处理Web通信返回的响应
                     content = response.get('content', '') if response else ''
                     handle_content(content)
 
-                # 发送消息请求获取Markdown内容
-                self.parent.markdown_editor.web_comm.send_message('getMarkdown', {}, handle_web_response)
-                logger.debug("已发送获取Markdown内容的Web通信请求")
+                # 发送消息请求获取页面内容
+                self.parent.editor.web_comm.send_message('getContent', {}, handle_web_response)
+                logger.debug("已发送获取内容的Web通信请求")
             else:
                 # 回退方案：使用原有的直接执行JS方式
                 js_code = """
                     if (window.appState.editor) {
-                        window.appStat.editor.getMarkdown();
+                        window.appState.editor.getContent();
                     } else {
                         '';
                     }
                 """
-                self.parent.markdown_editor.preview.page().runJavaScript(js_code, handle_content)
+                self.parent.editor.preview.page().runJavaScript(js_code, handle_content)
         except Exception as e:
             logger.error(f"保存内容失败: {str(e)}")
             self.save_complete.emit()  # 出错时也发射信号，避免阻塞
@@ -267,8 +267,8 @@ class QuickPickPanel(QWidget):
         new_title, ok = QInputDialog.getText(self, '重命名标题', '请输入新标题:', text=old_title)
         if ok and new_title and new_title != old_title:
             try:
-                # 使用 save_markdown 方法更新标题
-                self.markdown_manager.save_markdown(
+                # 使用 save_item 方法更新标题
+                self.markrender_manager.save_item(
                     id=current_file['id'],
                     title=new_title
                 )
@@ -302,11 +302,11 @@ class QuickPickPanel(QWidget):
         if reply != QMessageBox.Yes:
             return
         try:
-            if self.markdown_manager.delete_item(data['id']):
+            if self.markrender_manager.delete_item(data['id']):
                 self.load_quickpick_items()
                 # 清空编辑区
-                if hasattr(self.parent, 'markdown_editor'):
-                    self.parent.markdown_editor.reset()
+                if hasattr(self.parent, 'editor'):
+                    self.parent.editor.reset()
                 # 设置 current_file 为空
                 if hasattr(self.parent, 'current_file'):
                     self.parent.current_file = None
@@ -332,27 +332,27 @@ class QuickPickPanel(QWidget):
         # 导入需要的样式常量
         from app.preference.style_constants import NEUTRAL_600, FONT_SIZE_XS
 
-        # 创建 Markdown 按钮组合（紧凑设计）
-        markdown_container = QWidget()
-        markdown_container.setFixedSize(36, 48)  # 固定小尺寸
-        markdown_layout = QVBoxLayout(markdown_container)
-        markdown_layout.setSpacing(2)  # 最小间距
-        markdown_layout.setContentsMargins(0, 0, 0, 0)
+        # 创建 内容 按钮组合（紧凑设计）
+        content_container = QWidget()
+        content_container.setFixedSize(36, 48)  # 固定小尺寸
+        content_layout = QVBoxLayout(content_container)
+        content_layout.setSpacing(2)  # 最小间距
+        content_layout.setContentsMargins(0, 0, 0, 0)
         
-        markdown_btn = QPushButton()
-        markdown_btn.setIcon(QIcon(get_icon_path("textarea")))
-        markdown_btn.setIconSize(QSize(20, 20))  # 紧凑图标尺寸
-        markdown_btn.setFixedSize(32, 32)  # 固定按钮尺寸
-        markdown_btn.setToolTip("创建笔记")
-        markdown_btn.clicked.connect(self.create_new_markdown_item)
+        content_btn = QPushButton()
+        content_btn.setIcon(QIcon(get_icon_path("textarea")))
+        content_btn.setIconSize(QSize(20, 20))  # 紧凑图标尺寸
+        content_btn.setFixedSize(32, 32)  # 固定按钮尺寸
+        content_btn.setToolTip("创建笔记")
+        content_btn.clicked.connect(self.create_new_markdown_item)
         
-        # 创建紧凑的 Markdown 标签
-        markdown_label = QLabel("笔记")
-        markdown_label.setAlignment(Qt.AlignCenter)
-        markdown_label.setFixedHeight(12)  # 固定标签高度
+        # 创建紧凑的 内容 标签
+        content_label = QLabel("笔记")
+        content_label.setAlignment(Qt.AlignCenter)
+        content_label.setFixedHeight(12)  # 固定标签高度    
         
-        markdown_layout.addWidget(markdown_btn, 0, Qt.AlignCenter)
-        markdown_layout.addWidget(markdown_label, 0, Qt.AlignCenter)
+        content_layout.addWidget(content_btn, 0, Qt.AlignCenter)
+        content_layout.addWidget(content_label, 0, Qt.AlignCenter)
 
         # 创建 Board 按钮组合（紧凑设计）
         board_container = QWidget()
@@ -377,7 +377,7 @@ class QuickPickPanel(QWidget):
         board_layout.addWidget(board_label, 0, Qt.AlignCenter)
 
         # 将按钮组合添加到水平布局
-        h_layout.addWidget(markdown_container)
+        h_layout.addWidget(content_container)
         h_layout.addWidget(board_container)
 
         # 将容器添加到菜单中
@@ -389,7 +389,7 @@ class QuickPickPanel(QWidget):
         menu.exec(self.new_btn.mapToGlobal(self.new_btn.rect().bottomLeft()))
 
     def create_new_markdown_item(self):
-        """创建新的Markdown记录"""
+        """创建新的markdown记录"""
         from utils import time_utils
         timestamp = time_utils.now().strftime('%Y%m%d%H%M%S')
         new_item = {
@@ -401,7 +401,7 @@ class QuickPickPanel(QWidget):
             'converter': 'manual',
         }
         # 保存到数据库
-        self.markdown_manager.save_markdown(**new_item)
+        self.markrender_manager.save_item(**new_item)
         # 刷新快速选择列表
         self.load_quickpick_items()
         # 选择新创建的项目
@@ -410,7 +410,7 @@ class QuickPickPanel(QWidget):
             self.on_item_clicked(self.quickpick_list.model().index(0, 0))
 
     def create_new_board_item(self):
-        """创建新的Board记录"""
+        """创建新的Excalidraw记录"""
         from utils import time_utils
         timestamp = time_utils.now().strftime('%Y%m%d%H%M%S')
         new_item = {
@@ -419,10 +419,11 @@ class QuickPickPanel(QWidget):
             'tags': '',
             'status': 'processed',
             'page_type': 'board',
+            'page_engine': 'excalidraw',
             'converter': 'manual',
         }
         # 保存到数据库
-        self.markdown_manager.save_markdown(**new_item)
+        self.markrender_manager.save_item(**new_item)
         # 刷新快速选择列表
         self.load_quickpick_items()
         # 选择新创建的项目
@@ -483,11 +484,11 @@ class QuickPickPanel(QWidget):
             return
         logger.debug(f"用户确认删除ID为 {item_id} 的历史记录")
         try:
-            if self.markdown_manager.delete_item(item_id):
+            if self.markrender_manager.delete_item(item_id):
                 logger.info(f"成功删除ID为 {item_id} 的快速选择记录，刷新列表")
                 self.load_quickpick_items()
                 # 清空编辑区
-                self.parent.markdown_editor.reset()
+                self.parent.editor.reset()
                 # 设置 current_file 为空
                 self.parent.current_file = None
             else:

@@ -17,14 +17,14 @@ def test_close_delay_optimization():
         print("=" * 50)
         
         # 检查关闭逻辑优化
-        from app.editor.editor import MarkdownEditor
-        print("✅ MarkdownEditor 导入成功")
+        from app.editor.editor import MarkRenderEditor
+        print("✅ MarkRenderEditor 导入成功")
         
         # 检查优化的方法
         import inspect
         
         # 检查closeEvent方法的优化
-        close_source = inspect.getsource(MarkdownEditor.closeEvent)
+        close_source = inspect.getsource(MarkRenderEditor.closeEvent)
         
         optimization_checks = [
             ("_check_if_save_needed", "快速保存检查"),
@@ -43,9 +43,9 @@ def test_close_delay_optimization():
                 print(f"  ⚠️  {desc}: 未找到相关实现")
         
         # 检查_check_if_save_needed方法
-        if hasattr(MarkdownEditor, '_check_if_save_needed'):
+        if hasattr(MarkRenderEditor, '_check_if_save_needed'):
             print("✅ 快速保存检查方法存在")
-            check_source = inspect.getsource(MarkdownEditor._check_if_save_needed)
+            check_source = inspect.getsource(MarkRenderEditor._check_if_save_needed)
             
             if "document_modified" in check_source and "False" in check_source:
                 print("  ✅ 包含文档修改状态检查，跳过不必要保存")
@@ -56,9 +56,9 @@ def test_close_delay_optimization():
             return False
         
         # 检查_perform_save_and_close方法
-        if hasattr(MarkdownEditor, '_perform_save_and_close'):
+        if hasattr(MarkRenderEditor, '_perform_save_and_close'):
             print("✅ 分离的保存关闭方法存在")
-            perform_source = inspect.getsource(MarkdownEditor._perform_save_and_close)
+            perform_source = inspect.getsource(MarkRenderEditor._perform_save_and_close)
             
             if "1500" in perform_source:
                 print("  ✅ 超时时间已缩短至1.5秒")
@@ -82,14 +82,14 @@ def test_document_modification_tracking():
         print("\n📝 测试文档修改状态跟踪优化...")
         print("=" * 50)
         
-        from app.editor.editor import MarkdownEditor
+        from app.editor.editor import MarkRenderEditor
         
         # 检查on_document_modified方法的优化
-        if hasattr(MarkdownEditor, 'on_document_modified'):
+        if hasattr(MarkRenderEditor, 'on_document_modified'):
             print("✅ 文档修改跟踪方法存在")
             
             import inspect
-            modify_source = inspect.getsource(MarkdownEditor.on_document_modified)
+            modify_source = inspect.getsource(MarkRenderEditor.on_document_modified)
             
             tracking_features = [
                 ("strip()", "智能内容比较（忽略空格）"),

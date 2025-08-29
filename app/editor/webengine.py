@@ -19,17 +19,15 @@ class PageType(Enum):
     MARKDOWN = "markdown"
     BOARD = "board"
     LANDING = "landing"
-    MOCK_TEST = "mock_test"
     EXCALIDRAW = "excalidraw"
     
     @property
     def html_file(self) -> str:
         """获取对应的HTML文件名"""
         mapping = {
-            PageType.MARKDOWN: "index.html",
-            PageType.BOARD: "board_excalidraw.html", 
+            PageType.MARKDOWN: "cherry-markdown/index.html",
+            PageType.BOARD: "excalidraw/index.html", 
             PageType.LANDING: "landing.html",
-            PageType.MOCK_TEST: "mock_test.html",
             PageType.EXCALIDRAW: "excalidraw/index.html"  # 修复路径，指向excalidraw文件夹中的index.html
         }
         return mapping.get(self, "index.html")
@@ -40,8 +38,7 @@ class PageType(Enum):
         mapping = {
             PageType.MARKDOWN: "Markdown编辑器",
             PageType.BOARD: "画板编辑器", 
-            PageType.LANDING: "欢迎页面",
-            PageType.MOCK_TEST: "测试页面",
+            PageType.LANDING: "首页",
             PageType.EXCALIDRAW: "绘图板"
         }
         return mapping.get(self, "未知页面")
@@ -309,7 +306,7 @@ class WebPageManager(QObject):
     
     def load_html(self, page_id: str, file_name: str, callback: Optional[Callable[[bool], None]] = None) -> bool:
         """
-        从resources目录加载HTML文件
+        从plugins目录加载HTML文件
         
         Args:
             page_id: 页面ID
@@ -326,8 +323,8 @@ class WebPageManager(QObject):
         
         try:
             # 构建文件路径
-            resources_dir = os.path.join(os.path.dirname(__file__), 'resources')
-            html_file = os.path.join(resources_dir, f"{file_name}.html")
+            plugins_dir = os.path.join(os.path.dirname(__file__), 'plugins')
+            html_file = os.path.join(plugins_dir, f"{file_name}")
             
             if not os.path.exists(html_file):
                 logger.error(f"HTML file not found: {html_file}")
@@ -528,7 +525,7 @@ class WebPageManager(QObject):
             logger.error(f"无法确定页面 {page_id} 的类型")
             return False
         
-        html_file = page_type.html_file.replace('.html', '')
+        html_file = page_type.html_file
         logger.info(f"加载页面内容: {page_id} -> {html_file}")
         
         return self.load_html(page_id, html_file, 

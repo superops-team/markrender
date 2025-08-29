@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Excalidraw Whiteboard</title>
+    <link rel="icon" type="image/svg+xml" href="./excalidraw/vite.svg" />
+    <link rel="stylesheet" crossorigin href="./dist/assets/index-ng-qvHpB.css">
+    <script src="qrc:/qtwebchannel/qwebchannel.js"></script>
+    <script src="./webchannel-core.js"></script>
+    <script type="module" crossorigin src="./dist/assets/index-CHaR2bKO.js"></script>
+    <style>
+      body, html {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        overflow: hidden;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif;
+      }
+      #root {
+        height: 100vh;
+        width: 100vw;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      // Excalidraw页面标识
+      console.log('🟡 Excalidraw白板页面加载中 - 已修复React无限循环问题');
+      
+      // 确保WebChannel核心库已初始化
+      if (window.WebChannelManager) {
+        // 注册Excalidraw特有的消息处理器
+        window.WebChannelManager.registerMessageHandler('registerEditorEvents', (data, requestId) => {
+          console.log('🎨 [Excalidraw] 忽略编辑器消息: registerEditorEvents');
+        });
+        
+        window.WebChannelManager.registerMessageHandler('setupContentChangeListener', (data, requestId) => {
+          console.log('🎨 [Excalidraw] 忽略编辑器消息: setupContentChangeListener');
+        });
+        
+        console.log('🎨 [Excalidraw] 兼容性消息处理器已注册');
+      } else {
+        console.warn('🎨 [Excalidraw] WebChannelManager未定义，将稍后重试');
+      }
+    </script>
+  </body>
+</html>

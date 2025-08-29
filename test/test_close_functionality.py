@@ -28,14 +28,14 @@ def quick_test_close_functionality():
         print("✅ 编辑器组件初始化完成")
         
         # 检查关键组件是否正确初始化
-        if hasattr(window, 'markdown_editor') and window.markdown_editor:
-            print("✅ MarkdownEditor 组件正常")
+        if hasattr(window, 'editor') and window.editor:
+            print("✅ MarkRenderEditor 组件正常")
             
             # 检查编辑器是否有关闭准备标志
             if hasattr(window.markdown_editor, '_close_ready'):
                 print("✅ 编辑器关闭状态标志已设置")
             else:
-                window.markdown_editor._close_ready = False
+                window.editor._close_ready = False
                 print("🔧 设置编辑器关闭状态标志")
         
         # 检查主窗口是否有回调方法
