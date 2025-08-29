@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarkRender - 欢迎</title>
+    <script src="qrc:/qtwebchannel/qwebchannel.js"></script>
+    <script src="./webchannel-core.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 60px 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            max-width: 600px;
+            width: 90%;
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .logo {
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .tagline {
+            font-size: 1.3rem;
+            color: #666;
+            margin-bottom: 40px;
+            line-height: 1.6;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 30px;
+            margin: 40px 0;
+        }
+
+        .feature {
+            padding: 25px;
+            background: rgba(102, 126, 234, 0.05);
+            border-radius: 15px;
+            border: 2px solid rgba(102, 126, 234, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .feature:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.15);
+            border-color: rgba(102, 126, 234, 0.3);
+        }
+
+        .feature-icon {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+            color: #667eea;
+        }
+
+        .feature-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .feature-desc {
+            font-size: 0.9rem;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        .actions {
+            margin-top: 40px;
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .action-btn.secondary {
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .action-btn.secondary:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .status-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 8px 16px;
+            background: rgba(34, 197, 94, 0.1);
+            color: #22c55e;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .status-indicator.connected {
+            opacity: 1;
+        }
+
+        .recent-files {
+            margin-top: 30px;
+            text-align: left;
+        }
+
+        .recent-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 8px;
+            transition: background 0.2s ease;
+            cursor: pointer;
+        }
+
+        .file-item:hover {
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .file-icon {
+            width: 20px;
+            height: 20px;
+            color: #667eea;
+        }
+
+        .file-info {
+            flex: 1;
+        }
+
+        .file-name {
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 2px;
+        }
+
+        .file-meta {
+            font-size: 0.8rem;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="status-indicator" id="statusIndicator">
+        🟢 已连接
+    </div>
+
+    <div class="container">
+        <div class="logo">📝 MarkRender</div>
+        <div class="tagline">
+            强大的文档转换和编辑工具<br>
+            支持多种格式，一站式处理您的文档需求
+        </div>
+
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon">📄</div>
+                <div class="feature-title">Markdown 编辑</div>
+                <div class="feature-desc">专业的Markdown编辑器，支持实时预览和丰富的语法高亮</div>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🎨</div>
+                <div class="feature-title">创意画板</div>
+                <div class="feature-desc">集成绘图功能，支持流程图、思维导图等创意表达</div>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🔄</div>
+                <div class="feature-title">格式转换</div>
+                <div class="feature-desc">支持PDF、DOCX、EPUB等多种格式的转换和导出</div>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="action-btn" onclick="createNewDocument('markdown')">
+                📝 新建文档
+            </button>
+            <button class="action-btn" onclick="createNewDocument('board')">
+                🎨 新建画板
+            </button>
+            <button class="action-btn secondary" onclick="openFileImport()">
+                📁 导入文件
+            </button>
+        </div>
+
+        <div class="recent-files" id="recentFiles" style="display: none;">
+            <div class="recent-title">最近使用的文件</div>
+            <div id="recentFilesList"></div>
+        </div>
+    </div>
+
+    <script>
+        'use strict';
+        
+        // 全局状态管理
+        const appState = {
+            backendInterface: null,
+            isChannelReady: false,
+            callbackMap: new Map(),
+            requestCounter: 0
+        };
+
+        // 立即定义全局消息处理函数，防止早期调用失败
+        window.handlePythonMessage = function (action, data, requestId) {
+            console.log('Landing页面收到Python消息:', action, data, 'requestId:', requestId);
+            
+            switch (action) {
+                case 'updateRecentFiles':
+                    updateRecentFilesList(data.files || []);
+                    break;
+                case 'showWelcomeMessage':
+                    showNotification(data.message || '欢迎使用MarkRender!', 'success');
+                    break;
+                case 'registerEditorEvents':
+                    console.log('Landing页面收到registerEditorEvents请求（忽略）');
+                    break;
+                case 'setupContentChangeListener':
+                    console.log('Landing页面收到setupContentChangeListener请求（忽略）');
+                    break;
+                default:
+                    console.warn('Landing页面未处理的命令:', action);
+            }
+        };
+
+        // 注册Landing页面消息处理器
+        function registerLandingHandlers() {
+            // Landing页面特有的消息处理器
+            window.WebChannelManager.registerMessageHandler('updateRecentFiles', (data, requestId) => {
+                updateRecentFilesList(data.files || []);
+            });
+            
+            window.WebChannelManager.registerMessageHandler('showWelcomeMessage', (data, requestId) => {
+                showNotification(data.message || '欢迎使用MarkRender!', 'success');
+            });
+            
+            // 兼容性处理：注册Editor相关消息处理器（避免"未注册消息类型"错误）
+            window.WebChannelManager.registerMessageHandler('registerEditorEvents', (data, requestId) => {
+                window.WebChannelManager.logger.debug('Landing页面收到registerEditorEvents请求（忽略）');
+            });
+            
+            window.WebChannelManager.registerMessageHandler('setupContentChangeListener', (data, requestId) => {
+                window.WebChannelManager.logger.debug('Landing页面收到setupContentChangeListener请求（忽略）');
+            });
+            
+            window.WebChannelManager.logger.info('Landing页面消息处理器注册完成');
+        }
+
+        // 初始化WebChannel通信（使用核心库）
+        function initWebChannel() {
+            return window.WebChannelManager.init('landing')
+                .then(() => {
+                    appState.isChannelReady = true;
+                    updateConnectionStatus(true);
+                    window.WebChannelManager.logger.info('Landing页面WebChannel初始化成功');
+                    
+                    // 加载最近文件
+                    loadRecentFiles();
+                })
+                .catch(error => {
+                    window.WebChannelManager.logger.error('Landing页面WebChannel初始化失败:', error);
+                    updateConnectionStatus(false);
+                });
+        }
+
+        // 更新连接状态指示器（使用WebChannel核心库状态）
+        function updateConnectionStatus(connected) {
+            const indicator = document.getElementById('statusIndicator');
+            const status = window.WebChannelManager.getStatus();
+            
+            if (status.isReady) {
+                indicator.textContent = '🟢 已连接';
+                indicator.classList.add('connected');
+            } else {
+                indicator.textContent = '🔴 连接中...';
+                indicator.classList.remove('connected');
+            }
+        }
+
+        // 标准化消息发送到Python（使用WebChannel核心库）
+        function sendToPython(action, data = {}, callback = null) {
+            return window.WebChannelManager.sendToPython(action, data, callback);
+        }
+
+        // 处理Python响应（由WebChannel核心库统一处理）
+        function handlePythonResponse(responseJson) {
+            return window.WebChannelManager.handlePythonResponse?.(responseJson);
+        }
+
+        // 创建新文档
+        function createNewDocument(type) {
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const title = type === 'markdown' ? `新建文档-${timestamp}` : `新建画板-${timestamp}`;
+            
+            sendToPython('createNewDocument', {
+                type: type,
+                title: title
+            }, (response) => {
+                if (response.success) {
+                    console.log('文档创建成功:', response.data);
+                    showNotification(`${title} 创建成功!`, 'success');
+                } else {
+                    console.error('文档创建失败:', response.error);
+                    showNotification('文档创建失败，请重试', 'error');
+                }
+            });
+        }
+
+        // 打开文件导入
+        function openFileImport() {
+            sendToPython('openFileImport', {}, (response) => {
+                console.log('打开文件导入:', response);
+            });
+        }
+
+        // 加载最近文件
+        function loadRecentFiles() {
+            sendToPython('getRecentFiles', {}, (response) => {
+                if (response.success && response.data.files) {
+                    updateRecentFilesList(response.data.files);
+                }
+            });
+        }
+
+        // 更新最近文件列表
+        function updateRecentFilesList(files) {
+            const recentFiles = document.getElementById('recentFiles');
+            const filesList = document.getElementById('recentFilesList');
+            
+            if (!files || files.length === 0) {
+                recentFiles.style.display = 'none';
+                return;
+            }
+
+            filesList.innerHTML = '';
+            files.slice(0, 5).forEach(file => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.onclick = () => openRecentFile(file);
+                
+                const icon = file.page_type === 'board' ? '🎨' : '📝';
+                
+                fileItem.innerHTML = `
+                    <div class="file-icon">${icon}</div>
+                    <div class="file-info">
+                        <div class="file-name">${file.title}</div>
+                        <div class="file-meta">${formatFileDate(file.updated_at)} · ${file.page_type}</div>
+                    </div>
+                `;
+                
+                filesList.appendChild(fileItem);
+            });
+            
+            recentFiles.style.display = 'block';
+        }
+
+        // 打开最近文件
+        function openRecentFile(file) {
+            sendToPython('openRecentFile', {
+                fileId: file.id,
+                pageType: file.page_type
+            }, (response) => {
+                if (response.success) {
+                    console.log('打开文件成功:', file.title);
+                } else {
+                    console.error('打开文件失败:', response.error);
+                    showNotification('文件打开失败，请重试', 'error');
+                }
+            });
+        }
+
+        // 格式化文件日期
+        function formatFileDate(dateString) {
+            if (!dateString) return '未知时间';
+            
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+            
+            if (diffDays === 0) {
+                return '今天';
+            } else if (diffDays === 1) {
+                return '昨天';
+            } else if (diffDays < 7) {
+                return `${diffDays}天前`;
+            } else {
+                return date.toLocaleDateString('zh-CN');
+            }
+        }
+
+        // 显示通知
+        function showNotification(message, type = 'info') {
+            // 简单的通知实现，可以后续扩展
+            console.log(`[${type.toUpperCase()}] ${message}`);
+            
+            // 如果需要更复杂的通知UI，可以在这里实现
+        }
+
+        // 错误处理
+        window.onerror = function (message, source, lineno, colno, error) {
+            console.error('Landing页面错误:', {
+                message,
+                source,
+                line: lineno,
+                column: colno,
+                stack: error?.stack
+            });
+            
+            if (appState.isChannelReady) {
+                sendToPython('reportError', {
+                    message,
+                    source,
+                    line: lineno,
+                    column: colno,
+                    stack: error?.stack || '',
+                    pageType: 'landing'
+                });
+            }
+            
+            return true;
+        };
+
+        // 初始化应用
+        function initApp() {
+            window.WebChannelManager.logger.info('Landing页面开始初始化...');
+            
+            // 注册消息处理器
+            registerLandingHandlers();
+            
+            // 初始化WebChannel（使用核心库）
+            initWebChannel();
+            
+            // 初始化状态显示
+            updateConnectionStatus(false);
+            
+            window.WebChannelManager.logger.info('Landing页面初始化完成');
+        }
+
+        // 启动应用
+        document.addEventListener('DOMContentLoaded', initApp);
+        
+        // 确保WebChannel核心库可用时才初始化
+        if (window.WebChannelManager) {
+            window.WebChannelManager.onReady(function() {
+                window.WebChannelManager.logger.info('WebChannel核心库就绪，Landing页面可以开始通信');
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <style>
+        body {
+            margin: 20px;
+            font-family: Arial, sans-serif;
+        }
+        #output {
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h2>WebChannel 通信测试</h2>
+    <div id="output">等待消息...</div>
+    
+    <script>
+        'use strict';
+        
+        console.log('开始初始化测试页面...');
+        
+        // 立即定义handlePythonMessage函数
+        window.handlePythonMessage = function (action, data, requestId) {
+            console.log('收到Python消息:', action, data, 'requestId:', requestId);
+            const output = document.getElementById('output');
+            
+            if (output) {
+                output.innerHTML += `<p><strong>收到消息:</strong> ${action}</p>`;
+                output.innerHTML += `<p><strong>数据:</strong> ${JSON.stringify(data)}</p>`;
+                
+                switch (action) {
+                    case 'setValue':
+                        output.innerHTML += `<p><strong>设置内容:</strong> ${data.content}</p>`;
+                        break;
+                    case 'test':
+                        output.innerHTML += `<p><strong>✅ 测试消息成功接收!</strong></p>`;
+                        break;
+                    default:
+                        output.innerHTML += `<p><strong>未处理的命令:</strong> ${action}</p>`;
+                }
+            }
+        };
+        
+        // 检查函数是否正确定义
+        console.log('handlePythonMessage 函数已定义:', typeof window.handlePythonMessage);
+        console.log('window对象:', window);
+        
+        // 更新页面状态
+        function updateStatus() {
+            const output = document.getElementById('output');
+            if (output) {
+                output.innerHTML = `
+                    <p><strong>页面加载完成</strong></p>
+                    <p>handlePythonMessage 函数类型: ${typeof window.handlePythonMessage}</p>
+                    <p>等待Python消息...</p>
+                `;
+            }
+        }
+        
+        // 页面加载完成后更新状态
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', updateStatus);
+        } else {
+            updateStatus();
+        }
+        
+        console.log('测试页面初始化完成');
+    </script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 from PySide6.QtWidgets import QComboBox, QPushButton, QHBoxLayout
-from db.markdown_manager import MarkdownManager
+from db.markrender_manager import MarkRenderManager
 from utils.logger_utils import logger
 
 
@@ -27,7 +27,7 @@ class WorkspaceManager:
                 os.path.expanduser('~'), '.local', 'share', 'markrender')
         os.makedirs(self.workspace_dir, exist_ok=True)
         self.db_path = os.path.join(self.workspace_dir, 'default.db')
-        self.markdown_history_manager = MarkdownManager(self.db_path)
+        self.markdown_history_manager = MarkRenderManager(self.db_path)
         logger.info(f'数据库路径初始化完成，路径为: {self.db_path}')
 
     def setup_workspace_ui(self):
@@ -48,7 +48,7 @@ class WorkspaceManager:
         """切换工作区"""
         self.current_workspace = workspace_name
         self.db_path = os.path.join(self.workspace_dir, f'{workspace_name}.db')
-        self.markdown_history_manager = MarkdownManager(self.db_path)
+        self.markdown_history_manager = MarkRenderManager(self.db_path)
         logger.info(f'已切换到工作区: {workspace_name}')
 
     def add_workspace(self):

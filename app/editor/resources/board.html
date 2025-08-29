@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarkRender - 创意画板</title>
+    <script src="qrc:/qtwebchannel/qwebchannel.js"></script>
+    <script src="./webchannel-core.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f8fafc;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .toolbar {
+            background: #ffffff;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+
+        .tool-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 12px;
+            border-right: 1px solid #e2e8f0;
+        }
+
+        .tool-group:last-child {
+            border-right: none;
+        }
+
+        .tool-btn {
+            background: transparent;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 8px 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 14px;
+            color: #475569;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .tool-btn:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+
+        .tool-btn.active {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+
+        .color-picker {
+            width: 32px;
+            height: 32px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            cursor: pointer;
+            background: #000000;
+        }
+
+        .slider-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .slider {
+            width: 80px;
+            height: 4px;
+            background: #e2e8f0;
+            border-radius: 2px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: #ffffff;
+        }
+
+        #canvas {
+            display: block;
+            cursor: crosshair;
+            width: 100%;
+            height: 100%;
+        }
+
+        .status-bar {
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            padding: 8px 20px;
+            font-size: 12px;
+            color: #64748b;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .floating-panel {
+            position: absolute;
+            top: 80px;
+            right: 20px;
+            background: white;
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            width: 200px;
+            z-index: 100;
+            display: none;
+        }
+
+        .panel-title {
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #1e293b;
+        }
+
+        .shape-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .shape-btn {
+            width: 40px;
+            height: 40px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.2s ease;
+        }
+
+        .shape-btn:hover {
+            background: #f1f5f9;
+            border-color: #3b82f6;
+        }
+
+        .shape-btn.active {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            padding: 8px 16px;
+            background: rgba(34, 197, 94, 0.1);
+            color: #22c55e;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 1001;
+        }
+
+        .connection-status.connected {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="connection-status" id="connectionStatus">
+        🟢 画板已连接
+    </div>
+
+    <div class="toolbar">
+        <div class="tool-group">
+            <button class="tool-btn active" id="penTool" onclick="setTool('pen')">
+                ✏️ 画笔
+            </button>
+            <button class="tool-btn" id="eraserTool" onclick="setTool('eraser')">
+                🧹 橡皮
+            </button>
+            <button class="tool-btn" id="selectTool" onclick="setTool('select')">
+                👆 选择
+            </button>
+        </div>
+
+        <div class="tool-group">
+            <button class="tool-btn" onclick="toggleShapePanel()">
+                🔷 形状
+            </button>
+            <button class="tool-btn" onclick="addText()">
+                📝 文字
+            </button>
+        </div>
+
+        <div class="tool-group">
+            <input type="color" class="color-picker" id="colorPicker" value="#000000" onchange="setColor(this.value)">
+            <div class="slider-group">
+                <span>粗细</span>
+                <input type="range" class="slider" id="brushSize" min="1" max="20" value="3" onchange="setBrushSize(this.value)">
+                <span id="sizeDisplay">3</span>
+            </div>
+        </div>
+
+        <div class="tool-group">
+            <button class="tool-btn" onclick="undo()">
+                ↶ 撤销
+            </button>
+            <button class="tool-btn" onclick="redo()">
+                ↷ 重做
+            </button>
+            <button class="tool-btn" onclick="clearCanvas()">
+                🗑️ 清空
+            </button>
+        </div>
+
+        <div class="tool-group">
+            <button class="tool-btn" onclick="saveBoard()">
+                💾 保存
+            </button>
+            <button class="tool-btn" onclick="exportImage()">
+                📷 导出
+            </button>
+        </div>
+    </div>
+
+    <div class="canvas-container">
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <div class="floating-panel" id="shapePanel">
+        <div class="panel-title">选择形状</div>
+        <div class="shape-grid">
+            <button class="shape-btn" onclick="drawShape('rectangle')">⬜</button>
+            <button class="shape-btn" onclick="drawShape('circle')">⭕</button>
+            <button class="shape-btn" onclick="drawShape('triangle')">🔺</button>
+            <button class="shape-btn" onclick="drawShape('line')">📏</button>
+            <button class="shape-btn" onclick="drawShape('arrow')">➡️</button>
+            <button class="shape-btn" onclick="drawShape('star')">⭐</button>
+        </div>
+    </div>
+
+    <div class="status-bar">
+        <div>画板尺寸: <span id="canvasSize">-</span></div>
+        <div>工具: <span id="currentTool">画笔</span></div>
+        <div>坐标: <span id="mousePos">-</span></div>
+    </div>
+
+    <script>
+        'use strict';
+        
+        // 全局状态管理
+        const appState = {
+            backendInterface: null,
+            isChannelReady: false,
+            callbackMap: new Map(),
+            requestCounter: 0,
+            boardId: null,
+            unsavedChanges: false
+        };
+
+        // 画板状态
+        const canvasState = boardState; // 保持向后兼容
+
+        // 初始化画布
+        function initCanvas() {
+            boardState.canvas = document.getElementById('canvas');
+            boardState.ctx = boardState.canvas.getContext('2d');
+            
+            // 设置画布尺寸
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            
+            // 绑定鼠标事件
+            boardState.canvas.addEventListener('mousedown', startDrawing);
+            boardState.canvas.addEventListener('mousemove', draw);
+            boardState.canvas.addEventListener('mouseup', stopDrawing);
+            boardState.canvas.addEventListener('mouseout', stopDrawing);
+            
+            // 初始设置
+            boardState.ctx.lineCap = 'round';
+            boardState.ctx.lineJoin = 'round';
+            
+            // 保存初始状态
+            saveState();
+            
+            // 更新状态显示
+            updateCanvasSize();
+        }
+
+        // 调整画布尺寸
+        function resizeCanvas() {
+            const container = boardState.canvas.parentElement;
+            boardState.canvas.width = container.clientWidth;
+            boardState.canvas.height = container.clientHeight;
+            
+            // 重新设置绘图属性
+            boardState.ctx.lineCap = 'round';
+            boardState.ctx.lineJoin = 'round';
+            boardState.ctx.lineWidth = boardState.brushSize;
+            boardState.ctx.strokeStyle = boardState.currentColor;
+            
+            updateCanvasSize();
+        }
+
+        // 更新画布尺寸显示
+        function updateCanvasSize() {
+            document.getElementById('canvasSize').textContent = 
+                `${boardState.canvas.width} × ${boardState.canvas.height}`;
+        }
+
+        // 开始绘制
+        function startDrawing(e) {
+            boardState.isDrawing = true;
+            const rect = boardState.canvas.getBoundingClientRect();
+            boardState.startX = e.clientX - rect.left;
+            boardState.startY = e.clientY - rect.top;
+            
+            if (boardState.currentTool === 'pen') {
+                boardState.ctx.beginPath();
+                boardState.ctx.moveTo(boardState.startX, boardState.startY);
+            } else if (boardState.currentTool === 'eraser') {
+                boardState.ctx.globalCompositeOperation = 'destination-out';
+                boardState.ctx.beginPath();
+                boardState.ctx.arc(boardState.startX, boardState.startY, boardState.brushSize, 0, 2 * Math.PI);
+                boardState.ctx.fill();
+            }
+        }
+
+        // 绘制过程
+        function draw(e) {
+            if (!boardState.isDrawing) {
+                // 更新鼠标坐标显示
+                const rect = boardState.canvas.getBoundingClientRect();
+                const x = Math.round(e.clientX - rect.left);
+                const y = Math.round(e.clientY - rect.top);
+                document.getElementById('mousePos').textContent = `${x}, ${y}`;
+                return;
+            }
+            
+            const rect = boardState.canvas.getBoundingClientRect();
+            const currentX = e.clientX - rect.left;
+            const currentY = e.clientY - rect.top;
+            
+            if (boardState.currentTool === 'pen') {
+                boardState.ctx.globalCompositeOperation = 'source-over';
+                boardState.ctx.lineWidth = boardState.brushSize;
+                boardState.ctx.strokeStyle = boardState.currentColor;
+                boardState.ctx.lineTo(currentX, currentY);
+                boardState.ctx.stroke();
+            } else if (boardState.currentTool === 'eraser') {
+                boardState.ctx.globalCompositeOperation = 'destination-out';
+                boardState.ctx.beginPath();
+                boardState.ctx.arc(currentX, currentY, boardState.brushSize, 0, 2 * Math.PI);
+                boardState.ctx.fill();
+            }
+            
+            boardState.unsavedChanges = true;
+        }
+
+        // 停止绘制
+        function stopDrawing() {
+            if (boardState.isDrawing) {
+                boardState.isDrawing = false;
+                saveState();
+                boardState.unsavedChanges = true;
+            }
+        }
+
+        // 设置工具
+        function setTool(tool) {
+            boardState.currentTool = tool;
+            
+            // 更新UI
+            document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(tool + 'Tool').classList.add('active');
+            
+            // 更新光标
+            const canvas = boardState.canvas;
+            switch(tool) {
+                case 'pen':
+                    canvas.style.cursor = 'crosshair';
+                    break;
+                case 'eraser':
+                    canvas.style.cursor = 'grab';
+                    break;
+                case 'select':
+                    canvas.style.cursor = 'default';
+                    break;
+            }
+            
+            // 更新状态显示
+            const toolNames = {'pen': '画笔', 'eraser': '橡皮', 'select': '选择'};
+            document.getElementById('currentTool').textContent = toolNames[tool] || tool;
+        }
+
+        // 设置颜色
+        function setColor(color) {
+            boardState.currentColor = color;
+            boardState.ctx.strokeStyle = color;
+        }
+
+        // 设置画笔大小
+        function setBrushSize(size) {
+            boardState.brushSize = parseInt(size);
+            boardState.ctx.lineWidth = boardState.brushSize;
+            document.getElementById('sizeDisplay').textContent = size;
+        }
+
+        // 保存状态到历史记录
+        function saveState() {
+            boardState.historyStep++;
+            if (boardState.historyStep < boardState.history.length) {
+                boardState.history.length = boardState.historyStep;
+            }
+            boardState.history.push(boardState.canvas.toDataURL());
+        }
+
+        // 撤销
+        function undo() {
+            if (boardState.historyStep > 0) {
+                boardState.historyStep--;
+                restoreState();
+            }
+        }
+
+        // 重做
+        function redo() {
+            if (boardState.historyStep < boardState.history.length - 1) {
+                boardState.historyStep++;
+                restoreState();
+            }
+        }
+
+        // 恢复状态
+        function restoreState() {
+            const img = new Image();
+            img.onload = function() {
+                boardState.ctx.clearRect(0, 0, boardState.canvas.width, boardState.canvas.height);
+                boardState.ctx.drawImage(img, 0, 0);
+            };
+            img.src = boardState.history[boardState.historyStep];
+        }
+
+        // 清空画布
+        function clearCanvas() {
+            if (confirm('确定要清空画布吗？此操作无法撤销。')) {
+                boardState.ctx.clearRect(0, 0, boardState.canvas.width, boardState.canvas.height);
+                saveState();
+                boardState.unsavedChanges = true;
+            }
+        }
+
+        // 切换形状面板
+        function toggleShapePanel() {
+            const panel = document.getElementById('shapePanel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // 绘制形状
+        function drawShape(shape) {
+            boardState.selectedShape = shape;
+            setTool('select');
+            toggleShapePanel();
+            console.log('选择形状:', shape);
+        }
+
+        // 添加文字
+        function addText() {
+            const text = prompt('请输入要添加的文字:');
+            if (text) {
+                const x = boardState.canvas.width / 2;
+                const y = boardState.canvas.height / 2;
+                
+                boardState.ctx.font = '20px Arial';
+                boardState.ctx.fillStyle = boardState.currentColor;
+                boardState.ctx.fillText(text, x, y);
+                
+                saveState();
+                boardState.unsavedChanges = true;
+            }
+        }
+
+        // 保存画板
+        function saveBoard() {
+            const imageData = boardState.canvas.toDataURL('image/png');
+            
+            sendToPython('saveBoard', {
+                boardId: boardState.boardId,
+                imageData: imageData,
+                metadata: {
+                    width: boardState.canvas.width,
+                    height: boardState.canvas.height,
+                    timestamp: new Date().toISOString()
+                }
+            }, (response) => {
+                if (response.success) {
+                    boardState.unsavedChanges = false;
+                    window.WebChannelManager.logger.info('画板保存成功');
+                    showNotification('画板已保存', 'success');
+                } else {
+                    window.WebChannelManager.logger.error('画板保存失败:', response.error);
+                    showNotification('保存失败，请重试', 'error');
+                }
+            });
+        }
+
+        // 导出图片
+        function exportImage() {
+            sendToPython('exportBoard', {
+                boardId: boardState.boardId,
+                imageData: boardState.canvas.toDataURL('image/png'),
+                format: 'png'
+            }, (response) => {
+                if (response.success) {
+                    window.WebChannelManager.logger.info('画板导出成功');
+                    showNotification('画板已导出', 'success');
+                } else {
+                    window.WebChannelManager.logger.error('画板导出失败:', response.error);
+                    showNotification('导出失败，请重试', 'error');
+                }
+            });
+        }
+
+        // 显示通知
+        function showNotification(message, type = 'info') {
+            window.WebChannelManager.logger.info(`[${type.toUpperCase()}] ${message}`);
+            // 这里可以实现更复杂的通知UI
+        }
+
+        // 初始化WebChannel通信
+        function initWebChannel() {
+            if (!window.qt || !window.qt.webChannelTransport) {
+                console.error('QWebChannel传输不可用');
+                updateConnectionStatus(false);
+                return;
+            }
+
+            new QWebChannel(qt.webChannelTransport, (channel) => {
+                appState.backendInterface = channel.objects.backendInterface;
+                appState.isChannelReady = true;
+                updateConnectionStatus(true);
+                console.log('画板页面 QWebChannel初始化完成');
+
+                // 通知后端前端就绪
+                if (appState.backendInterface.frontend_ready) {
+                    appState.backendInterface.frontend_ready();
+                }
+            });
+        }
+
+        // 更新连接状态（使用WebChannel核心库状态）
+        function updateConnectionStatus(connected) {
+            const status = document.getElementById('connectionStatus');
+            const wcmStatus = window.WebChannelManager.getStatus();
+            
+            if (wcmStatus.isReady) {
+                status.textContent = '🟢 画板已连接';
+                status.classList.add('connected');
+            } else {
+                status.textContent = '🔴 连接中...';
+                status.classList.remove('connected');
+            }
+        }
+
+        // 标准化消息发送到Python（使用WebChannel核心库）
+        function sendToPython(action, data = {}, callback = null) {
+            return window.WebChannelManager.sendToPython(action, data, callback);
+        }
+
+        // 处理Python响应（由WebChannel核心库统一处理）
+        function handlePythonResponse(responseJson) {
+            return window.WebChannelManager.handlePythonResponse?.(responseJson);
+        }
+
+        // 处理Python发送的消息
+        window.handlePythonMessage = function (action, data, requestId) {
+            console.log('画板页面收到Python消息:', action, data, 'requestId:', requestId);
+            
+            switch (action) {
+                case 'setBoardId':
+                    appState.boardId = data.boardId;
+                    console.log('设置画板ID:', data.boardId);
+                    break;
+                case 'loadBoardData':
+                    loadBoardData(data);
+                    break;
+                case 'clearBoard':
+                    clearCanvas();
+                    break;
+                default:
+                    console.warn('画板页面未处理的命令:', action);
+            }
+        };
+
+        // 加载画板数据
+        function loadBoardData(data) {
+            if (data.imageData) {
+                const img = new Image();
+                img.onload = function() {
+                    boardState.ctx.clearRect(0, 0, boardState.canvas.width, boardState.canvas.height);
+                    boardState.ctx.drawImage(img, 0, 0);
+                    saveState();
+                };
+                img.src = data.imageData;
+            }
+        }
+
+        // 错误处理
+        window.onerror = function (message, source, lineno, colno, error) {
+            console.error('画板页面错误:', {
+                message,
+                source,
+                line: lineno,
+                column: colno,
+                stack: error?.stack
+            });
+            
+            if (appState.isChannelReady) {
+                sendToPython('reportError', {
+                    message,
+                    source,
+                    line: lineno,
+                    column: colno,
+                    stack: error?.stack || '',
+                    pageType: 'board'
+                });
+            }
+            
+            return true;
+        };
+
+        // 页面卸载前检查未保存更改
+        window.addEventListener('beforeunload', function(e) {
+            if (boardState.unsavedChanges) {
+                e.preventDefault();
+                e.returnValue = '';
+                return '您有未保存的更改，确定要离开吗？';
+            }
+        });
+
+        // 初始化应用
+        function initApp() {
+            window.WebChannelManager.logger.info('画板页面开始初始化...');
+            
+            // 注册消息处理器
+            registerBoardHandlers();
+            
+            // 初始化画布
+            initCanvas();
+            
+            // 初始化WebChannel
+            initWebChannel();
+            
+            window.WebChannelManager.logger.info('画板页面初始化完成');
+        }
+
+        // 启动应用
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>

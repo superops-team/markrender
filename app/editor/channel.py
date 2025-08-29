@@ -5,7 +5,7 @@ import traceback
 from PySide6.QtCore import QObject, Slot, QRunnable, QThreadPool, Signal, QTimer
 from PySide6.QtWebChannel import QWebChannel
 from utils import logger
-from db.markdown_manager import MarkdownManager
+from db.markrender_manager import MarkRenderManager
 
 # 纯Python实现的RequestModel类
 class RequestModel:
@@ -33,7 +33,7 @@ class WebCommunicationManager(QObject):
     def __init__(self, page_id: str, parent=None):
         super().__init__(parent)
         self.page_id = page_id
-        self.markdown_manager = MarkdownManager()
+        self.markdown_manager = MarkRenderManager()
         self.python_handlers = {}
         self.web_callbacks = {}
         self.page = None  # 添加page属性，初始为None
@@ -107,12 +107,25 @@ class WebCommunicationManager(QObject):
             if is_async:
                 return self._dispatch_async_request(request, handler)
             else:
-                # 同步处理 - 将文档实例作为第一个参数传递
-                handler(request.data)
-                return json.dumps({
-                    "success": True,
-                    "requestId": request.request_id,
-                })
+                # 同步处理 - 调用处理器并获取返回结果
+                result = handler(request.data)
+                
+                # 处理器可能返回不同格式的结果
+                if isinstance(result, dict):
+                    # 如果处理器返回字典，直接使用
+                    response_data = {
+                        "requestId": request.request_id,
+                        **result  # 展开处理器返回的结果
+                    }
+                else:
+                    # 如果处理器返回其他类型，包装为标准格式
+                    response_data = {
+                        "success": True,
+                        "requestId": request.request_id,
+                        "data": result
+                    }
+                
+                return json.dumps(response_data)
         except Exception as e:
             return json.dumps({
                 "success": False,
@@ -170,6 +183,11 @@ class WebCommunicationManager(QObject):
             # 确保无论回调执行结果如何都移除回调引用
             if request_id in self.web_callbacks:
                 del self.web_callbacks[request_id]            
+    
+    def _generate_request_id(self):
+        """生成唯一的请求ID"""
+        import uuid
+        return str(uuid.uuid4())
     
     def _send_web_response(self, callback_id, result):
         response = {

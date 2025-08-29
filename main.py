@@ -11,7 +11,7 @@ from app.editor import MarkdownEditor
 from app.statusbar import StatusBar
 from app.quickpick import QuickPickPanel
 from app.sidebar import SidebarManager
-from db.markdown_manager import MarkdownManager
+from db.markrender_manager import MarkRenderManager
 from app.topbar import ButtonController
 from app.preference import MacOSButton, AppStyle  # 新增导入
 
@@ -68,7 +68,7 @@ class MainWindow(QMainWindow):
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.setSpacing(0)
         # 初始化quickpick面板
-        self.markdown_manager = MarkdownManager(db_path)
+        self.markdown_manager = MarkRenderManager(db_path)
         self.quickpick_panel = QuickPickPanel(self.markdown_manager, self)
         self.sidebar_manager = SidebarManager(parent=self)
         # 初始化 Markdown 编辑器
@@ -149,27 +149,258 @@ class MainWindow(QMainWindow):
         self.status_bar = StatusBar()
         self.setStatusBar(self.status_bar)
         self.status_bar.setStyleSheet(AppStyle().get_status_bar())
+        
+        # 显示默认的Landing欢迎页面
+        from PySide6.QtCore import QTimer
+        # 延迟显示，确保所有组件初始化完成
+        QTimer.singleShot(100, self.show_landing_page)
 
     def update_theme(self, theme):
         """切换主题"""
         self.markdown_editor.update_theme(theme)
 
     def update_editor_and_previewer(self, quickpick_item):
-        """更新编辑区和预览区内容"""
+        """更新编辑区和预览区内容，支持多页面类型路由"""
         try:
+            from app.editor.webengine import PageType
+            
+            logger.info(f"开始更新编辑器页面: {quickpick_item.get('title', 'Unknown')}")
+            
             self.current_file = quickpick_item
-            # 获取选中历史项的内容
+            
+            # 获取页面类型，默认为markdown
+            page_type_str = quickpick_item.get('page_type', 'markdown')
+            try:
+                page_type = PageType(page_type_str)
+            except ValueError:
+                logger.warning(f"未知页面类型: {page_type_str}，使用默认markdown类型")
+                page_type = PageType.MARKDOWN
+            
+            logger.info(f"页面类型: {page_type.value} ({page_type.display_name})")
+            
+            # 根据页面类型路由到不同的处理逻辑
+            if page_type == PageType.MARKDOWN:
+                self._handle_markdown_page(quickpick_item)
+            elif page_type == PageType.BOARD:
+                self._handle_board_page(quickpick_item)
+            elif page_type == PageType.LANDING:
+                self._handle_landing_page(quickpick_item)
+            else:
+                logger.warning(f"页面类型 {page_type.value} 尚未实现，使用markdown处理")
+                self._handle_markdown_page(quickpick_item)
+            
+            # 更新状态栏
             content = quickpick_item.get('content', '')
             if content == '':
                 content = self.markdown_manager.get_detail(quickpick_item.get('id', ''))['content']
-            # 更新编辑区内容
-            self.markdown_editor.set_file_id(quickpick_item.get('id', ''))
-            self.markdown_editor.set_file_name(quickpick_item.get('title', ''))
-            self.markdown_editor.set_text_content(content)
+            
             self.status_bar.update_file_size(len(content))
             self.status_bar.update_word_count(len(content))
+            
+            logger.info(f"页面更新完成: {quickpick_item.get('title', 'Unknown')}")
+            
         except Exception as e:
-            logger.error(f"更新编辑区和预览区失败: {e}")
+            logger.error(f"更新编辑区和预览区失败: {e}", exc_info=True)
+    
+    def _handle_markdown_page(self, quickpick_item):
+        """处理Markdown页面 - 优化版本，使用统一page_id避免不必要的页面创建"""
+        logger.debug(f"处理Markdown页面: {quickpick_item.get('title')}")
+        
+        from app.editor.webengine import PageType
+        
+        try:
+            # 使用统一的page_id来复用相同类型的页面
+            page_id = "markdown_unified"
+            page_manager = self.markdown_editor.page_manager
+            
+            # 获取或创建markdown页面
+            markdown_view = page_manager.get_or_create_page(
+                page_id=page_id,
+                page_type=PageType.MARKDOWN,
+                backend_interface=self.markdown_editor.web_comm
+            )
+            
+            if markdown_view:
+                # 只在页面刚创建或页面切换时才加载内容，避免重复加载
+                if page_manager.current_page_id != page_id:
+                    success = page_manager.load_page_content(page_id, PageType.MARKDOWN)
+                    if not success:
+                        logger.error(f"Markdown页面加载失败: {page_id}")
+                        return
+                    logger.info(f"Markdown页面加载成功: {page_id}")
+                else:
+                    logger.debug(f"Markdown页面已是当前页面，跳过加载: {page_id}")
+                
+                # 获取内容
+                content = quickpick_item.get('content', '')
+                if content == '':
+                    content = self.markdown_manager.get_detail(quickpick_item.get('id', ''))['content']
+                
+                # 更新Markdown编辑器内容（但不重新创建页面）
+                self.markdown_editor.set_file_id(quickpick_item.get('id', ''))
+                self.markdown_editor.set_file_name(quickpick_item.get('title', ''))
+                self.markdown_editor.set_text_content(content)
+                
+                # 确保Markdown编辑器可见
+                self.markdown_editor.show()
+                
+                logger.debug(f"Markdown页面内容更新完成: {quickpick_item.get('title')}")
+                
+            else:
+                logger.error(f"创建Markdown页面失败: {page_id}")
+                
+        except Exception as e:
+            logger.error(f"Markdown页面处理失败: {e}", exc_info=True)
+        
+        logger.debug(f"Markdown页面处理完成")
+    
+    def _handle_board_page(self, quickpick_item):
+        """处理Board画板页面 - 修复版本，为每个board项目创建独立的页面实例"""
+        logger.debug(f"处理Board页面: {quickpick_item.get('title')}")
+        
+        # 这里需要创建或切换到Board编辑器
+        # 目前使用Markdown编辑器作为占位符，后续可以扩展
+        from app.editor.webengine import PageType
+        
+        try:
+            # 重要修复：使用board项目的ID作为page_id，确保每个board项目有独立的页面实例
+            board_id = quickpick_item.get('id', '')
+            page_id = f"board_{board_id}"  # 为每个board项目创建唯一的page_id
+            page_manager = self.markdown_editor.page_manager
+            
+            logger.info(f"创建独立Board页面实例: {page_id} (board_id: {board_id})")
+            
+            # 获取或创建board页面，使用EXCALIDRAW类型确保正确的页面类型和消息路由
+            # 为每个Board页面创建独立的WebCommunicationManager实例
+            from app.editor.channel import WebCommunicationManager
+            board_web_comm = WebCommunicationManager(page_id=page_id)
+            
+            # 初始化Board页面的WebChannel处理器
+            board_web_comm.register_python_handler('setBoardId', self.markdown_editor.handle_set_board_id, is_async=False)
+            board_web_comm.register_python_handler('frontendReady', self.markdown_editor.handle_frontend_ready, is_async=False)
+            board_web_comm.register_python_handler('save_excalidraw_board', self.markdown_editor.save_excalidraw_board, is_async=True)
+            board_web_comm.register_python_handler('load_excalidraw_board', self.markdown_editor.load_excalidraw_board, is_async=False)
+            board_web_comm.register_python_handler('export_excalidraw_board', self.markdown_editor.export_excalidraw_board, is_async=True)
+            
+            board_view = page_manager.get_or_create_page(
+                page_id=page_id,
+                page_type=PageType.EXCALIDRAW,  # 使用EXCALIDRAW确保正确的页面类型和消息路由
+                backend_interface=board_web_comm  # 使用独立的通信管理器
+            )
+            
+            # 确保 WebCommunicationManager 和页面对象正确关联
+            if board_view:
+                board_web_comm.set_page(board_view.page())
+            
+            if board_view:
+                # 只在页面刚创建或页面切换时才加载内容，避免重复加载
+                if page_manager.current_page_id != page_id:
+                    success = page_manager.load_page_content(page_id, PageType.EXCALIDRAW)
+                    if not success:
+                        logger.error(f"Board页面加载失败: {page_id}")
+                        return
+                    logger.info(f"Board页面加载成功: {page_id}")
+                else:
+                    logger.debug(f"Board页面已是当前页面，跳过加载: {page_id}")
+                
+                # 重要：确保页面完全加载后再发送boardId消息
+                # 使用QTimer延迟发送，确保前端页面已经准备好接收消息
+                from PySide6.QtCore import QTimer
+                
+                def send_board_id():
+                    try:
+                        logger.debug(f"发送setBoardId消息到页面 {page_id}: {board_id}")
+                        # 确保消息发送到正确的页面实例
+                        board_web_comm = page_manager.get_backend_interface(page_id)
+                        if board_web_comm:
+                            # 发送初始化数据到前端
+                            board_web_comm.send_message('setBoardId', {
+                                'boardId': board_id,
+                                'pageId': page_id,  # 同时发送页面ID，便于前端调试
+                                'title': quickpick_item.get('title', '')
+                            })
+                            
+                            # 如果有存储的画板数据，加载它
+                            content = quickpick_item.get('content', '')
+                            if content:
+                                logger.debug(f"发送loadExcalidrawData消息，内容长度: {len(content)}")
+                                board_web_comm.send_message('loadExcalidrawData', {
+                                    'boardId': board_id,
+                                    'drawingData': content
+                                })
+                            else:
+                                logger.debug(f"Board项目无内容，跳过数据加载: {board_id}")
+                        else:
+                            logger.error(f"无法获取页面 {page_id} 的后端接口")
+                            
+                    except Exception as e:
+                        logger.error(f"发送Board初始化消息失败: {e}", exc_info=True)
+                
+                # 延迟300ms发送，确保前端页面准备就绪
+                QTimer.singleShot(300, send_board_id)
+                
+            else:
+                logger.error(f"创建Board页面失败: {page_id}")
+                
+        except Exception as e:
+            logger.error(f"Board页面处理失败: {e}", exc_info=True)
+            # 回退到Markdown处理
+            self._handle_markdown_page(quickpick_item)
+        
+        logger.debug(f"Board页面处理完成")
+    
+    def _handle_landing_page(self, quickpick_item):
+        """处理Landing欢迎页面"""
+        logger.debug(f"处理Landing页面: {quickpick_item.get('title')}")
+        
+        from app.editor.webengine import PageType
+        
+        try:
+            # 使用多页面管理器创建或获取Landing页面
+            page_id = "landing_main"
+            page_manager = self.markdown_editor.page_manager
+            
+            # 获取或创建Landing页面
+            landing_view = page_manager.get_or_create_page(
+                page_id=page_id,
+                page_type=PageType.LANDING,
+                backend_interface=self.markdown_editor.web_comm
+            )
+            
+            if landing_view:
+                # 加载页面内容
+                success = page_manager.load_page_content(page_id, PageType.LANDING)
+                if success:
+                    logger.info(f"Landing页面加载成功: {page_id}")
+                    
+                    # 发送欢迎消息
+                    self.markdown_editor.web_comm.send_message('showWelcomeMessage', {
+                        'message': '欢迎使用MarkRender!'
+                    })
+                else:
+                    logger.error(f"Landing页面加载失败: {page_id}")
+            else:
+                logger.error(f"创建Landing页面失败: {page_id}")
+                
+        except Exception as e:
+            logger.error(f"Landing页面处理失败: {e}", exc_info=True)
+        
+        logger.debug(f"Landing页面处理完成")
+    
+    def show_landing_page(self):
+        """显示默认的Landing欢迎页面"""
+        logger.info("显示默认Landing页面")
+        
+        landing_item = {
+            'id': 'landing_default',
+            'title': '欢迎使用MarkRender',
+            'content': '',
+            'page_type': 'landing',
+            'created_at': '',
+            'updated_at': ''
+        }
+        
+        self._handle_landing_page(landing_item)
 
     def update_quickpick_list(self):
         """更新快速选择列表"""

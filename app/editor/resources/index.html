@@ -4,11 +4,12 @@
 <head>
     <meta charset="utf-8">
     <link rel="stylesheet" type="text/css" href="./cherry-markdown/cherry-markdown.css">
+    <script src="qrc:/qtwebchannel/qwebchannel.js"></script>
+    <script src="./webchannel-core.js"></script>
     <script src="./cherry-markdown/cherry-markdown.js"></script>
     <script src="./cherry-markdown/echarts.min.js"></script>
     <script src="./cherry-markdown/text-svg.js"></script>
-    <script src="qrc:/qtwebchannel/qwebchannel.js"></script>
-    <style>
+     <style>
         body {
             margin: 0;
             height: 100vh;
@@ -32,37 +33,69 @@
     <div id="editor"></div>
     <script>
         'use strict';
-        // 全局状态管理
-        const appState = {
+        
+        // 页面特定状态管理
+        const editorState = {
             editor: null,
-            backendInterface: null,
-            currentDocumentId: null,
-            isChannelReady: false,
-            callbackMap: new Map(),
-            requestCounter: 0
+            currentDocumentId: null
         };
 
-        // 添加响应发送函数定义
-        function sendResponseToPython(requestId, data) {
-            if (!appState.isChannelReady || !appState.backendInterface) {
-                console.error('WebChannel未就绪，无法发送响应');
-                return;
-            }
-            try {
-                const responseData = {
-                    requestId: requestId,
-                    result: data
-                };
-                appState.backendInterface.handle_web_response(JSON.stringify(responseData));
-            } catch (error) {
-                console.error('发送响应失败:', error);
-            }
+        // 注册Markdown编辑器特定的消息处理器
+        function registerMarkdownHandlers() {
+            const WCM = window.WebChannelManager;
+            
+            WCM.registerMessageHandler('setValue', (data, requestId) => {
+                if (editorState.editor) {
+                    editorState.editor.setValue(data.content);
+                    WCM.logger.info('编辑器内容已更新');
+                } else {
+                    WCM.logger.error('编辑器未初始化，无法设置内容');
+                }
+            });
+
+            WCM.registerMessageHandler('setCurrentFileId', (data, requestId) => {
+                editorState.currentDocumentId = data.file_id;
+                WCM.logger.info('当前文件ID已更新:', data.file_id);
+            });
+
+            WCM.registerMessageHandler('textChanged', (data, requestId) => {
+                if (editorState.editor) {
+                    editorState.editor.setValue(data.content);
+                    WCM.logger.info('编辑器内容已更新');
+                } else {
+                    WCM.logger.error('编辑器未初始化，无法设置内容');
+                }
+            });
+
+            WCM.registerMessageHandler('getMarkdown', (data, requestId) => {
+                if (editorState.editor) {
+                    WCM.sendResponseToPython(requestId, {
+                        content: editorState.editor.getValue()
+                    });
+                } else {
+                    WCM.sendResponseToPython(requestId, {
+                        error: '编辑器未初始化，无法获取Markdown'
+                    });
+                }
+            });
+
+            WCM.registerMessageHandler('registerEditorEvents', (data, requestId) => {
+                WCM.logger.debug('注册编辑器事件请求');
+            });
+
+            WCM.registerMessageHandler('setupContentChangeListener', (data, requestId) => {
+                WCM.logger.debug('设置内容变化监听请求');
+            });
         }
 
-        // 初始化编辑器
-        // 在initEditor函数中添加以下代码
+        // 响应发送函数（使用WebChannel核心库）
+        function sendResponseToPython(requestId, data) {
+            window.WebChannelManager.sendResponseToPython(requestId, data);
+        }
+
+        // 初始化Cherry Markdown编辑器
         function initEditor() {
-            appState.editor = new Cherry({
+            editorState.editor = new Cherry({
                 id: 'editor',
                 value: '',
                 toolbars: {
@@ -75,174 +108,134 @@
                         'graph'
                     ],
                     toolbarRight: ['undo', 'redo', 'togglePreview', 'codeTheme'],
-                    bubble:  ['bold', 'italic', 'underline', 'strikethrough', 'sub', 'sup', 'quote', '|', 'size', 'color'], // array or false,
+                    bubble:  ['bold', 'italic', 'underline', 'strikethrough', 'sub', 'sup', 'quote', '|', 'size', 'color'],
                     float: []
                 },
-                defaultModel: 'editOnly', // 'edit&preview'
+                defaultModel: 'editOnly',
                 writingStyle: 'typewriter',
                 preview: { style: { height: 'auto', width: '100%' } },
                 header: { anchorStyle: 'none' }
             });
+            
+            window.WebChannelManager.logger.info('Cherry Markdown编辑器初始化完成');
         }
 
 
-        // 初始化通信通道
+        // 初始化WebChannel通信（使用核心库）
         function initWebChannel() {
-            if (!window.qt || !window.qt.webChannelTransport) {
-                console.error('QWebChannel传输不可用');
+            return window.WebChannelManager.init('markdown')
+                .then(() => {
+                    window.WebChannelManager.logger.info('Markdown编辑器WebChannel初始化成功');
+                    
+                    // 直接注册消息处理器，不再使用onReady
+                    registerMarkdownHandlers();
+                    
+                    // 设置编辑器内容变化监听
+                    setupContentChangeListener();
+                    
+                    // 设置自动保存功能
+                    setupAutoSave();
+                    
+                    window.WebChannelManager.logger.info('Markdown编辑器消息处理器注册完成');
+                })
+                .catch(error => {
+                    window.WebChannelManager.logger.error('Markdown编辑器WebChannel初始化失败:', error);
+                });
+        }
+
+        // 设置编辑器内容变化监听
+        function setupContentChangeListener() {
+            if (!editorState.editor) {
+                window.WebChannelManager.logger.error('编辑器未初始化，无法设置内容监听');
                 return;
             }
-
-            new QWebChannel(qt.webChannelTransport, (channel) => {
-                appState.backendInterface = channel.objects.backendInterface;
-                appState.isChannelReady = true;
-                console.log('QWebChannel初始化完成');
-
-                // 通知后端前端就绪
-                appState.backendInterface.frontend_ready();
-            });
-        }
-
-        // 处理Python发送的消息
-        window.handlePythonMessage = function (action, data, requestId) {
-            console.log('收到Python消息:', action, data, 'requestId:', requestId);
-            switch (action) {
-                case 'setValue':
-                    if (appState.editor) {
-                        appState.editor.setValue(data.content);
-                        console.log('编辑器内容已更新');
-                    } else {
-                        console.error('编辑器未初始化，无法设置内容');
-                    }
-                    break;
-                case 'setCurrentFileId':
-                    appState.currentDocumentId = data.file_id;
-                    console.log('当前文件ID已更新:', data.file_id);
-                    break;
-                case 'textChanged':
-                    if (appState.editor) {
-                        appState.editor.setValue(data.content);
-                        console.log('编辑器内容已更新');
-                    } else {
-                        console.error('编辑器未初始化，无法设置内容');
-                    }
-                    break;
-                case 'getMarkdown':
-                    if (appState.editor) {
-                        sendResponseToPython(requestId, {
-                            content: appState.editor.getValue()
-                        });
-                    } else {
-                        sendResponseToPython(requestId, {
-                            error: '编辑器未初始化，无法获取Markdown'
-                        });
-                    }
-                    break;
-                case 'registerEditorEvents':
-                    // TODO 注册编辑器事件
-                    break;
-                case 'setupContentChangeListener':
-                    // TODO 设置内容变化监听, 执行监听周期等
-                    break;
-                default:
-                    console.warn('未处理的命令:', action);
-            }
-        };
-
-        // 处理异步执行结果，当前功能无相关处理，只保留函数
-        function handleAsyncResponse(requestId, success, data) {
-            console.log('处理异步响应:', requestId, success, data);
-        }
-
-        // 标准化消息发送
-        function sendToPython(action, data = {}, callback = null) {
-            console.log('发送到Python:', action, data);
-
-            if (!appState.isChannelReady || !appState.backendInterface) {
-                console.error('通信通道未就绪');
-                return;
-            }
-
-            // 添加后端方法存在性检查
-            if (typeof appState.backendInterface.dispatch_request !== 'function') {
-                console.error('后端接口方法不存在: dispatch_request');
-                return;
-            }
-
-            // 生成唯一请求ID
-            const requestId = `req_${Date.now()}_${appState.requestCounter++}`;
-            if (callback) appState.callbackMap.set(requestId, callback);
-
-            // 标准请求格式
-            const request = {
-                requestId: requestId,
-                action: action,
-                data: { ...data, docId: appState.currentDocumentId || 'default' }  // 确保docId存在
-            };
-
-            try {
-                // 使用.then()处理Promise响应
-                appState.backendInterface.dispatch_request(JSON.stringify(request))
-                    .then(responseJson => handlePythonResponse(responseJson))
-                    .catch(error => console.error('请求失败:', error));
-            } catch (e) {
-                console.error('发送请求失败:', e);
-            }
-        }
-
-        // 处理Python响应
-        function handlePythonResponse(responseJson) {
-            console.log('原始响应数据:', responseJson);
-            try {
-                // 尝试解析JSON
-                const response = typeof responseJson === 'string' ? JSON.parse(responseJson) : responseJson;
-                console.log('解析后的响应:', response);
-
-                // 处理回调
-                if (response.id && appState.callbackMap.has(response.id)) {
-                    appState.callbackMap.get(response.id)(response);
-                    appState.callbackMap.delete(response.id);
-                }
-            } catch (e) {
-                console.error('解析响应失败:', e);
-            }
-        }
-
-        // 错误处理全局化
-        window.onerror = function (message, source, lineno, colno, error) {
-            sendToPython('reportError', {
-                message: message,
-                source: source,
-                line: lineno,
-                column: colno,
-                stack: error?.stack || ''
-            });
-            return true; // 阻止默认处理
-        };
-
-        // 初始化应用
-        function initApp() {
-            initEditor();
-            initWebChannel();
             
-            // 添加禁用右键菜单代码
-            document.addEventListener('contextmenu', function(e) {
-                e.preventDefault();
-                return false;
-            });
-            
-            // 启动自动保存 (10秒间隔)
+            // Cherry Markdown编辑器使用不同的事件API
+            // 监听编辑器内容变化 - 使用轮询方式监控内容变化
+            let lastContent = '';
             setInterval(() => {
-                if (appState.editor && appState.currentDocumentId) {
-                    sendToPython('autoSave', {
-                        content: appState.editor.getValue()
+                if (editorState.editor) {
+                    const currentContent = editorState.editor.getValue();
+                    if (currentContent !== lastContent && editorState.currentDocumentId) {
+                        lastContent = currentContent;
+                        
+                        // 发送内容变化通知给后端
+                        window.WebChannelManager.sendToPython('contentChanged', {
+                            content: currentContent,
+                            docId: editorState.currentDocumentId
+                        }).catch(error => {
+                            window.WebChannelManager.logger.error('发送内容变化通知失败:', error);
+                        });
+                    }
+                }
+            }, 1000); // 每秒1秒检查一次
+            
+            window.WebChannelManager.logger.info('编辑器内容变化监听器已设置');
+        }
+
+        // 设置自动保存功能
+        function setupAutoSave() {
+            setInterval(() => {
+                if (editorState.editor && editorState.currentDocumentId) {
+                    window.WebChannelManager.sendToPython('autoSave', {
+                        content: editorState.editor.getValue(),
+                        docId: editorState.currentDocumentId
+                    }).catch(error => {
+                        window.WebChannelManager.logger.error('自动保存失败:', error);
                     });
                 }
             }, 10000);
         }
 
+        // 处理Python发送的消息（由WebChannel核心库统一处理）
+
+        // 处理异步执行结果（使用WebChannel核心库）
+        function handleAsyncResponse(requestId, success, data) {
+            window.WebChannelManager.logger.debug('处理异步响应:', requestId, success, data);
+        }
+
+        // 标准化消息发送（使用WebChannel核心库）
+        function sendToPython(action, data = {}, callback = null) {
+            // 确保包含文档ID
+            const requestData = { 
+                ...data, 
+                docId: editorState.currentDocumentId || 'default' 
+            };
+            
+            return window.WebChannelManager.sendToPython(action, requestData, callback);
+        }
+
+        // 处理Python响应（由WebChannel核心库统一处理）
+        function handlePythonResponse(responseJson) {
+            // 这个函数保留用于向后兼容，实际处理由核心库完成
+            return window.WebChannelManager.handlePythonResponse?.(responseJson);
+        }
+
+        // 错误处理（使用WebChannel核心库统一处理）
+        // 核心库已经设置了全局错误处理，这里只需要页面特定的错误处理
+
+        // 初始化应用
+        function initApp() {
+            window.WebChannelManager.logger.info('Markdown编辑器页面开始初始化...');
+            
+            // 先初始化编辑器
+            initEditor();
+            
+            // 然后初始化WebChannel（这会自动注册消息处理器）
+            initWebChannel();
+            
+            window.WebChannelManager.logger.info('Markdown编辑器页面初始化完成');
+        }
+
         // 启动应用
         document.addEventListener('DOMContentLoaded', initApp);
+        
+        // 确保WebChannel核心库可用时才初始化
+        if (window.WebChannelManager) {
+            window.WebChannelManager.onReady(function() {
+                window.WebChannelManager.logger.info('WebChannel核心库就绪，Markdown编辑器可以开始通信');
+            });
+        }
     </script>
 </body>
 

@@ -19,7 +19,7 @@ from PySide6.QtCore import QTimer, Qt
 
 from app.statusbar.status_bar import StatusBar
 from app.topbar.button_controller import ButtonController
-from db.markdown_manager import MarkdownManager
+from db.markrender_manager import MarkRenderManager
 
 
 class StatusTopBarTestWindow(QMainWindow):
@@ -52,8 +52,8 @@ class StatusTopBarTestWindow(QMainWindow):
         self.history_panel.setStyleSheet("background-color: #f8f9fa; border: 1px solid #e9ecef;")
         
         try:
-            # 创建MarkdownManager实例（用于ButtonController）
-            self.markdown_manager = MarkdownManager()
+            # 创建MarkRenderManager实例（用于ButtonController）
+            self.markdown_manager = MarkRenderManager()
             
             # 创建TopBar（ButtonController）
             self.top_bar = ButtonController(self, self.history_panel, self.markdown_editor)

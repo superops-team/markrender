@@ -12,7 +12,7 @@ from PySide6.QtCore import (
     Signal,
     Q_ARG,
 )
-from db.markdown_manager import MarkdownManager
+from db.markrender_manager import MarkRenderManager
 from utils import logger
 
 class ThreadPoolManager(QObject):
@@ -183,7 +183,7 @@ class AutoSaveWorker(QRunnable):
         super().__init__()
         self.file_id = file_id
         self.content = content
-        self.markdown_manager = MarkdownManager()
+        self.markdown_manager = MarkRenderManager()
         self.result = None
         self.canceled = False
 
@@ -210,7 +210,7 @@ class ContentLoader(QRunnable):
     def __init__(self, file_id):
         super().__init__()
         self.file_id = file_id
-        self.markdown_manager = MarkdownManager()
+        self.markdown_manager = MarkRenderManager()
         self.result = None
 
     def run(self):

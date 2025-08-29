@@ -9,7 +9,7 @@ from PySide6.QtGui import QIcon
 from PySide6.QtCore import QSize, Qt
 from .settings_dialog import SettingsDialog
 from utils import get_icon_path
-from db.markdown_manager import MarkdownManager
+from db.markrender_manager import MarkRenderManager
 from app.preference import AppStyle
 from app.sidebar.import_dialog import ImportDialog
 
@@ -18,7 +18,7 @@ from app.sidebar.import_dialog import ImportDialog
 class SidebarManager(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.markdown_manager = MarkdownManager()
+        self.markdown_manager = MarkRenderManager()
         self.parent = parent
         self.app_style = AppStyle()  # 添加样式实例
         self.init_ui()

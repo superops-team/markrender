@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 from sqlalchemy.orm import sessionmaker
-from .models import Base, MarkdownFileHistory, MarkdownChangeHistory
+from .models import Base, MarkRenderData, MarkRenderChangeHistory
 from db.db_manager import SingletonEngine, get_user_data_dir
 from utils.hash_utils import calculate_md5
 from utils.logger_utils import logger  # 添加 logger 导入
 from utils import time_utils
 
 
-class MarkdownManager:
+class MarkRenderManager:
     def __init__(self, db_path=None):
         if db_path is None:
             self.db_path = SingletonEngine.get_db_path('data.db')
@@ -30,7 +30,7 @@ class MarkdownManager:
     def delete_item(self, item_id):
         try:
             with self.Session() as session:
-                history_item = session.query(MarkdownFileHistory).filter_by(id=item_id).first()
+                history_item = session.query(MarkRenderData).filter_by(id=item_id).first()
                 if history_item:
                     session.delete(history_item)
                     session.commit()
@@ -44,10 +44,10 @@ class MarkdownManager:
         """加载所有历史记录"""
         session = self.Session()
         try:
-            query = session.query(MarkdownFileHistory)
+            query = session.query(MarkRenderData)
             if page_type:
                 query = query.filter_by(page_type=page_type)
-            histories = query.order_by(MarkdownFileHistory.created_at.desc()).limit(limit).all()
+            histories = query.order_by(MarkRenderData.created_at.desc()).limit(limit).all()
             return [
                 {
                     'title': h.title,
@@ -64,6 +64,8 @@ class MarkdownManager:
                     'updated_at': h.updated_at,
                     'content_md5': h.content_md5,
                     'created_at': h.created_at,
+                    'page_settings': h.page_settings,
+                    'page_engine': h.page_engine,
                     'file_size': len(h.content),
                 } for h in histories]
         except Exception as e:
@@ -85,6 +87,8 @@ class MarkdownManager:
             converter_start=None,
             converter_end=None,
             page_type=None,
+            page_settings=None,
+            page_engine=None,
         ):
         session = self.Session()
         changed = False
@@ -93,7 +97,7 @@ class MarkdownManager:
             now = time_utils.now()  # 获取当前北京时间
             if id:
                 # 更新现有记录
-                history = session.query(MarkdownFileHistory).filter_by(id=id).first()
+                history = session.query(MarkRenderData).filter_by(id=id).first()
                 if history:
                     if content_md5 and content_md5 != history.content_md5:
                         history.content_md5 = content_md5
@@ -112,6 +116,10 @@ class MarkdownManager:
                         history.page_type = page_type
                     if render_style and render_style != history.render_style:
                         history.render_style = render_style
+                    if page_settings and page_settings != history.page_settings:
+                        history.page_settings = page_settings
+                    if page_engine and page_engine != history.page_engine:
+                        history.page_engine = page_engine
                     history.updated_at = now  # 使用北京时间更新
                     if converter_start:
                         history.converter_start = converter_start
@@ -128,7 +136,7 @@ class MarkdownManager:
             else:
                 # 创建新记录
                 changed = True
-                new_history = MarkdownFileHistory(
+                new_history = MarkRenderData(
                     title=title,
                     content=content,
                     tags=tags,
@@ -143,6 +151,8 @@ class MarkdownManager:
                     converter_end=converter_end,
                     status=status,
                     page_type=page_type,
+                    page_settings=page_settings,
+                    page_engine=page_engine,
                 )
                 session.add(new_history)
                 session.commit()
@@ -175,13 +185,13 @@ class MarkdownManager:
         session = self.Session()
         try:
             if keyword:
-                query = session.query(MarkdownFileHistory).filter(
-                    MarkdownFileHistory.title.ilike(f'%{keyword}%'))
+                query = session.query(MarkRenderData).filter(
+                    MarkRenderData.title.ilike(f'%{keyword}%'))
                 if page_type:
                     query = query.filter_by(page_type=page_type)
                 return query.all()
             else:
-                query = session.query(MarkdownFileHistory)
+                query = session.query(MarkRenderData)
                 if page_type:
                     query = query.filter_by(page_type=page_type)
                 return query.all()
@@ -194,7 +204,7 @@ class MarkdownManager:
     def get_file_history(self, title, page_type=None):
         session = self.Session()
         try:
-            query = session.query(MarkdownFileHistory).filter_by(
+            query = session.query(MarkRenderData).filter_by(
                 title=title)
             if page_type:
                 query = query.filter_by(page_type=page_type)
@@ -205,13 +215,48 @@ class MarkdownManager:
         finally:
             session.close()
 
-    def save_change_history(self, file_id, old_content, new_content):
+    def save_change_history(self, file_id, old_content, new_content, change_type='content_update', 
+                           change_reason='user_edit', change_by='user', change_ip='127.0.0.1', 
+                           change_file_path='', change_theme_id=1, change_page_type='markdown', 
+                           change_page_engine='cherry-markdown', change_page_settings='{}', change_page_id=None):
+        """
+        保存变更历史记录
+        Args:
+            file_id: 文件ID
+            old_content: 旧内容
+            new_content: 新内容
+            change_type: 变更类型
+            change_reason: 变更原因
+            change_by: 变更人
+            change_ip: 变更IP
+            change_file_path: 变更文件路径
+            change_theme_id: 变更主题ID
+            change_page_type: 变更页面类型
+            change_page_engine: 变更页面引擎
+            change_page_settings: 变更页面设置
+            change_page_id: 变更页面ID
+        """
         session = self.Session()
         try:
-            new_change = MarkdownChangeHistory(
+            # 计算内容MD5
+            import hashlib
+            change_content_md5 = hashlib.md5(new_content.encode()).hexdigest()
+            
+            new_change = MarkRenderChangeHistory(
                 file_id=file_id,
                 old_content=old_content,
-                new_content=new_content
+                new_content=new_content,
+                change_type=change_type,
+                change_reason=change_reason,
+                change_by=change_by,
+                change_ip=change_ip,
+                change_content_md5=change_content_md5,
+                change_file_path=change_file_path,
+                change_theme_id=change_theme_id,
+                change_page_type=change_page_type,
+                change_page_engine=change_page_engine,
+                change_page_settings=change_page_settings,
+                change_page_id=change_page_id or file_id
             )
             session.add(new_change)
             session.commit()
@@ -226,7 +271,7 @@ class MarkdownManager:
     def get_change_history(self, file_id):
         session = self.Session()
         try:
-            return session.query(MarkdownChangeHistory).filter_by(
+            return session.query(MarkRenderChangeHistory).filter_by(
                 file_id=file_id).all()
         except Exception as e:
             logger.error(f"Error getting change history: {e}")
@@ -237,7 +282,7 @@ class MarkdownManager:
     def get_detail(self, id):
         session = self.Session()
         try:
-            record = session.query(MarkdownFileHistory).filter_by(
+            record = session.query(MarkRenderData).filter_by(
                 id=id).first()
             return {
                 'title': record.title,
@@ -254,6 +299,8 @@ class MarkdownManager:
                 'content_md5': record.content_md5,
                 'created_at': record.created_at,
                 'page_type': record.page_type,
+                'page_settings': record.page_settings,
+                'page_engine': record.page_engine,
                 'id': record.id
             }
         except Exception as e:
@@ -269,7 +316,7 @@ class MarkdownManager:
             return
         session = self.Session()
         try:
-            record = session.query(MarkdownFileHistory).filter_by(
+            record = session.query(MarkRenderData).filter_by(
                 id=id).first()
             if record:
                 record.title = title
@@ -279,6 +326,86 @@ class MarkdownManager:
         except Exception as e:
             session.rollback()
             logger.error(f"Error updating title: {e}")
+            raise e
+        finally:
+            session.close()
+    
+    def update_page_settings(self, id, page_settings):
+        """更新页面定制化配置"""
+        if not id:
+            return
+        if page_settings is None:
+            return
+        session = self.Session()
+        try:
+            record = session.query(MarkRenderData).filter_by(
+                id=id).first()
+            if record:
+                record.page_settings = page_settings
+                record.updated_at = time_utils.now()
+                session.commit()
+            else:
+                raise ValueError(f"未找到 ID 为 {id} 的记录")
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error updating page settings: {e}")
+            raise e
+        finally:
+            session.close()
+    
+    def update_page_engine(self, id, page_engine):
+        """更新页面核心处理引擎"""
+        if not id:
+            return
+        if not page_engine:
+            return
+        session = self.Session()
+        try:
+            record = session.query(MarkRenderData).filter_by(
+                id=id).first()
+            if record:
+                record.page_engine = page_engine
+                record.updated_at = time_utils.now()
+                session.commit()
+            else:
+                raise ValueError(f"未找到 ID 为 {id} 的记录")
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error updating page engine: {e}")
+            raise e
+        finally:
+            session.close()
+    
+    def get_page_settings(self, id):
+        """获取页面定制化配置"""
+        if not id:
+            return None
+        session = self.Session()
+        try:
+            record = session.query(MarkRenderData).filter_by(
+                id=id).first()
+            if record:
+                return record.page_settings
+            return None
+        except Exception as e:
+            logger.error(f"Error getting page settings: {e}")
+            raise e
+        finally:
+            session.close()
+    
+    def get_page_engine(self, id):
+        """获取页面核心处理引擎"""
+        if not id:
+            return None
+        session = self.Session()
+        try:
+            record = session.query(MarkRenderData).filter_by(
+                id=id).first()
+            if record:
+                return record.page_engine
+            return None
+        except Exception as e:
+            logger.error(f"Error getting page engine: {e}")
             raise e
         finally:
             session.close()

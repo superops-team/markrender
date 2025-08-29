@@ -23,7 +23,7 @@ from PySide6.QtGui import QIcon
 from PySide6.QtCore import QSize
 
 from app.quickpick.panel import QuickPickPanel
-from db.markdown_manager import MarkdownManager
+from db.markrender_manager import MarkRenderManager
 from utils.path import get_icon_path
 
 
@@ -58,11 +58,11 @@ class CreateMenuTestWindow(QMainWindow):
             }
         """)
         
-        # 创建MarkdownManager实例
+        # 创建MarkRenderManager实例
         try:
-            self.markdown_manager = MarkdownManager()
+            self.markdown_manager = MarkRenderManager()
         except Exception as e:
-            print(f"创建MarkdownManager失败: {e}")
+            print(f"创建MarkRenderManager失败: {e}")
             self.markdown_manager = None
         
         # 创建QuickPickPanel实例

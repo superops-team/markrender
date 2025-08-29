@@ -14,8 +14,8 @@ class Theme(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
 
-class MarkdownFileHistory(Base):
-    __tablename__ = "markdown_file_history"
+class MarkRenderData(Base):
+    __tablename__ = "markrender_data"
 
     id = Column(Integer, primary_key=True)
     title = Column(String, nullable=False)  # 标题
@@ -31,19 +31,31 @@ class MarkdownFileHistory(Base):
     page_type = Column(String, nullable=True)  # 页面类型,默认为markdown_editor，可以指定为excalidraw_editor
     converter_start = Column(DateTime(timezone=True), server_default=func.now())  # 转换开始时间
     converter_end = Column(DateTime(timezone=True), server_default=func.now())  # 转换结束时间
+    page_settings = Column(Text)  # 页面定制化配置，JSON格式
+    page_engine = Column(String)  # 页面核心处理引擎，如cherry-markdown、excalidraw等
 
     status = Column(String)  # 渲染状态
 
 
-class MarkdownChangeHistory(Base):
-    __tablename__ = "markdown_change_history"
+class MarkRenderChangeHistory(Base):
+    __tablename__ = "markrender_change_history"
 
     id = Column(Integer, primary_key=True)
-    file_id = Column(Integer, nullable=False)  # 文件id
-    old_content = Column(Text, nullable=False)  # 旧内容
-    new_content = Column(Text, nullable=False)  # 新内容
-    changed_at = Column(DateTime(timezone=True), server_default=func.now())  # 变更时间
-
+    file_id = Column(Integer, nullable=True)  # 文件id
+    old_content = Column(Text, nullable=True)  # 旧内容
+    new_content = Column(Text, nullable=True)  # 新内容
+    change_type = Column(String, nullable=True)  # 变更类型
+    change_reason = Column(String, nullable=True)  # 变更原因
+    change_by = Column(String, nullable=True)  # 变更人
+    change_at = Column(DateTime(timezone=True), server_default=func.now())  # 变更时间
+    change_ip = Column(String, nullable=True)  # 变更ip
+    change_content_md5 = Column(String, nullable=True)  # 变更内容md5
+    change_file_path = Column(String, nullable=True)  # 变更文件路径
+    change_theme_id = Column(Integer, nullable=True)  # 变更主题id
+    change_page_type = Column(String, nullable=True)  # 变更页面类型
+    change_page_engine = Column(String, nullable=True)  # 变更页面引擎
+    change_page_settings = Column(Text, nullable=True)  # 变更页面定制化配置，JSON格式
+    change_page_id = Column(Integer, nullable=True)  # 变更页面id
 
 class Settings(Base):
     __tablename__ = "settings"
