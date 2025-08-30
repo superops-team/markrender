@@ -11,7 +11,9 @@
     -->
     <script src="qrc:/qtwebchannel/qwebchannel.js"></script>
     <script src="./webchannel-core.js"></script>
-    <script src="./excalidraw.umd.js"></script>
+    
+    <!-- Excalidraw CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@excalidraw/excalidraw@0.18.0/dist/excalidraw.css">
     
     <style>
       body, html {
@@ -31,12 +33,48 @@
   </head>
   <body>
     <div id="root"></div>
+    
+    <!-- Excalidraw JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@excalidraw/excalidraw@0.18.0/dist/excalidraw.umd.js"></script>
+    
     <script>
-      // 初始化Excalidraw UMD组件
+      // 等待DOM加载完成
       document.addEventListener('DOMContentLoaded', function() {
-        const excalidraw = Excalidraw.createExcalidraw('root');
-        window.excalidrawInstance = excalidraw;
-        console.log('Excalidraw UMD组件已初始化');
+        // 检查Excalidraw是否已加载
+        if (typeof Excalidraw !== 'undefined' && Excalidraw.Excalidraw) {
+          console.log('Excalidraw已加载');
+          
+          // 创建React根节点
+          const container = document.getElementById('root');
+          const root = ReactDOM.createRoot(container);
+          
+          // 创建Excalidraw组件
+          const App = () => {
+            const onChange = (elements, appState, files) => {
+              // 处理元素变化
+              console.log('Elements changed:', elements);
+            };
+            
+            const onPointerUpdate = (payload) => {
+              // 处理指针更新
+              console.log('Pointer updated:', payload);
+            };
+            
+            return React.createElement(
+              "div",
+              { style: { height: "100vh" } },
+              React.createElement(Excalidraw.Excalidraw, {
+                onChange: onChange,
+                onPointerUpdate: onPointerUpdate
+              })
+            );
+          };
+          
+          // 渲染应用
+          root.render(React.createElement(App));
+        } else {
+          console.error('Excalidraw未正确加载');
+        }
       });
     </script>
   </body>
