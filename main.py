@@ -181,7 +181,7 @@ class MainWindow(QMainWindow):
             # 根据页面类型路由到不同的处理逻辑
             if page_type == PageType.MARKDOWN:
                 self._handle_markdown_page(quickpick_item)
-            elif page_type == PageType.EXCALIDRAW:
+            elif page_type == PageType.BOARD:
                 self._handle_board_page(quickpick_item)
             elif page_type == PageType.LANDING:
                 self._handle_landing_page(quickpick_item)
@@ -266,22 +266,8 @@ class MainWindow(QMainWindow):
             # 重要修复：使用board项目的ID作为page_id，确保每个board项目有独立的页面实例
             board_id = quickpick_item.get('id', '')
             page_id = f"board_{board_id}"  # 为每个board项目创建唯一的page_id
-            page_manager = self.editor.page_manager
-            
-            logger.info(f"创建独立Board页面实例: {page_id} (board_id: {board_id})")
-            
-            # 获取或创建board页面，使用EXCALIDRAW类型确保正确的页面类型和消息路由
-            # 为每个Board页面创建独立的WebCommunicationManager实例
-            from app.editor.channel import WebCommunicationManager
-            board_web_comm = WebCommunicationManager(page_id=page_id)
-            
-            # 初始化Board页面的WebChannel处理器
-            board_web_comm.register_python_handler('setBoardId', self.editor.handle_set_board_id, is_async=False)
-            board_web_comm.register_python_handler('frontendReady', self.editor.handle_frontend_ready, is_async=False)
-            board_web_comm.register_python_handler('save_excalidraw_board', self.editor.save_excalidraw_board, is_async=True)
-            board_web_comm.register_python_handler('load_excalidraw_board', self.editor.load_excalidraw_board, is_async=False)
-            board_web_comm.register_python_handler('export_excalidraw_board', self.editor.export_excalidraw_board, is_async=True)
-            
+            page_manager = self.editor.page_manager 
+            logger.info(f"创建独立Board页面实例: {page_id} (board_id: {board_id})")     
             board_view = page_manager.get_or_create_page(
                 page_id=page_id,
                 page_type=PageType.EXCALIDRAW,  # 使用EXCALIDRAW确保正确的页面类型和消息路由

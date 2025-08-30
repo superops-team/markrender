@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build-and-deploy": "npm run build && npm run deploy",
+    "build-and-deploy-enhanced": "npm run build && node scripts/build-and-deploy.js",
     "deploy": "node scripts/deploy.js",
     "lint": "eslint .",
     "preview": "vite preview"

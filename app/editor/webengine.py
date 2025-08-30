@@ -5,7 +5,7 @@ from enum import Enum
 from dataclasses import dataclass
 
 from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6.QtCore import QUrl, QObject, Signal
+from PySide6.QtCore import QUrl, QObject, Signal, QTimer
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile, QWebEngineSettings
 from PySide6.QtWebChannel import QWebChannel
 
@@ -66,10 +66,11 @@ class CustomWebEnginePage(QWebEnginePage):
         super().__init__(parent)
         self.channel = QWebChannel()
         self.channel_ready = False
+        self.page_id = None  # 添加页面ID属性
         
     def javaScriptConsoleMessage(self, level, message, line_number, source_id):
         super().javaScriptConsoleMessage(level, message, line_number, source_id)
-        logger.debug(f"JS Console: {message} (Line {line_number} in {source_id})", level)
+        logger.debug(f"JS Console [{self.page_id}]: {message} (Line {line_number} in {source_id})", level)
 
     def acceptNavigationRequest(self, url, nav_type, is_main_frame):
         """限制导航请求"""
@@ -90,13 +91,16 @@ class CustomWebEnginePage(QWebEnginePage):
     def initialize_web_channel(self, backend_interface):
         """初始化WebChannel并注册后端接口"""
         if self.channel_ready or not self.channel:
+            logger.debug(f"[{self.page_id}] WebChannel already initialized or not available")
             return
             
         if backend_interface:
             self.channel.registerObject('backendInterface', backend_interface)
             self.setWebChannel(self.channel)
             self.channel_ready = True
-            logger.debug("WebChannel initialized for page")
+            logger.debug(f"[{self.page_id}] WebChannel initialized for page")
+        else:
+            logger.warning(f"[{self.page_id}] No backend interface provided for WebChannel initialization")
 
     def cleanup(self):
         """清理WebChannel资源"""
@@ -178,6 +182,7 @@ class WebPageManager(QObject):
             # 创建视图和页面
             view = QWebEngineView()
             page = CustomWebEnginePage(view)
+            page.page_id = page_id  # 设置页面ID
             
             view.setPage(page)
             self._apply_profile(page)
@@ -341,8 +346,9 @@ class WebPageManager(QObject):
                 view.loadFinished.connect(on_load_finished)
             
             # view.setHtml(html_content, QUrl.fromLocalFile(html_file))
-            logger.info(f"load html path: {html_file}")
-            view.setUrl(QUrl.fromLocalFile(html_file))
+            local_url = QUrl.fromLocalFile(html_file)
+            logger.info(f"load html path: {html_file} {local_url}")
+            view.setUrl(local_url)
             return True    
         except Exception as e:
             logger.error(f"Failed to load HTML file {page_id}: {e}")
@@ -477,36 +483,39 @@ class WebPageManager(QObject):
                 return page_id
         return None
     
-    def preload_page_type(self, page_type: PageType, backend_interface=None) -> bool:
-        """预加载指定类型的页面模板"""
-        if page_type in self.preloaded_pages:
-            logger.debug(f"页面类型 {page_type.value} 已预加载")
-            return True
-        
-        preload_id = f"preload_{page_type.value}_{id(self)}"
-        logger.info(f"开始预加载页面类型: {page_type.value}")
-        
-        config = PageConfig(
-            page_type=page_type,
-            backend_interface=backend_interface,
-            preload=True
-        )
-        
-        view = self.create_page(page_id=preload_id, backend_interface=backend_interface, config=config)
-        if view:
-            # 加载页面内容
-            self.load_page_content(preload_id, page_type)
-            self.preloaded_pages[page_type] = view
-            logger.info(f"页面类型 {page_type.value} 预加载完成")
-            return True
-        
-        logger.error(f"页面类型 {page_type.value} 预加载失败")
-        return False
+    def preload_page_type(self, page_type: PageType, backend_interface=None):
+        """预加载指定类型的页面"""
+        try:
+            logger.info(f"预加载页面类型: {page_type.value}")
+            
+            # 创建预加载页面配置
+            config = PageConfig(
+                page_type=page_type,
+                backend_interface=backend_interface,
+                preload=True
+            )
+            
+            # 为预加载页面生成唯一ID
+            import uuid
+            preload_page_id = f"preload_{page_type.value}_{str(uuid.uuid4())[:8]}"
+            
+            # 创建预加载页面
+            preload_view = self.create_page(preload_page_id, backend_interface, config)
+            if preload_view:
+                # 加载页面内容
+                html_file = page_type.html_file
+                self.load_html(preload_page_id, html_file)
+                
+                # 存储到预加载缓存
+                self.preloaded_pages[page_type] = preload_view
+                logger.info(f"页面类型 {page_type.value} 预加载完成")
+            else:
+                logger.error(f"页面类型 {page_type.value} 预加载失败")
+        except Exception as e:
+            logger.error(f"预加载页面类型 {page_type.value} 失败: {e}", exc_info=True)
     
     def _async_preload_page_type(self, page_type: PageType):
         """异步预加载页面类型"""
-        from PySide6.QtCore import QTimer
-        # 延迟预加载，避免阻塞当前操作
         QTimer.singleShot(100, lambda: self.preload_page_type(page_type))
     
     def load_page_content(self, page_id: str, page_type: Optional[PageType] = None) -> bool:

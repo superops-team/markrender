@@ -176,6 +176,13 @@ class ExcalidrawWebChannelManager {
     this.logger.info('开始初始化WebChannel...');
 
     // 检查QWebChannel是否可用
+    if (typeof window.QWebChannel !== 'function') {
+      this.logger.error('QWebChannel构造函数不可用');
+      this.setupOfflineMode();
+      return;
+    }
+
+    // 检查Qt WebChannel传输是否可用
     if (!window.qt?.webChannelTransport) {
       this.logger.error('QWebChannel传输不可用，尝试重试...');
       
@@ -190,13 +197,6 @@ class ExcalidrawWebChannelManager {
         this.setupOfflineMode();
         return;
       }
-    }
-
-    // 检查QWebChannel构造函数是否可用
-    if (typeof window.QWebChannel !== 'function') {
-      this.logger.error('QWebChannel构造函数不可用');
-      this.setupOfflineMode();
-      return;
     }
 
     return new Promise((resolve, reject) => {

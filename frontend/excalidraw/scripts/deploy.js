@@ -11,9 +11,9 @@ const __dirname = path.dirname(__filename);
 console.log('🚀 开始部署 Excalidraw 到资源目录...\n');
 
 // 路径配置
-const sourceDir = path.join(__dirname, '../dist');
-const targetDir = path.join(__dirname, '../../../app/editor/resources/excalidraw');
-const htmlTemplatePath = path.join(__dirname, '../../../app/editor/resources/board_excalidraw.html');
+const sourceDir = path.join(__dirname, '../browser');
+const targetDir = path.join(__dirname, '../../../app/editor/plugins/excalidraw');
+const htmlTemplatePath = path.join(__dirname, '../../../app/editor/plugins/excalidraw/index.html');
 
 // 确保目标目录存在
 function ensureDir(dir) {
@@ -75,19 +75,25 @@ function updateHTMLTemplate(jsFile, cssFile) {
   try {
     let htmlContent = fs.readFileSync(htmlTemplatePath, 'utf8');
     
-    // 更新JS文件引用
+    // 更新JS文件引用 - 修复路径问题
     if (jsFile) {
-      const jsRegex = /<script[^>]*src="\.\/excalidraw\/assets\/index-[^"]*\.js"[^>]*><\/script>/;
-      const newJSScript = `<script type="module" crossorigin src="./excalidraw/assets/${jsFile}"></script>`;
-      htmlContent = htmlContent.replace(jsRegex, newJSScript);
+      // 移除旧的JS引用
+      htmlContent = htmlContent.replace(/<script[^>]*src="\.\/assets\/index-[^"]*\.js"[^>]*><\/script>/g, '');
+      // 添加新的JS引用，确保路径正确
+      const newJSScript = `    <script type="module" crossorigin src="./assets/${jsFile}"></script>`;
+      // 在合适的位置插入新的JS引用
+      htmlContent = htmlContent.replace('</head>', `    ${newJSScript}\n  </head>`);
       console.log(`✅ 更新JS文件引用: ${jsFile}`);
     }
     
     // 更新CSS文件引用
     if (cssFile) {
-      const cssRegex = /<link[^>]*href="\.\/excalidraw\/assets\/index-[^"]*\.css"[^>]*>/;
-      const newCSSLink = `<link rel="stylesheet" crossorigin href="./excalidraw/assets/${cssFile}">`;
-      htmlContent = htmlContent.replace(cssRegex, newCSSLink);
+      // 移除旧的CSS引用
+      htmlContent = htmlContent.replace(/<link[^>]*href="\.\/assets\/index-[^"]*\.css"[^>]*>/g, '');
+      // 添加新的CSS引用，确保路径正确
+      const newCSSLink = `    <link rel="stylesheet" crossorigin href="./assets/${cssFile}">`;
+      // 在合适的位置插入新的CSS引用
+      htmlContent = htmlContent.replace('</head>', `    ${newCSSLink}\n  </head>`);
       console.log(`✅ 更新CSS文件引用: ${cssFile}`);
     }
     

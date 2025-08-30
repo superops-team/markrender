@@ -35,7 +35,7 @@ const ExcalidrawBoard: React.FC = () => {
   });
 
   const excalidrawRef = useRef<any>(null);
-  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 自动保存函数（防抖）
   const autoSave = useCallback(() => {

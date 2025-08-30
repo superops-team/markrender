@@ -67,7 +67,7 @@
                 }
             });
 
-            WCM.registerMessageHandler('getMarkdown', (data, requestId) => {
+            WCM.registerMessageHandler('getContent', (data, requestId) => {
                 if (editorState.editor) {
                     WCM.sendResponseToPython(requestId, {
                         content: editorState.editor.getValue()
