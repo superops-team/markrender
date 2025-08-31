@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excalidraw Local Assets Test</title>
+    <script>
+        // 测试本地资源路径配置
+        window.EXCALIDRAW_ASSET_PATH = "./assets/excalidraw-assets/";
+        window.EXCALIDRAW_EXPORT_SOURCE = "";
+    </script>
+</head>
+<body>
+    <h1>Excalidraw Local Assets Test</h1>
+    <p>This page tests if Excalidraw can load assets from local paths instead of CDN.</p>
+    
+    <script>
+        // 检查资源路径配置
+        console.log("EXCALIDRAW_ASSET_PATH:", window.EXCALIDRAW_ASSET_PATH);
+        
+        // 测试是否存在关键资源文件
+        const testAssets = [
+            "./assets/excalidraw-assets/Virgil.woff2",
+            "./assets/excalidraw-assets/Cascadia.woff2",
+            "./assets/excalidraw-assets/vendor-677e88ca78c86bddf13d.js"
+        ];
+        
+        testAssets.forEach(asset => {
+            fetch(asset)
+                .then(response => {
+                    console.log(`✓ Asset found: ${asset}`, response.status);
+                })
+                .catch(error => {
+                    console.error(`✗ Asset not found: ${asset}`, error);
+                });
+        });
+    </script>
+</body>
+</html>

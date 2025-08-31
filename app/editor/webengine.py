@@ -70,16 +70,27 @@ class CustomWebEnginePage(QWebEnginePage):
         
     def javaScriptConsoleMessage(self, level, message, line_number, source_id):
         super().javaScriptConsoleMessage(level, message, line_number, source_id)
-        logger.debug(f"JS Console [{self.page_id}]: {message} (Line {line_number} in {source_id})", level)
+        log_level = {
+            QWebEnginePage.JavaScriptConsoleMessageLevel.InfoMessageLevel: "INFO",
+            QWebEnginePage.JavaScriptConsoleMessageLevel.WarningMessageLevel: "WARNING",
+            QWebEnginePage.JavaScriptConsoleMessageLevel.ErrorMessageLevel: "ERROR"
+        }.get(level, "UNKNOWN")
+        logger.debug(f"JS Console [{self.page_id}][{log_level}]: {message} (Line {line_number} in {source_id})")
 
     def acceptNavigationRequest(self, url, nav_type, is_main_frame):
-        """限制导航请求"""
+        """限制导航请求，允许相对路径的子资源"""
         allowed_schemes = ['file']
         allowed_domains = ['localhost', '127.0.0.1']
         
+        # Allow file:// scheme
         if url.scheme() in allowed_schemes:
             return True
+        # Allow localhost/127.0.0.1
         if url.host() in allowed_domains:
+            return True
+        # Allow relative paths (empty scheme/host) for subresources
+        if not url.scheme() and not url.host():
+            logger.debug(f"Allowing relative path resource: {url.toString()}")
             return True
         
         logger.debug(f"Blocked navigation to: {url.toString()}")
@@ -89,18 +100,24 @@ class CustomWebEnginePage(QWebEnginePage):
         logger.debug("Right-click menu suppressed")
 
     def initialize_web_channel(self, backend_interface):
-        """初始化WebChannel并注册后端接口"""
         if self.channel_ready or not self.channel:
             logger.debug(f"[{self.page_id}] WebChannel already initialized or not available")
             return
-            
+        
         if backend_interface:
             self.channel.registerObject('backendInterface', backend_interface)
-            self.setWebChannel(self.channel)
-            self.channel_ready = True
-            logger.debug(f"[{self.page_id}] WebChannel initialized for page")
+            # Delay WebChannel setup until page load
+            def on_load_finished(success):
+                if success:
+                    self.setWebChannel(self.channel)
+                    self.channel_ready = True
+                    logger.debug(f"[{self.page_id}] WebChannel initialized after load")
+                self.loadFinished.disconnect()
+            
+            self.loadFinished.connect(on_load_finished)
+            logger.debug(f"[{self.page_id}] WebChannel scheduled for initialization")
         else:
-            logger.warning(f"[{self.page_id}] No backend interface provided for WebChannel initialization")
+            logger.warning(f"[{self.page_id}] No backend interface provided")
 
     def cleanup(self):
         """清理WebChannel资源"""
@@ -297,14 +314,15 @@ class WebPageManager(QObject):
     def _apply_performance_settings(self, settings):
         """应用性能优化设置"""
         try:
-            # 使用字符串而不是常量来设置，避免兼容性问题
             settings.setAttribute(settings.WebAttribute.JavascriptEnabled, True)
             settings.setAttribute(settings.WebAttribute.LocalStorageEnabled, True)
             settings.setAttribute(settings.WebAttribute.AutoLoadImages, True)
-            # 其他设置可能需要根据具体的PySide6版本进行调整
-            logger.debug("性能优化设置已应用")
+            settings.setAttribute(settings.WebAttribute.WebGLEnabled, True)  # Enable WebGL
+            settings.setAttribute(settings.WebAttribute.Accelerated2dCanvasEnabled, True)  # Enable GPU canvas
+            settings.setAttribute(settings.WebAttribute.PluginsEnabled, True)  # Enable plugins
+            logger.debug("Performance settings applied with WebGL enabled")
         except Exception as e:
-            logger.warning(f"应用性能设置时出错: {e}")
+            logger.warning(f"Failed to apply performance settings: {e}")
     
     def load_html(self, page_id: str, file_name: str, callback: Optional[Callable[[bool], None]] = None) -> bool:
         """
@@ -346,9 +364,10 @@ class WebPageManager(QObject):
                 view.loadFinished.connect(on_load_finished)
             
             # view.setHtml(html_content, QUrl.fromLocalFile(html_file))
-            local_url = QUrl.fromLocalFile(html_file)
+            abs_file = os.path.abspath(html_file)
+            local_url = QUrl.fromLocalFile(abs_file)
             logger.info(f"load html path: {html_file} {local_url}")
-            view.setUrl(local_url)
+            view.load(local_url)
             return True    
         except Exception as e:
             logger.error(f"Failed to load HTML file {page_id}: {e}")
@@ -384,7 +403,6 @@ class WebPageManager(QObject):
         if page_id in self.pages:
             return self.pages[page_id].page()
         return None
-    
 
     
     def get_page_count(self) -> int:
@@ -398,52 +416,6 @@ class WebPageManager(QObject):
     def get_or_create_page(self, page_id: str, page_type: PageType, backend_interface=None) -> Optional[QWebEngineView]:
         """获取或创建页面（为每个page_id创建独立实例，确保数据隔离）"""
         logger.info(f"请求页面: {page_id}, 类型: {page_type.value}")
-        
-        # 如果页面已存在，直接返回
-        if page_id in self.pages:
-            logger.debug(f"页面 {page_id} 已存在，直接返回")
-            old_page_id = self.current_page_id
-            self.current_page_id = page_id
-            if old_page_id != page_id:
-                self.page_switched.emit(old_page_id or "", page_id)
-            return self.pages[page_id]
-        
-        # 对于Board/Excalidraw类型，每个page_id都创建独立实例以确保数据隔离
-        if page_type == PageType.EXCALIDRAW:
-            logger.info(f"为 {page_type.value} 创建独立页面实例: {page_id}")
-            config = PageConfig(
-                page_type=page_type,
-                backend_interface=backend_interface
-            )
-            new_view = self.create_page(page_id, backend_interface, config)
-            if new_view:
-                old_page_id = self.current_page_id
-                self.current_page_id = page_id
-                if old_page_id != page_id:
-                    self.page_switched.emit(old_page_id or "", page_id)
-            return new_view
-        
-        # 对于其他类型（如markdown、landing），可以考虑复用
-        # 智能复用：查找已存在的相同类型页面
-        existing_page_id = self._find_existing_page_by_type(page_type)
-        if existing_page_id:
-            logger.info(f"复用现有的 {page_type.value} 页面: {existing_page_id} -> {page_id}")
-            existing_view = self.pages[existing_page_id]
-            
-            # 将现有页面重新映射到新page_id
-            self.pages[page_id] = existing_view
-            # 保持原有映射，支持多个page_id指向同一个页面实例
-            
-            # 更新后端接口映射
-            if backend_interface:
-                self.backend_interfaces[page_id] = backend_interface
-            
-            old_page_id = self.current_page_id
-            self.current_page_id = page_id
-            if old_page_id != page_id:
-                self.page_switched.emit(old_page_id or "", page_id)
-            
-            return existing_view
         
         # 检查是否有预加载的同类型页面可以复用
         if page_type in self.preloaded_pages:
@@ -496,8 +468,7 @@ class WebPageManager(QObject):
             )
             
             # 为预加载页面生成唯一ID
-            import uuid
-            preload_page_id = f"preload_{page_type.value}_{str(uuid.uuid4())[:8]}"
+            preload_page_id = f"preload_{page_type.value}"
             
             # 创建预加载页面
             preload_view = self.create_page(preload_page_id, backend_interface, config)

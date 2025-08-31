@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>WebChannel消息测试</title>
+    <script src="qrc:/qtwebchannel/qwebchannel.js"></script>
+    <script src="./app/editor/plugins/webchannel-core.js"></script>
+</head>
+<body>
+    <h1>WebChannel消息测试</h1>
+    <button onclick="testMessages()">测试消息处理器</button>
+    <div id="output"></div>
+
+    <script>
+        function testMessages() {
+            const output = document.getElementById('output');
+            output.innerHTML = '';
+            
+            // 测试各种消息类型
+            const testMessages = [
+                'textChanged',
+                'setCurrentFileId', 
+                'setValue',
+                'getContent',
+                'registerEditorEvents',
+                'setupContentChangeListener'
+            ];
+            
+            testMessages.forEach(msgType => {
+                try {
+                    // 模拟后端发送消息
+                    if (typeof window.handlePythonMessage === 'function') {
+                        window.handlePythonMessage(msgType, {test: true}, 'test_' + msgType);
+                        output.innerHTML += `<p>✓ ${msgType} - 处理成功</p>`;
+                    } else {
+                        output.innerHTML += `<p>✗ ${msgType} - handlePythonMessage函数不存在</p>`;
+                    }
+                } catch (e) {
+                    output.innerHTML += `<p>✗ ${msgType} - 处理异常: ${e.message}</p>`;
+                }
+            });
+            
+            output.innerHTML += '<p>测试完成</p>';
+        }
+        
+        // 初始化WebChannel
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.WebChannelManager) {
+                window.WebChannelManager.init('test').then(() => {
+                    console.log('WebChannel初始化完成');
+                }).catch(e => {
+                    console.error('WebChannel初始化失败:', e);
+                });
+            }
+        });
+    </script>
+</body>
+</html>

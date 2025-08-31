@@ -181,7 +181,7 @@ class MainWindow(QMainWindow):
             # 根据页面类型路由到不同的处理逻辑
             if page_type == PageType.MARKDOWN:
                 self._handle_markdown_page(quickpick_item)
-            elif page_type == PageType.BOARD:
+            elif page_type == PageType.EXCALIDRAW:
                 self._handle_board_page(quickpick_item)
             elif page_type == PageType.LANDING:
                 self._handle_landing_page(quickpick_item)
@@ -210,7 +210,7 @@ class MainWindow(QMainWindow):
         
         try:
             # 使用统一的page_id来复用相同类型的页面
-            page_id = "markdown_unified"
+            page_id = f"markdown_{quickpick_item.get('id')}"
             page_manager = self.editor.page_manager
             
             # 获取或创建markdown页面
@@ -268,6 +268,14 @@ class MainWindow(QMainWindow):
             page_id = f"board_{board_id}"  # 为每个board项目创建唯一的page_id
             page_manager = self.editor.page_manager 
             logger.info(f"创建独立Board页面实例: {page_id} (board_id: {board_id})")     
+            
+            # 获取或创建独立的通信管理器
+            board_web_comm = page_manager.get_backend_interface(page_id)
+            if not board_web_comm:
+                # 如果不存在，则创建新的通信管理器
+                from app.editor.channel import WebCommunicationManager
+                board_web_comm = WebCommunicationManager(page_id)
+            
             board_view = page_manager.get_or_create_page(
                 page_id=page_id,
                 page_type=PageType.EXCALIDRAW,  # 使用EXCALIDRAW确保正确的页面类型和消息路由

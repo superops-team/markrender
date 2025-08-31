@@ -1,19 +1,18 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="./vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Excalidraw</title>
     <!-- 
       关键修复：将qwebchannel.js的加载移到React应用脚本之前。
       这样可以确保在React应用初始化时，QWebChannel对象已经可用。
     -->
+
     <script src="qrc:/qtwebchannel/qwebchannel.js"></script>
     <script src="./webchannel-core.js"></script>
-    
     <!-- Excalidraw CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@excalidraw/excalidraw@0.18.0/dist/excalidraw.css">
+    <link rel="stylesheet" href="./assets/index-aa40c3ce.css">
     
     <style>
       body, html {
@@ -30,52 +29,18 @@
         position: relative;
       }
     </style>
+    
+    <script>
+      // 确保 Excalidraw 使用本地资源而不是 CDN
+      // 注意：路径末尾必须包含斜杠
+      window.EXCALIDRAW_ASSET_PATH = "./assets/";
+      window.EXCALIDRAW_EXPORT_SOURCE = "";
+    </script>
   </head>
   <body>
     <div id="root"></div>
     
     <!-- Excalidraw JS -->
-    <script src="https://cdn.jsdelivr.net/npm/@excalidraw/excalidraw@0.18.0/dist/excalidraw.umd.js"></script>
-    
-    <script>
-      // 等待DOM加载完成
-      document.addEventListener('DOMContentLoaded', function() {
-        // 检查Excalidraw是否已加载
-        if (typeof Excalidraw !== 'undefined' && Excalidraw.Excalidraw) {
-          console.log('Excalidraw已加载');
-          
-          // 创建React根节点
-          const container = document.getElementById('root');
-          const root = ReactDOM.createRoot(container);
-          
-          // 创建Excalidraw组件
-          const App = () => {
-            const onChange = (elements, appState, files) => {
-              // 处理元素变化
-              console.log('Elements changed:', elements);
-            };
-            
-            const onPointerUpdate = (payload) => {
-              // 处理指针更新
-              console.log('Pointer updated:', payload);
-            };
-            
-            return React.createElement(
-              "div",
-              { style: { height: "100vh" } },
-              React.createElement(Excalidraw.Excalidraw, {
-                onChange: onChange,
-                onPointerUpdate: onPointerUpdate
-              })
-            );
-          };
-          
-          // 渲染应用
-          root.render(React.createElement(App));
-        } else {
-          console.error('Excalidraw未正确加载');
-        }
-      });
-    </script>
+    <script type="module" crossorigin src="./assets/index-2deddb0c.js"></script>
   </body>
 </html>

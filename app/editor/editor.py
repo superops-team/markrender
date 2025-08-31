@@ -82,7 +82,7 @@ class MarkRenderEditor(QWidget):
         
         # 初始化页面管理器
         self.page_manager = WebPageManager()
-        self.page_id = "markrender_editor"  # 使用固定页面ID
+        self.page_id = f"markrender_{file_id}"  # 使用固定页面ID
         
         # 初始化文档
         self.document = MarkRenderDoc(file_id, file_name)
@@ -588,9 +588,8 @@ class MarkRenderEditor(QWidget):
             success = self.web_comm.send_message("getContent", {}, callback=save_content)
             if not success:
                 logger.warning("发送getContent消息失败，1.5秒后强制关闭")
-            
-            # 阻止事件默认处理，等待保存完成或超时
-            event.ignore()
+                self._cleanup_and_close()
+                return
         except Exception as e:
             logger.error(f"发送getContent消息时出错: {e}")
             # 发送失败，停止超时定时器并直接关闭

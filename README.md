@@ -57,6 +57,42 @@ markrender/
 └── main.py                # 应用入口
 ```
 
+## 🛠️ 前端组件构建
+
+### Milkdown编辑器
+Milkdown编辑器是MarkRender的默认Markdown编辑器，基于Vue和TypeScript构建。
+
+```bash
+# 进入milkdown目录
+cd frontend/milkdown
+
+# 安装依赖
+npm install
+
+# 开发模式
+npm run start
+
+# 构建并部署
+npm run build-and-deploy
+```
+
+### Excalidraw白板
+Excalidraw白板组件用于图形绘制功能。
+
+```bash
+# 进入excalidraw目录
+cd frontend/excalidraw
+
+# 安装依赖
+npm install
+
+# 开发模式
+npm run start
+
+# 构建并部署
+npm run build-and-deploy
+```
+
 ## 📚 文档
 
 所有项目文档都位于 [`docs/`](docs/) 目录中：

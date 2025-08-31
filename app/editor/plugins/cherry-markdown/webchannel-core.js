@@ -8,7 +8,6 @@
 
 // 全局WebChannel管理器
 window.WebChannelManager = (function() {
-    
     // 核心状态管理
     const state = {
         backendInterface: null,
@@ -17,7 +16,7 @@ window.WebChannelManager = (function() {
         requestCounter: 0,
         retryCount: 0,
         maxRetries: 5,
-        pageType: 'unknown',
+        pageType: 'Markdown',
         initCallbacks: [],
         messageHandlers: new Map()
     };
@@ -59,6 +58,23 @@ window.WebChannelManager = (function() {
     
     registerMessageHandler('setupContentChangeListener', (data, requestId) => {
         logger.debug('忽略编辑器消息: setupContentChangeListener');
+    });
+    
+    // 预先注册常用的编辑器消息处理器，防止警告
+    registerMessageHandler('textChanged', (data, requestId) => {
+        logger.debug('忽略编辑器消息: textChanged');
+    });
+    
+    registerMessageHandler('setCurrentFileId', (data, requestId) => {
+        logger.debug('忽略编辑器消息: setCurrentFileId');
+    });
+    
+    registerMessageHandler('setValue', (data, requestId) => {
+        logger.debug('忽略编辑器消息: setValue');
+    });
+    
+    registerMessageHandler('getContent', (data, requestId) => {
+        logger.debug('忽略编辑器消息: getContent');
     });
 
     // WebChannel初始化（带重试机制）

@@ -248,3 +248,6 @@ class WebCommunicationManager(QObject):
             "requestId": request_id,
             "message": "Request accepted for async processing"
         })
+    
+    def cleanup(self):
+        self.web_callbacks.clear()
