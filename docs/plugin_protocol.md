@@ -85,7 +85,7 @@ interface PluginResponse {
     title: "页面标题",
     content: "页面内容",
     page_type: "markdown",
-    page_engine: "cherry-markdown",
+    page_engine: "markdown",
     page_settings: "{}",
     created_at: "2025-08-29T08:00:00Z",
     updated_at: "2025-08-29T08:30:00Z",

@@ -35,7 +35,7 @@ class PluginLoader:
         self.logger = logger
         self.loaded_plugins = {}
         
-    def load_plugin_page(self, web_view, plugin_id: str, page_id: str) -> bool:
+    def load_plugin_page(self, web_view, plugin_id: str, page_type: str) -> bool:
         """加载插件页面"""
         try:
             if not self.plugin_manager:
@@ -63,7 +63,7 @@ class PluginLoader:
             from PySide6.QtCore import QUrl
             web_view.load(QUrl.fromLocalFile(index_html))
             
-            self.logger.info(f"插件页面加载成功: {plugin_id} -> {page_id}")
+            self.logger.info(f"插件页面加载成功: {plugin_id} -> {page_type}")
             return True
             
         except Exception as e:

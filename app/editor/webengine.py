@@ -1,205 +1,117 @@
 import os
 import threading
-from typing import Dict, Optional, Any, Callable, Union
-from enum import Enum
-from dataclasses import dataclass
-
+from typing import Dict, Optional, Callable
+from PySide6.QtWidgets import QStackedWidget
 from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6.QtCore import QUrl, QObject, Signal, QTimer
-from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile, QWebEngineSettings
+from PySide6.QtWebEngineCore import QWebEnginePage
+from PySide6.QtCore import QUrl, QTimer, Signal, QObject
 from PySide6.QtWebChannel import QWebChannel
 
 from utils import logger
+from app.editor.channel import WebCommunicationManager
 from db import db_manager
 
-
-# 页面类型枚举定义
-class PageType(Enum):
-    """页面类型枚举，定义所有支持的页面类型"""
+# 定义页面类型枚举
+class PageType:
     MARKDOWN = "markdown"
-    LANDING = "landing"
     EXCALIDRAW = "excalidraw"
+    LANDING = "landing"
     
-    @property
-    def html_file(self) -> str:
-        """获取对应的HTML文件名"""
-        mapping = {
-            PageType.MARKDOWN: "cherry-markdown/index.html",
-            PageType.LANDING: "landing.html",
-            PageType.EXCALIDRAW: "excalidraw/index.html"  # 修复路径，指向excalidraw文件夹中的index.html
-        }
-        return mapping.get(self, "index.html")
+    def __init__(self, value: str, display_name: str = None, html_file: str = None):
+        self.value = value
+        self.display_name = display_name or value.capitalize()
+        self.html_file = html_file or f"{value}/index.html"
     
-    @property
-    def display_name(self) -> str:
-        """获取页面类型的显示名称"""
-        mapping = {
-            PageType.MARKDOWN: "Markdown编辑器",
-            PageType.LANDING: "首页",
-            PageType.EXCALIDRAW: "绘图板"
-        }
-        return mapping.get(self, "未知页面")
+    @classmethod
+    def get_all_types(cls):
+        return [
+            cls.MARKDOWN,
+            cls.EXCALIDRAW,
+            cls.LANDING
+        ]
 
-
-@dataclass
+# 页面配置类
 class PageConfig:
-    """页面配置类，用于管理页面创建参数"""
-    page_type: PageType
-    backend_interface: Optional[QObject] = None
-    preload: bool = False
-    cache_enabled: bool = True
-    performance_mode: bool = True
-    
-    def __post_init__(self):
-        if isinstance(self.page_type, str):
-            # 如果传入字符串，转换为PageType枚举
-            try:
-                self.page_type = PageType(self.page_type)
-            except ValueError:
-                logger.warning(f"未知页面类型: {self.page_type}，使用默认MARKDOWN类型")
-                self.page_type = PageType.MARKDOWN
+    def __init__(self, page_type: PageType, backend_interface=None, 
+                 preload: bool = False, cache_enabled: bool = True, 
+                 performance_mode: bool = True):
+        self.page_type = page_type
+        self.backend_interface = backend_interface
+        self.preload = preload
+        self.cache_enabled = cache_enabled
+        self.performance_mode = performance_mode
 
-
-# 增强的CustomWebEnginePage类，集成WebChannel
+# 自定义WebEnginePage类
 class CustomWebEnginePage(QWebEnginePage):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.channel = QWebChannel()
-        self.channel_ready = False
-        self.page_id = None  # 添加页面ID属性
-        
-    def javaScriptConsoleMessage(self, level, message, line_number, source_id):
-        super().javaScriptConsoleMessage(level, message, line_number, source_id)
-        log_level = {
-            QWebEnginePage.JavaScriptConsoleMessageLevel.InfoMessageLevel: "INFO",
-            QWebEnginePage.JavaScriptConsoleMessageLevel.WarningMessageLevel: "WARNING",
-            QWebEnginePage.JavaScriptConsoleMessageLevel.ErrorMessageLevel: "ERROR"
-        }.get(level, "UNKNOWN")
-        logger.debug(f"JS Console [{self.page_id}][{log_level}]: {message} (Line {line_number} in {source_id})")
-
-    def acceptNavigationRequest(self, url, nav_type, is_main_frame):
-        """限制导航请求，允许相对路径的子资源"""
-        allowed_schemes = ['file']
-        allowed_domains = ['localhost', '127.0.0.1']
-        
-        # Allow file:// scheme
-        if url.scheme() in allowed_schemes:
-            return True
-        # Allow localhost/127.0.0.1
-        if url.host() in allowed_domains:
-            return True
-        # Allow relative paths (empty scheme/host) for subresources
-        if not url.scheme() and not url.host():
-            logger.debug(f"Allowing relative path resource: {url.toString()}")
-            return True
-        
-        logger.debug(f"Blocked navigation to: {url.toString()}")
-        return False
-
-    def contextMenuEvent(self, event):
-        logger.debug("Right-click menu suppressed")
-
+        self.backend_interface = None
+        self.page_type = None
+    
     def initialize_web_channel(self, backend_interface):
-        if self.channel_ready or not self.channel:
-            logger.debug(f"[{self.page_id}] WebChannel already initialized or not available")
-            return
-        
+        """初始化WebChannel"""
         if backend_interface:
-            self.channel.registerObject('backendInterface', backend_interface)
-            # Delay WebChannel setup until page load
-            def on_load_finished(success):
-                if success:
-                    self.setWebChannel(self.channel)
-                    self.channel_ready = True
-                    logger.debug(f"[{self.page_id}] WebChannel initialized after load")
-                self.loadFinished.disconnect()
-            
-            self.loadFinished.connect(on_load_finished)
-            logger.debug(f"[{self.page_id}] WebChannel scheduled for initialization")
-        else:
-            logger.warning(f"[{self.page_id}] No backend interface provided")
-
+            self.backend_interface = backend_interface
+            channel = QWebChannel(self)
+            channel.registerObject("backend", backend_interface)
+            self.setWebChannel(channel)
+            logger.debug(f"WebChannel initialized for page {self.page_type}")
+    
     def cleanup(self):
-        """清理WebChannel资源"""
-        if self.channel:
-            self.channel.deleteLater()
-            self.channel = None
-        self.channel_ready = False
-
+        """清理资源"""
+        if self.backend_interface:
+            self.backend_interface.cleanup()
+        self.backend_interface = None
 
 # 高性能多页面管理器 
-class WebPageManager(QObject):
-    """高性能单进程多页面管理器，集成WebChannel管理和智能预加载"""
+class WebPageManager(QStackedWidget):
+    """高性能单进程多页面管理器，基于QStackedWidget实现页面切换"""
     
     # 类级信号
-    page_created = Signal(str, str)      # page_id, page_type
-    page_loaded = Signal(str, bool)      # page_id, success
-    page_switched = Signal(str, str)     # from_page_id, to_page_id
-    page_removed = Signal(str)           # page_id
+    page_created = Signal(str)      # page_type
+    page_loaded = Signal(str, bool)      # page_type, success
+    page_switched = Signal(str, str)     # from_page_type, to_page_type
+    page_removed = Signal(str)           # page_type
     
-    _instance = None
-    _lock = threading.Lock()
-    
-    def __new__(cls):
-        if not cls._instance:
-            with cls._lock:
-                if not cls._instance:
-                    cls._instance = super().__new__(cls)
-                    # 初始化QObject父类
-                    super(WebPageManager, cls._instance).__init__()
-                    cls._instance._initialized = False
-        return cls._instance
-    
-    def __init__(self):
-        # 防止重复初始化
-        if hasattr(self, '_initialized') and self._initialized:
-            return
-            
-        # 不调用super().__init__()，因为在__new__中已经调用过
-        self.pages: Dict[str, QWebEngineView] = {}
+    def __init__(self, parent=None):
+        super().__init__(parent)
         self.backend_interfaces: Dict[str, QObject] = {}
         self.page_configs: Dict[str, PageConfig] = {}  # 存储页面配置
-        self.preloaded_pages: Dict[PageType, QWebEngineView] = {}  # 预加载页面缓存
-        self.current_page_id: Optional[str] = None
+        self.preloaded_pages: Dict[str, QWebEngineView] = {}  # 预加载页面缓存
+        self.current_page_type: Optional[str] = None
         
-        self._initialized = True
         logger.info("WebPageManager初始化完成，启用高性能多页面管理")
         
-    def create_page(self, page_id: str, backend_interface=None, config: Optional[PageConfig] = None) -> Optional[QWebEngineView]:
+    def create_page(self, page_type: str, backend_interface=None, config: Optional[PageConfig] = None) -> Optional[QWebEngineView]:
         """
         创建新页面并初始化WebChannel
         
         Args:
-            page_id: 页面唯一标识
+            page_type: 页面类型
             backend_interface: 后端接口对象（可选）
             config: 页面配置对象
             
         Returns:
             QWebEngineView实例
         """
-        if page_id in self.pages:
-            logger.warning(f"页面 {page_id} 已存在，返回现有页面")
-            return self.pages[page_id]
+        if page_type in self.preloaded_pages:
+            logger.warning(f"页面 {page_type} 已存在，返回现有页面")
+            return self.preloaded_pages[page_type]
         
         # 如果没有提供配置，创建默认配置
         if not config:
             config = PageConfig(
-                page_type=PageType.MARKDOWN,
+                page_type=page_type,
                 backend_interface=backend_interface
             )
         
-        # 参数过滤机制：只保留PageConfig支持的参数
-        valid_config_keys = {'page_type', 'backend_interface', 'preload', 'cache_enabled', 'performance_mode'}
-        filtered_params = {k: v for k, v in config.__dict__.items() if k in valid_config_keys}
-        config = PageConfig(**filtered_params)
-        
         try:
-            logger.info(f"开始创建页面: {page_id}, 类型: {config.page_type.value}, 预加载: {config.preload}")
+            logger.info(f"开始创建页面: {page_type}, 类型: {config.page_type}, 预加载: {config.preload}")
             
             # 创建视图和页面
             view = QWebEngineView()
             page = CustomWebEnginePage(view)
-            page.page_id = page_id  # 设置页面ID
+            page.page_type = page_type  # 设置页面类型
             
             view.setPage(page)
             self._apply_profile(page)
@@ -210,35 +122,38 @@ class WebPageManager(QObject):
                 self._apply_performance_settings(settings)
             
             # 存储页面、配置和后端接口
-            self.pages[page_id] = view
-            self.page_configs[page_id] = config
+            self.preloaded_pages[page_type] = view
+            self.page_configs[page_type] = config
             
             if backend_interface:
-                self.backend_interfaces[page_id] = backend_interface
+                self.backend_interfaces[page_type] = backend_interface
                 # 立即初始化WebChannel
                 page.initialize_web_channel(backend_interface)
-                logger.debug(f"页面 {page_id} WebChannel初始化完成")
+                logger.debug(f"页面 {page_type} WebChannel初始化完成")
             
             # 发送页面创建信号
-            self.page_created.emit(page_id, config.page_type.value)
+            self.page_created.emit(page_type)
             
-            logger.info(f"页面创建成功: {page_id} ({config.page_type.display_name})")
+            # 添加到QStackedWidget中
+            self.addWidget(view)
+            
+            logger.info(f"页面创建成功: {page_type}")
             return view
             
         except Exception as e:
-            logger.error(f"创建页面失败 {page_id}: {e}", exc_info=True)
+            logger.error(f"创建页面失败 {page_type}: {e}", exc_info=True)
             return None
 
-    def set_backend_interface(self, page_id: str, backend_interface):
+    def set_backend_interface(self, page_type: str, backend_interface):
         """为页面设置后端接口并初始化WebChannel"""
-        if page_id not in self.pages:
-            logger.warning(f"Page {page_id} not found")
+        if page_type not in self.preloaded_pages:
+            logger.warning(f"Page {page_type} not found")
             return False
             
-        self.backend_interfaces[page_id] = backend_interface
+        self.backend_interfaces[page_type] = backend_interface
         
         # 获取页面并初始化WebChannel
-        view = self.pages[page_id]
+        view = self.preloaded_pages[page_type]
         page = view.page()
         if isinstance(page, CustomWebEnginePage):
             page.initialize_web_channel(backend_interface)
@@ -246,49 +161,171 @@ class WebPageManager(QObject):
         
         return False
 
-    def get_backend_interface(self, page_id: str):
+    def get_backend_interface(self, page_type: str):
         """获取页面的后端接口"""
-        return self.backend_interfaces.get(page_id)
+        return self.backend_interfaces.get(page_type)
 
-    def remove_page(self, page_id: str) -> bool:
+    def remove_page(self, page_type: str) -> bool:
         """移除页面并清理WebChannel资源"""
-        if page_id not in self.pages:
-            logger.warning(f"页面 {page_id} 不存在")
+        if page_type not in self.preloaded_pages:
+            logger.warning(f"页面 {page_type} 不存在")
             return False
             
         try:
-            logger.info(f"开始移除页面: {page_id}")
+            logger.info(f"开始移除页面: {page_type}")
             
             # 清理页面和WebChannel
-            view = self.pages[page_id]
+            view = self.preloaded_pages[page_type]
             page = view.page()
-            
             if isinstance(page, CustomWebEnginePage):
                 page.cleanup()
-                logger.debug(f"页面 {page_id} WebChannel清理完成")
+                logger.debug(f"页面 {page_type} WebChannel清理完成")
             
+            # 从QStackedWidget中移除
+            self.removeWidget(view)
             view.deleteLater()
             
             # 清理存储
-            del self.pages[page_id]
-            if page_id in self.backend_interfaces:
-                del self.backend_interfaces[page_id]
-            if page_id in self.page_configs:
-                del self.page_configs[page_id]
+            del self.preloaded_pages[page_type]
+            if page_type in self.backend_interfaces:
+                del self.backend_interfaces[page_type]
+            if page_type in self.page_configs:
+                del self.page_configs[page_type]
             
-            # 更新当前页面ID
-            if self.current_page_id == page_id:
-                self.current_page_id = None
+            # 更新当前页面类型
+            if self.current_page_type == page_type:
+                self.current_page_type = None
                 
             # 发送页面移除信号
-            self.page_removed.emit(page_id)
+            self.page_removed.emit(page_type)
                 
-            logger.info(f"页面移除成功: {page_id}")
+            logger.info(f"页面移除成功: {page_type}")
             return True
             
         except Exception as e:
-            logger.error(f"移除页面失败 {page_id}: {e}", exc_info=True)
+            logger.error(f"移除页面失败 {page_type}: {e}", exc_info=True)
             return False
+    
+    def switch_to_page(self, page_type: str) -> bool:
+        """切换到指定页面类型
+        
+        Args:
+            page_type: 要切换到的页面类型
+            
+        Returns:
+            是否成功切换
+        """
+        if page_type not in self.preloaded_pages:
+            logger.warning(f"页面类型 {page_type} 不存在")
+            return False
+            
+        view = self.preloaded_pages[page_type]
+        current_index = self.currentIndex()
+        new_index = self.indexOf(view)
+        
+        if current_index != new_index:
+            old_page_type = self.current_page_type
+            self.current_page_type = page_type
+            self.setCurrentIndex(new_index)
+            self.page_switched.emit(
+                old_page_type or "", 
+                page_type
+            )
+            logger.info(f"页面切换: {old_page_type} -> {page_type}")
+        else:
+            logger.debug(f"页面已在显示中: {page_type}")
+            
+        return True
+    
+    def get_or_create_page(self, page_type: str, backend_interface=None) -> Optional[QWebEngineView]:
+        """获取或创建页面（为每个page_type创建独立实例，确保数据隔离）"""
+        logger.info(f"请求页面: {page_type}")
+        
+        # 检查是否有预加载的同类型页面可以复用
+        if page_type in self.preloaded_pages:
+            logger.info(f"复用预加载的 {page_type} 页面")
+            preloaded_view = self.preloaded_pages[page_type]
+            
+            # 更新后端接口映射
+            if backend_interface:
+                self.backend_interfaces[page_type] = backend_interface
+                page = preloaded_view.page()
+                if isinstance(page, CustomWebEnginePage):
+                    page.initialize_web_channel(backend_interface)
+            
+            return preloaded_view
+        
+        # 创建新页面
+        config = PageConfig(
+            page_type=page_type,
+            backend_interface=backend_interface
+        )
+        view = self.create_page(page_type, backend_interface, config)
+        
+        return view
+    
+    def preload_page_type(self, page_type: str, backend_interface=None):
+        """预加载指定类型的页面"""
+        try:
+            logger.info(f"预加载页面类型: {page_type}")
+            
+            # 创建预加载页面配置
+            config = PageConfig(
+                page_type=page_type,
+                backend_interface=backend_interface,
+                preload=True
+            )
+            
+            # 创建预加载页面
+            preload_view = self.create_page(page_type, backend_interface, config)
+            if preload_view:
+                # 加载页面内容
+                html_file = f"{page_type}/index.html"
+                self.load_html(page_type, html_file)
+                
+                # 存储到预加载缓存
+                self.preloaded_pages[page_type] = preload_view
+                logger.info(f"页面类型 {page_type} 预加载完成")
+            else:
+                logger.error(f"页面类型 {page_type} 预加载失败")
+        except Exception as e:
+            logger.error(f"预加载页面类型 {page_type} 失败: {e}", exc_info=True)
+    
+    def _async_preload_page_type(self, page_type: str):
+        """异步预加载页面类型"""
+        QTimer.singleShot(100, lambda: self.preload_page_type(page_type))
+    
+    def load_page_content(self, page_type: Optional[str] = None) -> bool:
+        """加载页面内容"""
+        if not page_type and self.current_page_type:
+            page_type = self.current_page_type
+        
+        if not page_type:
+            logger.error(f"无法确定页面类型")
+            return False
+        
+        # 根据页面类型选择正确的HTML文件
+        html_file = f"{page_type}/index.html"
+        logger.info(f"加载页面内容: {page_type} -> {html_file}")
+        
+        return self.load_html(
+            page_type, html_file, 
+            callback=lambda success: self.page_loaded.emit(page_type, success)
+        )
+    
+    def get_page(self, page_type: str):
+        """获取页面的QWebEnginePage对象"""
+        if page_type in self.preloaded_pages:
+            return self.preloaded_pages[page_type].page()
+        return None
+
+    def get_page_count(self) -> int:
+        """获取当前页面数量"""
+        return len(self.preloaded_pages)
+    
+    def get_all_page_types(self) -> list:
+        """获取所有页面类型"""
+        return list(self.preloaded_pages.keys())
     
     def _apply_profile(self, page: QWebEnginePage):
         """应用共享配置"""
@@ -300,14 +337,11 @@ class WebPageManager(QObject):
             profile = page.profile()
             profile.setCachePath(cache_path)
             profile.setPersistentStoragePath(storage_path)
-            # 使用字符串值而不是枚举常量来避免兼容性问题
-            # profile.setHttpCacheType(QWebEngineProfile.DiskHttpCache)
             # 设置缓存大小为 100MB
             profile.setHttpCacheMaximumSize(100 * 1024 * 1024)
             
-            # 新增性能优化配置
-            # profile.setPersistentCookiesPolicy(QWebEngineProfile.ForcePersistentCookies)
-            profile.setSpellCheckEnabled(False)  # 禁用拼写检查提高性能
+            # 禁用拼写检查提高性能
+            profile.setSpellCheckEnabled(False)
         except Exception as e:
             logger.warning(f"应用配置文件时出错: {e}")
 
@@ -324,27 +358,27 @@ class WebPageManager(QObject):
         except Exception as e:
             logger.warning(f"Failed to apply performance settings: {e}")
     
-    def load_html(self, page_id: str, file_name: str, callback: Optional[Callable[[bool], None]] = None) -> bool:
+    def load_html(self, page_type: str, file_name: str, callback: Optional[Callable[[bool], None]] = None) -> bool:
         """
         从plugins目录加载HTML文件
         
         Args:
-            page_id: 页面ID
+            page_type: 页面类型
             file_name: HTML文件名（不含扩展名）
             callback: 加载完成回调函数，参数为(bool)表示成功与否
             
         Returns:
             是否成功开始加载
         """
-        if page_id not in self.pages:
-            logger.warning(f"Page {page_id} not found, creating new page")
-            self.create_page(page_id)
+        if page_type not in self.preloaded_pages:
+            logger.warning(f"Page {page_type} not found, creating new page")
+            self.create_page(page_type)
             return False
         
         try:
             # 构建文件路径
             plugins_dir = os.path.join(os.path.dirname(__file__), 'plugins')
-            html_file = os.path.join(plugins_dir, f"{file_name}")
+            html_file = os.path.join(plugins_dir, file_name)
             
             if not os.path.exists(html_file):
                 logger.error(f"HTML file not found: {html_file}")
@@ -352,7 +386,7 @@ class WebPageManager(QObject):
                     callback(False)
                 return False
             
-            view = self.pages[page_id]
+            view = self.preloaded_pages[page_type]
             
             # 连接加载完成信号
             if callback:
@@ -363,147 +397,36 @@ class WebPageManager(QObject):
                 
                 view.loadFinished.connect(on_load_finished)
             
-            # view.setHtml(html_content, QUrl.fromLocalFile(html_file))
             abs_file = os.path.abspath(html_file)
             local_url = QUrl.fromLocalFile(abs_file)
             logger.info(f"load html path: {html_file} {local_url}")
             view.load(local_url)
             return True    
         except Exception as e:
-            logger.error(f"Failed to load HTML file {page_id}: {e}")
+            logger.error(f"Failed to load HTML file {page_type}: {e}")
             if callback:
                 callback(False)
             return False
     
-    def load_url(self, page_id: str, url: str) -> bool:
+    def load_url(self, page_type: str, url: str) -> bool:
         """
         加载URL
         
         Args:
-            page_id: 页面ID
+            page_type: 页面类型
             url: 要加载的URL
             
         Returns:
             是否成功加载
         """
-        if page_id not in self.pages:
-            logger.error(f"Page {page_id} not found")
+        if page_type not in self.preloaded_pages:
+            logger.error(f"Page {page_type} not found")
             return False
         
         try:
-            view = self.pages[page_id]
+            view = self.preloaded_pages[page_type]
             view.load(QUrl(url))
             return True  
         except Exception as e:
-            logger.error(f"Failed to load URL {url} for page {page_id}: {e}")
+            logger.error(f"Failed to load URL {url} for page {page_type}: {e}")
             return False
-    
-    def get_page(self, page_id: str):
-        """获取页面的QWebEnginePage对象"""
-        if page_id in self.pages:
-            return self.pages[page_id].page()
-        return None
-
-    
-    def get_page_count(self) -> int:
-        """获取当前页面数量"""
-        return len(self.pages)
-    
-    def get_all_page_ids(self) -> list:
-        """获取所有页面ID"""
-        return list(self.pages.keys())
-    
-    def get_or_create_page(self, page_id: str, page_type: PageType, backend_interface=None) -> Optional[QWebEngineView]:
-        """获取或创建页面（为每个page_id创建独立实例，确保数据隔离）"""
-        logger.info(f"请求页面: {page_id}, 类型: {page_type.value}")
-        
-        # 检查是否有预加载的同类型页面可以复用
-        if page_type in self.preloaded_pages:
-            logger.info(f"复用预加载的 {page_type.value} 页面")
-            preloaded_view = self.preloaded_pages.pop(page_type)
-            self.pages[page_id] = preloaded_view
-            
-            # 更新后端接口
-            if backend_interface:
-                self.backend_interfaces[page_id] = backend_interface
-                page = preloaded_view.page()
-                if isinstance(page, CustomWebEnginePage):
-                    page.initialize_web_channel(backend_interface)
-            
-            # 异步预加载新的同类型页面以备后用
-            self._async_preload_page_type(page_type)
-            
-            old_page_id = self.current_page_id
-            self.current_page_id = page_id
-            if old_page_id != page_id:
-                self.page_switched.emit(old_page_id or "", page_id)
-            
-            return preloaded_view
-        
-        # 创建新页面
-        config = PageConfig(
-            page_type=page_type,
-            backend_interface=backend_interface
-        )
-        return self.create_page(page_id, backend_interface, config)
-    
-    def _find_existing_page_by_type(self, page_type: PageType) -> Optional[str]:
-        """查找已存在的相同类型页面"""
-        for page_id, config in self.page_configs.items():
-            if config.page_type == page_type and page_id in self.pages:
-                logger.debug(f"找到现有的 {page_type.value} 页面: {page_id}")
-                return page_id
-        return None
-    
-    def preload_page_type(self, page_type: PageType, backend_interface=None):
-        """预加载指定类型的页面"""
-        try:
-            logger.info(f"预加载页面类型: {page_type.value}")
-            
-            # 创建预加载页面配置
-            config = PageConfig(
-                page_type=page_type,
-                backend_interface=backend_interface,
-                preload=True
-            )
-            
-            # 为预加载页面生成唯一ID
-            preload_page_id = f"preload_{page_type.value}"
-            
-            # 创建预加载页面
-            preload_view = self.create_page(preload_page_id, backend_interface, config)
-            if preload_view:
-                # 加载页面内容
-                html_file = page_type.html_file
-                self.load_html(preload_page_id, html_file)
-                
-                # 存储到预加载缓存
-                self.preloaded_pages[page_type] = preload_view
-                logger.info(f"页面类型 {page_type.value} 预加载完成")
-            else:
-                logger.error(f"页面类型 {page_type.value} 预加载失败")
-        except Exception as e:
-            logger.error(f"预加载页面类型 {page_type.value} 失败: {e}", exc_info=True)
-    
-    def _async_preload_page_type(self, page_type: PageType):
-        """异步预加载页面类型"""
-        QTimer.singleShot(100, lambda: self.preload_page_type(page_type))
-    
-    def load_page_content(self, page_id: str, page_type: Optional[PageType] = None) -> bool:
-        """加载页面内容"""
-        if page_id not in self.pages:
-            logger.error(f"页面 {page_id} 不存在")
-            return False
-        
-        if not page_type and page_id in self.page_configs:
-            page_type = self.page_configs[page_id].page_type
-        
-        if not page_type:
-            logger.error(f"无法确定页面 {page_id} 的类型")
-            return False
-        
-        html_file = page_type.html_file
-        logger.info(f"加载页面内容: {page_id} -> {html_file}")
-        
-        return self.load_html(page_id, html_file, 
-                            callback=lambda success: self.page_loaded.emit(page_id, success))

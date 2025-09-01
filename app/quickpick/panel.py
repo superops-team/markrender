@@ -198,49 +198,30 @@ class QuickPickPanel(QWidget):
             logger.error(f"过滤快速选择记录时发生错误: {e}", exc_info=True)
 
     def save_current_file(self):
-        """保存选中的文件"""
+        """保存当前文件并执行页面切换"""
         try:
-            # 在调用异步方法前保存当前文件的 ID
-            current_file_id = None
-            if self.parent.current_file and self.parent.current_file.get('id'):
-                current_file_id = self.parent.current_file['id']
-
-            # 获取当前内容，使用异步回调确保获取到最新内容
-            def handle_content(content):
-                if current_file_id:
-                    self.markrender_manager.save_item(
-                        id=current_file_id,
-                        content=content
-                    )
-                    logger.info(f"成功保存 ID 为 {current_file_id} 的内容")
-                # 添加保存完成信号发射
-                self.save_complete.emit()
-
-            # 通过Web通信方式获取编辑器内容
-            if hasattr(self.parent.editor, 'web_comm') and hasattr(self.parent.editor.web_comm, 'send_message'):
-                def handle_web_response(response):
-                    logger.debug(f"切换item前收到Web通信响应: {response}")
-                    # 处理Web通信返回的响应
-                    content = response.get('content', '') if response else ''
-                    handle_content(content)
-
-                # 发送消息请求获取页面内容
-                self.parent.editor.web_comm.send_message('getContent', {}, handle_web_response)
-                logger.debug("已发送获取内容的Web通信请求")
+            if hasattr(self.parent, 'editor') and hasattr(self.parent.editor, 'save_content'):
+                # 保存当前编辑内容
+                self.parent.editor.save_content()
+            
+            # 执行页面切换
+            if self.switch_pending:
+                logger.debug(f"执行页面切换: {self.switch_pending.get('title')}")
+                # 调用父窗口的update_editor_and_previewer方法
+                if hasattr(self.parent, 'update_editor_and_previewer'):
+                    self.parent.update_editor_and_previewer(self.switch_pending)
+                else:
+                    logger.error("父窗口没有update_editor_and_previewer方法")
+                
+                # 清除待切换状态
+                self.switch_pending = None
             else:
-                # 回退方案：使用原有的直接执行JS方式
-                js_code = """
-                    if (window.appState.editor) {
-                        window.appState.editor.getContent();
-                    } else {
-                        '';
-                    }
-                """
-                self.parent.editor.preview.page().runJavaScript(js_code, handle_content)
+                logger.debug("没有待切换的项目")
         except Exception as e:
-            logger.error(f"保存内容失败: {str(e)}")
-            self.save_complete.emit()  # 出错时也发射信号，避免阻塞
-
+            import traceback
+            logger.error(f"保存当前文件并切换页面失败: {e}")
+            logger.error(traceback.format_exc())
+        
     def _complete_item_switch(self):
         """完成历史项切换"""
         if self.switch_pending:

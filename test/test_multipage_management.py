@@ -298,13 +298,12 @@ class MultiPageTestWindow(QMainWindow):
             
             # 使用get_or_create_page方法
             view = self.page_manager.get_or_create_page(
-                page_id=page_id,
                 page_type=page_type,
                 backend_interface=self.web_comm
             )
             
             assert view is not None, f"创建{type_name}页面失败"
-            assert page_id in self.page_manager.pages, f"{type_name}页面未正确存储"
+            assert page_id in self.page_manager.preloaded_pages, f"{type_name}页面未正确存储"
             
             self.current_page_id = page_id
             

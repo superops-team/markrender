@@ -49,9 +49,9 @@ class WebPageManager(QObject):
     page_removed = Signal(str)
     
     # 核心功能
-    def get_or_create_page(self, page_id: str, page_type: PageType, backend_interface=None)
+    def get_or_create_page(self,page_type: PageType, backend_interface=None)
     def preload_page_type(self, page_type: PageType, backend_interface=None)
-    def load_page_content(self, page_id: str, page_type: PageType = None)
+    def load_page_content(self, page_type: str)
 ```
 
 ## 实现特性
@@ -100,7 +100,6 @@ class WebPageManager(QObject):
 # 通过页面管理器创建页面
 page_manager = WebPageManager()
 view = page_manager.get_or_create_page(
-    page_id="my_page_id",
     page_type=PageType.MARKDOWN,
     backend_interface=web_comm
 )

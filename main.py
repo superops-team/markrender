@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from app.editor.webengine import WebPageManager
 import sys
 import os
 
@@ -169,24 +170,33 @@ class MainWindow(QMainWindow):
             self.current_file = quickpick_item
             
             # 获取页面类型，默认为markdown
-            page_type_str = quickpick_item.get('page_type', 'markdown')
+            page_type_str = quickpick_item.get('page_type', '')
             try:
-                page_type = PageType(page_type_str)
-            except ValueError:
-                logger.warning(f"未知页面类型: {page_type_str}，使用默认markdown类型")
-                page_type = PageType.MARKDOWN
+                # 根据页面类型字符串直接处理，而不是尝试创建PageType实例
+                if page_type_str == "markdown":
+                    page_type = "markdown"
+                elif page_type_str == "excalidraw":
+                    page_type = "excalidraw"
+                elif page_type_str == "landing":
+                    page_type = "landing"
+                else:
+                    logger.warning(f"未知页面类型: {page_type_str}，使用默认markdown类型")
+                    page_type = "markdown"
+            except Exception as e:
+                logger.warning(f"页面类型解析失败: {page_type_str}，使用默认markdown类型，错误: {e}")
+                page_type = "markdown"
             
-            logger.info(f"页面类型: {page_type.value} ({page_type.display_name})")
+            logger.info(f"页面类型: {page_type}")
             
             # 根据页面类型路由到不同的处理逻辑
-            if page_type == PageType.MARKDOWN:
+            if page_type == "markdown":
                 self._handle_markdown_page(quickpick_item)
-            elif page_type == PageType.EXCALIDRAW:
+            elif page_type == "excalidraw":
                 self._handle_board_page(quickpick_item)
-            elif page_type == PageType.LANDING:
+            elif page_type == "landing":
                 self._handle_landing_page(quickpick_item)
             else:
-                logger.warning(f"页面类型 {page_type.value} 尚未实现，使用markdown处理")
+                logger.warning(f"页面类型 {page_type} 尚未实现，使用markdown处理")
                 self._handle_markdown_page(quickpick_item)
             
             # 更新状态栏
@@ -203,34 +213,27 @@ class MainWindow(QMainWindow):
             logger.error(f"更新编辑区和预览区失败: {e}", exc_info=True)
     
     def _handle_markdown_page(self, quickpick_item):
-        """处理Markdown页面 - 优化版本，使用统一page_id避免不必要的页面创建"""
+        """处理Markdown页面 - 优化版本，使用统一page_type避免不必要的页面创建"""
         logger.debug(f"处理Markdown页面: {quickpick_item.get('title')}")
         
-        from app.editor.webengine import PageType
-        
         try:
-            # 使用统一的page_id来复用相同类型的页面
-            page_id = f"markdown_{quickpick_item.get('id')}"
+            # 使用Markdown页面类型
+            page_type = "markdown"
             page_manager = self.editor.page_manager
             
             # 获取或创建markdown页面
             markdown_view = page_manager.get_or_create_page(
-                page_id=page_id,
-                page_type=PageType.MARKDOWN,
+                page_type=page_type,
                 backend_interface=self.editor.web_comm
             )
             
+            # 确保 WebCommunicationManager 和页面对象正确关联
             if markdown_view:
-                # 只在页面刚创建或页面切换时才加载内容，避免重复加载
-                if page_manager.current_page_id != page_id:
-                    success = page_manager.load_page_content(page_id, PageType.MARKDOWN)
-                    if not success:
-                        logger.error(f"Markdown页面加载失败: {page_id}")
-                        return
-                    logger.info(f"Markdown页面加载成功: {page_id}")
-                else:
-                    logger.debug(f"Markdown页面已是当前页面，跳过加载: {page_id}")
-                
+                self.editor.web_comm.set_page(markdown_view.page())
+                # 切换到Markdown页面
+                page_manager.switch_to_page(page_type)
+            
+            if markdown_view:
                 # 获取内容
                 content = quickpick_item.get('content', '')
                 if content == '':
@@ -238,8 +241,16 @@ class MainWindow(QMainWindow):
                 
                 # 更新Markdown编辑器内容（但不重新创建页面）
                 self.editor.set_file_id(quickpick_item.get('id', ''))
-                self.editor.set_file_name(quickpick_item.get('title', ''))
-                self.editor.set_text_content(content)
+                self.editor.set_file_type(page_type)
+                
+                # 使用QTimer延迟设置内容，确保前端JavaScript已完全初始化
+                from PySide6.QtCore import QTimer
+                
+                def set_content_delayed():
+                    self.editor.set_text_content(content)
+                
+                # 延迟100ms设置内容，确保WebChannel通信已建立
+                QTimer.singleShot(100, set_content_delayed)
                 
                 # 确保Markdown编辑器可见
                 self.editor.show()
@@ -247,7 +258,7 @@ class MainWindow(QMainWindow):
                 logger.debug(f"页面内容更新完成: {quickpick_item.get('title')}")
                 
             else:
-                logger.error(f"创建页面失败: {page_id}")
+                logger.error(f"创建页面失败: {page_type}")
                 
         except Exception as e:
             logger.error(f"页面处理失败: {e}", exc_info=True)
@@ -258,59 +269,46 @@ class MainWindow(QMainWindow):
         """处理Board画板页面 - 修复版本，为每个board项目创建独立的页面实例"""
         logger.debug(f"处理Board页面: {quickpick_item.get('title')}")
         
-        # 这里需要创建或切换到Board编辑器
-        # 目前使用Markdown编辑器作为占位符，后续可以扩展
-        from app.editor.webengine import PageType
-        
         try:
-            # 重要修复：使用board项目的ID作为page_id，确保每个board项目有独立的页面实例
-            board_id = quickpick_item.get('id', '')
-            page_id = f"board_{board_id}"  # 为每个board项目创建唯一的page_id
-            page_manager = self.editor.page_manager 
-            logger.info(f"创建独立Board页面实例: {page_id} (board_id: {board_id})")     
+            # 使用EXCALIDRAW页面类型
+            page_type = "excalidraw"
+            page_manager = self.editor.page_manager
+            logger.info(f"创建独立Board页面实例: {page_type}")     
             
             # 获取或创建独立的通信管理器
-            board_web_comm = page_manager.get_backend_interface(page_id)
+            board_web_comm = page_manager.get_backend_interface(page_type)
             if not board_web_comm:
                 # 如果不存在，则创建新的通信管理器
                 from app.editor.channel import WebCommunicationManager
-                board_web_comm = WebCommunicationManager(page_id)
+                board_web_comm = WebCommunicationManager(page_type)
             
             board_view = page_manager.get_or_create_page(
-                page_id=page_id,
-                page_type=PageType.EXCALIDRAW,  # 使用EXCALIDRAW确保正确的页面类型和消息路由
+                page_type=page_type,  # 使用EXCALIDRAW确保正确的页面类型和消息路由
                 backend_interface=board_web_comm  # 使用独立的通信管理器
             )
             
             # 确保 WebCommunicationManager 和页面对象正确关联
             if board_view:
                 board_web_comm.set_page(board_view.page())
+                # 切换到Excalidraw页面
+                page_manager.switch_to_page(page_type)
             
             if board_view:
-                # 只在页面刚创建或页面切换时才加载内容，避免重复加载
-                if page_manager.current_page_id != page_id:
-                    success = page_manager.load_page_content(page_id, PageType.EXCALIDRAW)
-                    if not success:
-                        logger.error(f"Board页面加载失败: {page_id}")
-                        return
-                    logger.info(f"Board页面加载成功: {page_id}")
-                else:
-                    logger.debug(f"Board页面已是当前页面，跳过加载: {page_id}")
-                
                 # 重要：确保页面完全加载后再发送boardId消息
                 # 使用QTimer延迟发送，确保前端页面已经准备好接收消息
                 from PySide6.QtCore import QTimer
                 
                 def send_board_id():
                     try:
-                        logger.debug(f"发送setBoardId消息到页面 {page_id}: {board_id}")
+                        board_id = quickpick_item.get('id', '')
+                        logger.debug(f"发送setBoardId消息到页面 {page_type}: {board_id}")
                         # 确保消息发送到正确的页面实例
-                        board_web_comm = page_manager.get_backend_interface(page_id)
+                        board_web_comm = page_manager.get_backend_interface(page_type)
                         if board_web_comm:
                             # 发送初始化数据到前端
                             board_web_comm.send_message('setBoardId', {
                                 'boardId': board_id,
-                                'pageId': page_id,  # 同时发送页面ID，便于前端调试
+                                'pageType': page_type,  # 同时发送页面类型，便于前端调试
                                 'title': quickpick_item.get('title', '')
                             })
                             
@@ -325,7 +323,7 @@ class MainWindow(QMainWindow):
                             else:
                                 logger.debug(f"Board项目无内容，跳过数据加载: {board_id}")
                         else:
-                            logger.error(f"无法获取页面 {page_id} 的后端接口")
+                            logger.error(f"无法获取页面 {page_type} 的后端接口")
                             
                     except Exception as e:
                         logger.error(f"发送Board初始化消息失败: {e}", exc_info=True)
@@ -334,7 +332,7 @@ class MainWindow(QMainWindow):
                 QTimer.singleShot(300, send_board_id)
                 
             else:
-                logger.error(f"创建Board页面失败: {page_id}")
+                logger.error(f"创建Board页面失败: {page_type}")
                 
         except Exception as e:
             logger.error(f"Board页面处理失败: {e}", exc_info=True)
@@ -347,34 +345,29 @@ class MainWindow(QMainWindow):
         """处理Landing欢迎页面"""
         logger.debug(f"处理Landing页面: {quickpick_item.get('title')}")
         
-        from app.editor.webengine import PageType
-        
         try:
             # 使用多页面管理器创建或获取Landing页面
-            page_id = "landing_main"
             page_manager = self.editor.page_manager
             
             # 获取或创建Landing页面
             landing_view = page_manager.get_or_create_page(
-                page_id=page_id,
-                page_type=PageType.LANDING,
+                page_type="landing",
                 backend_interface=self.editor.web_comm
             )
             
+            # 确保 WebCommunicationManager 和页面对象正确关联
             if landing_view:
-                # 加载页面内容
-                success = page_manager.load_page_content(page_id, PageType.LANDING)
-                if success:
-                    logger.info(f"Landing页面加载成功: {page_id}")
-                    
-                    # 发送欢迎消息
-                    self.editor.web_comm.send_message('showWelcomeMessage', {
-                        'message': '欢迎使用MarkRender!'
-                    })
-                else:
-                    logger.error(f"Landing页面加载失败: {page_id}")
+                self.editor.web_comm.set_page(landing_view.page())
+                # 切换到Landing页面
+                page_manager.switch_to_page("landing")
+            
+            if landing_view:
+                # 发送欢迎消息
+                self.editor.web_comm.send_message('showWelcomeMessage', {
+                    'message': '欢迎使用MarkRender!'
+                })
             else:
-                logger.error(f"创建Landing页面失败: {page_id}")
+                logger.error(f"创建Landing页面失败: landing")
                 
         except Exception as e:
             logger.error(f"Landing页面处理失败: {e}", exc_info=True)

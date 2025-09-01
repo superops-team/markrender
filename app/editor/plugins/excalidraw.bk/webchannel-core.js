@@ -508,7 +508,7 @@ document.addEventListener('DOMContentLoaded', function() {
         let pageType = 'unknown';
         if (window.location.pathname.includes('excalidraw')) {
             pageType = 'excalidraw';
-        } else if (window.location.pathname.includes('cherry-markdown')) {
+        } else if (window.location.pathname.includes('markdown')) {
             pageType = 'markdown';
         } else if (window.location.pathname.includes('landing')) {
             pageType = 'landing';

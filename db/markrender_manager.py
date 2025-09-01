@@ -223,7 +223,7 @@ class MarkRenderManager:
     def save_change_history(self, file_id, old_content, new_content, change_type='content_update', 
                            change_reason='user_edit', change_by='user', change_ip='127.0.0.1', 
                            change_file_path='', change_theme_id=1, change_page_type='markdown', 
-                           change_page_engine='cherry-markdown', change_page_settings='{}', change_page_id=None):
+                           change_page_engine='markdown', change_page_settings='{}', change_page_id=None):
         """
         保存变更历史记录
         Args:

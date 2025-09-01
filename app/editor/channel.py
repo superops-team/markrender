@@ -29,9 +29,9 @@ class WebCommunicationManager(QObject):
     async_response_ready = Signal(str, bool, dict)  # 添加异步响应信号
     
     # 移除单例模式，每个页面一个实例
-    def __init__(self, page_id: str, parent=None):
+    def __init__(self, page_type: str, parent=None):
         super().__init__(parent)
-        self.page_id = page_id
+        self.page_type = page_type
         self.markdown_manager = MarkRenderManager()
         self.python_handlers = {}
         self.web_callbacks = {}
@@ -39,22 +39,22 @@ class WebCommunicationManager(QObject):
         self.ready = False
         self.page_type = None  # 添加页面类型属性
     
-    def set_page(self, page):
-        """设置页面对象"""
-        self.page = page
-        
     def set_page_type(self, page_type):
         """设置页面类型"""
         self.page_type = page_type
         
     def attach_to_page_manager(self, page_manager):
         """附加到页面管理器并获取页面对象"""
-        page_manager.set_backend_interface(self.page_id, self)
+        page_manager.set_backend_interface(self.page_type, self)
         # 获取对应的页面对象
         if hasattr(page_manager, 'get_page'):
-            self.page = page_manager.get_page(self.page_id)
-        elif hasattr(page_manager, 'pages') and self.page_id in page_manager.pages:
-            self.page = page_manager.pages[self.page_id].page()
+            self.page = page_manager.get_page(self.page_type)
+        elif hasattr(page_manager, 'preloaded_pages') and self.page_type in page_manager.preloaded_pages:
+            self.page = page_manager.preloaded_pages[self.page_type].page()
+    
+    def set_page(self, page):
+        """设置页面对象"""
+        self.page = page
         
     @Slot(str)
     def handle_web_response(self, response_json):
@@ -75,7 +75,7 @@ class WebCommunicationManager(QObject):
     @Slot()
     def frontend_ready(self):
         """前端就绪回调"""
-        logger.info(f"[{self.page_id}] 前端就绪回调被调用")
+        logger.info(f"[{self.page_type}] 前端就绪回调被调用")
         self.ready = True
         self.channel_ready.emit()
 
@@ -92,10 +92,10 @@ class WebCommunicationManager(QObject):
         """增强请求分发，添加文档ID路由"""
         try:
             request_data = json.loads(request_json)
-            logger.debug(f"[{self.page_id}] Received request: {request_data}")
+            logger.debug(f"[{self.page_type}] Received request: {request_data}")
             request = RequestModel.from_dict(request_data)
             if not request.request_id:
-                logger.warning(f"[{self.page_id}] 请求缺少requestId")
+                logger.warning(f"[{self.page_type}] 请求缺少requestId")
                 return json.dumps({
                     "success": False,
                     "requestId": request.request_id,
@@ -103,7 +103,7 @@ class WebCommunicationManager(QObject):
                 })
             handler_tuple = self.python_handlers.get(request.action)
             if not handler_tuple:
-                logger.warning(f"[{self.page_id}] 未知的action: {request.action}")
+                logger.warning(f"[{self.page_type}] 未知的action: {request.action}")
                 return json.dumps({
                     "success": False,
                     "requestId": request.request_id,
@@ -132,10 +132,10 @@ class WebCommunicationManager(QObject):
                         "data": result
                     }
                 
-                logger.debug(f"[{self.page_id}] 返回响应: {response_data}")
+                logger.debug(f"[{self.page_type}] 返回响应: {response_data}")
                 return json.dumps(response_data)
         except Exception as e:
-            logger.error(f"[{self.page_id}] 处理请求失败: {str(e)}", exc_info=True)
+            logger.error(f"[{self.page_type}] 处理请求失败: {str(e)}", exc_info=True)
             return json.dumps({
                 "success": False,
                 "requestId": request.request_id,
@@ -146,7 +146,7 @@ class WebCommunicationManager(QObject):
     def send_message(self, action: str, data: dict = None, callback=None):
         """发送消息到前端页面，添加回调支持"""
         if not self.page:
-            logger.warning(f"[{self.page_id}] 无法发送消息 - 页面未初始化")
+            logger.warning(f"[{self.page_type}] 无法发送消息 - 页面未初始化")
             return False
 
         data = data or {}
@@ -158,21 +158,21 @@ class WebCommunicationManager(QObject):
             # 构造JavaScript代码，调用前端的handlePythonMessage函数
             # 使用json.dumps确保所有参数正确转义
             js_code = f"window.handlePythonMessage({json.dumps(action)}, {json.dumps(data)}, {json.dumps(request_id) if request_id else 'null'});"
-            logger.debug(f"[{self.page_id}] 发送JavaScript代码: {js_code[:100]}...")
+            logger.debug(f"[{self.page_type}] 发送JavaScript代码: {js_code[:100]}...")
             self.page.runJavaScript(js_code, lambda result: self._on_message_sent(request_id, result))
             return True
         except Exception as e:
-            logger.error(f"[{self.page_id}] 发送消息失败: {str(e)}", exc_info=True)
+            logger.error(f"[{self.page_type}] 发送消息失败: {str(e)}", exc_info=True)
             return False
 
     def _on_message_sent(self, request_id, result):
         if not request_id:
-            logger.debug(f"[{self.page_id}] 消息发送完成: 无回调消息")
+            logger.debug(f"[{self.page_type}] 消息发送完成: 无回调消息")
             return
-        logger.debug(f"[{self.page_id}] 收到前端响应: {request_id} - {result}")
+        logger.debug(f"[{self.page_type}] 收到前端响应: {request_id} - {result}")
         if request_id not in self.web_callbacks:
             if result:
-                logger.warning(f"[{self.page_id}] 收到未知request_id的响应: {request_id} - {result}")
+                logger.warning(f"[{self.page_type}] 收到未知request_id的响应: {request_id} - {result}")
             return
         callback = self.web_callbacks.pop(request_id)
         try:
@@ -187,7 +187,7 @@ class WebCommunicationManager(QObject):
                 })
         except Exception as e:
             import traceback
-            logger.error(f"[{self.page_id}] 处理回调时出错: {str(traceback.format_exc())}, request_id: {request_id}, result: {result}")
+            logger.error(f"[{self.page_type}] 处理回调时出错: {str(traceback.format_exc())}, request_id: {request_id}, result: {result}")
             callback({'success': False, 'error': e})
         finally:
             # 确保无论回调执行结果如何都移除回调引用

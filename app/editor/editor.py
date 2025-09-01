@@ -19,10 +19,10 @@ class MarkRenderDoc(QObject):
     text_changed = Signal(str)  # 内容变更信号
     content_changed = Signal(str)  # Web端内容变化时触发
 
-    def __init__(self, file_id, file_name):
+    def __init__(self, file_id, file_type):
         super().__init__()
         self._file_id = file_id
-        self.file_name = file_name
+        self.file_type = file_type
         self._text = ""
         self._suppress_change_notification = False
         # 新增防抖定时器，默认 200 毫秒
@@ -72,7 +72,7 @@ class MarkRenderDoc(QObject):
 
 
 class MarkRenderEditor(QWidget):
-    def __init__(self, parent=None, file_id="", file_name=""):
+    def __init__(self, parent=None, file_id="", file_type=""):
         super().__init__(parent)
         # 初始化线程池管理器
         self.thread_pool = ThreadPoolManager()
@@ -82,10 +82,10 @@ class MarkRenderEditor(QWidget):
         
         # 初始化页面管理器
         self.page_manager = WebPageManager()
-        self.page_id = f"markrender_{file_id}"  # 使用固定页面ID
+        self.page_type = f"{file_type}"  # 使用文件类型
         
         # 初始化文档
-        self.document = MarkRenderDoc(file_id, file_name)
+        self.document = MarkRenderDoc(file_id, file_type)
         # 注册文档到通信管理器
         if file_id:
             self.web_comm.document_map[file_id] = self.document
@@ -105,15 +105,15 @@ class MarkRenderEditor(QWidget):
         self.document_modified = False
         self.init_auto_save()
     
-    def get_id(self):
-        return f"{self.page_id}"
+    def get_page_type(self):
+        return f"{self.page_type}"
 
     def setup_ui(self):
         # 创建页面管理器实例
         self.page_manager = WebPageManager()
         
         # 创建通信管理器（每个页面一个实例）
-        self.web_comm = WebCommunicationManager(self.get_id())
+        self.web_comm = WebCommunicationManager("markdown")  # 默认设置为markdown类型
         # 然后再调用init_web_handlers()
         self.init_web_handlers()
         
@@ -124,18 +124,16 @@ class MarkRenderEditor(QWidget):
         self.setLayout(layout)
 
         # 预加载常用页面类型
-        from app.editor.webengine import PageType
         logger.info("开始预加载常用页面类型...")
         
         # 预加载页面
-        self.page_manager.preload_page_type(PageType.MARKDOWN, self.web_comm)
-        self.page_manager.preload_page_type(PageType.LANDING, self.web_comm)
-        self.page_manager.preload_page_type(PageType.EXCALIDRAW, self.web_comm)
+        self.page_manager.preload_page_type("markdown", self.web_comm)
+        self.page_manager.preload_page_type("landing", self.web_comm)
+        self.page_manager.preload_page_type("excalidraw", self.web_comm)
         
         # 初始创建默认的Markdown页面作为主显示区域
         self.preview = self.page_manager.get_or_create_page(
-            page_id=self.get_id(),
-            page_type=PageType.MARKDOWN,
+            page_type="markdown",
             backend_interface=self.web_comm
         )
         
@@ -144,15 +142,15 @@ class MarkRenderEditor(QWidget):
             return
         
         # 将通信管理器附加到页面管理器
-        self.web_comm.attach_to_page_manager(self.page_manager)
+        self.web_comm.set_page(self.preview.page())  # 直接设置页面对象
         
         # 加载HTML文件，并在加载完成后初始化WebChannel
-        success = self.page_manager.load_page_content(self.get_id(), PageType.MARKDOWN)
+        success = self.page_manager.load_page_content("markdown")
         if not success:
             logger.error("加载HTML文件失败")
             
-        # 将预览组件添加到布局
-        layout.addWidget(self.preview)
+        # 将页面管理器添加到布局（QStackedWidget会管理页面显示）
+        layout.addWidget(self.page_manager)
         
         # 设置样式
         self.setStyleSheet(AppStyle().get_editor_parent() + AppStyle().get_editor_preview())
@@ -234,44 +232,28 @@ class MarkRenderEditor(QWidget):
             self.document_modified = False
             logger.debug("文档内容未变化")
     
-    def _on_page_loaded(self, page_id, success):
+    def _on_page_loaded(self, page_type, success):
         """页面加载完成回调"""
         if success:
-            logger.info(f"页面加载成功: {page_id}")
+            logger.info(f"页面加载成功: {page_type}")
         else:
-            logger.error(f"页面加载失败: {page_id}")
+            logger.error(f"页面加载失败: {page_type}")
     
-    def _on_page_switched(self, from_page_id, to_page_id):
+    # 修复_on_page_switched方法中的页面切换逻辑
+    def _on_page_switched(self, from_page_type, to_page_type):  
         """页面切换回调 - 优化版本，避免布局重排，添加转场效果"""
-        logger.info(f"页面切换: {from_page_id} -> {to_page_id}")
+        logger.info(f"页面切换: {from_page_type} -> {to_page_type}")
         
-        # 检查是否是相同的页面实例（智能复用情况）
-        if (to_page_id in self.page_manager.pages and 
-            from_page_id in self.page_manager.pages and
-            self.page_manager.pages[to_page_id] is self.page_manager.pages.get(from_page_id)):
-            logger.debug(f"相同页面实例复用，无需重排布局: {to_page_id}")
-            return
-        
-        # 更新显示的页面
-        if to_page_id in self.page_manager.pages:
-            new_view = self.page_manager.pages[to_page_id]
-            
-            # 检查是否已经是当前显示的页面
-            layout = self.layout()
-            current_widget = layout.itemAt(0).widget() if layout.count() > 0 else None
-            
-            if current_widget is new_view:
-                logger.debug(f"页面已是当前显示，无需切换: {to_page_id}")
-                self.preview = new_view
-                return
-            
-            # 只有在不同页面实例时才进行布局更新
-            logger.debug(f"执行页面实例切换: {to_page_id}")
-            
-            # 使用简单的透明度动画实现转场效果
-            self._perform_smooth_page_switch(layout, current_widget, new_view)
-            
-            logger.debug(f"页面显示切换完成: {to_page_id}")
+        try:
+            # 页面切换已经在QStackedWidget中完成，这里只需要处理通信管理器的更新
+            if hasattr(self, 'web_comm') and self.web_comm:
+                current_page_type = self.page_manager.current_page_type
+                if current_page_type:
+                    page = self.page_manager.get_page(current_page_type)
+                    if page:
+                        self.web_comm.set_page(page)
+        except Exception as e:
+            logger.error(f"页面切换失败: {e}")
     
     def _perform_smooth_page_switch(self, layout, old_widget, new_widget):
         """执行平滑的页面切换动画"""
@@ -377,7 +359,7 @@ class MarkRenderEditor(QWidget):
 
     def reset(self):
         self.document.file_id = ""
-        self.document.file_name = ""
+        self.document.file_type = ""
         self.document.reset()  # 调用文档的 reset 方法
         # 通过channel发送清空内容请求
         self.web_comm.send_message("setValue", {
@@ -404,8 +386,8 @@ class MarkRenderEditor(QWidget):
         else:
             logger.warning("web_comm未初始化，无法通知前端当前文件ID变更")
 
-    def set_file_name(self, file_name):
-        self.document.file_name = file_name
+    def set_file_type(self, file_type):
+        self.document.file_type = file_type
 
     def get_content(self, callback):
         """获取markdown内容"""
@@ -626,7 +608,7 @@ class MarkRenderEditor(QWidget):
             QTimer.singleShot(0, QApplication.quit)
         
     def _cleanup_resources(self):
-        # 3. 清理线程池资源
+        # 清理线程池资源
         if hasattr(self, 'thread_pool'):
             # 取消所有未完成任务
             self.thread_pool.cancel_all_tasks()
@@ -634,7 +616,7 @@ class MarkRenderEditor(QWidget):
             self.thread_pool.wait_for_completion(500)
             logger.info("Thread pool resources cleaned up")
 
-        # 4. 释放Web通信资源
+        # 释放Web通信资源
         if hasattr(self, 'web_comm'):
             self.web_comm.cleanup()
 
@@ -813,10 +795,10 @@ class MarkRenderEditor(QWidget):
         """处理设置BoardId消息"""
         try:
             board_id = data.get('id', '')
-            page_id = data.get('id', '')
+            page_type = data.get('pageType', 'excalidraw')
             title = data.get('title', '')
             
-            logger.info(f"处理setBoardId消息: boardId={board_id}, pageId={page_id}, title={title}")
+            logger.info(f"处理setBoardId消息: boardId={board_id}, pageType={page_type}, title={title}")
             
             if not board_id:
                 return {"success": False, "error": "缺少boardId"}
@@ -825,7 +807,7 @@ class MarkRenderEditor(QWidget):
             return {
                 "success": True,
                 "boardId": board_id,
-                "pageId": page_id,
+                "pageType": page_type,
                 "message": f"Board ID 设置成功: {board_id}"
             }
             

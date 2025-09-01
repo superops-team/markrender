@@ -35,6 +35,36 @@
       // 注意：路径末尾必须包含斜杠
       window.EXCALIDRAW_ASSET_PATH = "./assets/";
       window.EXCALIDRAW_EXPORT_SOURCE = "";
+      
+      // 初始化WebChannel
+      function initWebChannel() {
+        if (window.WebChannelManager) {
+          window.WebChannelManager.init('excalidraw')
+            .then(() => {
+              window.WebChannelManager.logger.info('Excalidraw WebChannel初始化成功');
+              
+              // 注册常用的消息处理器，防止警告
+              window.WebChannelManager.registerMessageHandler('setBoardId', (data, requestId) => {
+                window.WebChannelManager.logger.info('收到setBoardId消息:', data);
+              });
+              
+              window.WebChannelManager.registerMessageHandler('loadExcalidrawData', (data, requestId) => {
+                window.WebChannelManager.logger.info('收到loadExcalidrawData消息:', data);
+              });
+              
+              window.WebChannelManager.registerMessageHandler('saveExcalidrawData', (data, requestId) => {
+                window.WebChannelManager.logger.info('收到saveExcalidrawData消息:', data);
+              });
+              
+            })
+            .catch(error => {
+              window.WebChannelManager.logger.error('Excalidraw WebChannel初始化失败:', error);
+            });
+        }
+      }
+      
+      // 页面加载完成后初始化WebChannel
+      document.addEventListener('DOMContentLoaded', initWebChannel);
     </script>
   </head>
   <body>

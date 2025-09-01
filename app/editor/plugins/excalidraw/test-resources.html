@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Resource Path Test</title>
+</head>
+<body>
+    <h1>Excalidraw Resource Path Test</h1>
+    <p>Testing if resources can be loaded from the correct path.</p>
+    
+    <script>
+        // 测试资源路径
+        const testPaths = [
+            './assets/excalidraw-assets/vendor-677e88ca78c86bddf13d.js',
+            './assets/excalidraw-assets/Virgil.woff2',
+            './assets/excalidraw-assets/Cascadia.woff2'
+        ];
+        
+        testPaths.forEach(path => {
+            fetch(path)
+                .then(response => {
+                    if (response.ok) {
+                        console.log(`✓ Resource found: ${path}`);
+                    } else {
+                        console.error(`✗ Resource not found: ${path} (status: ${response.status})`);
+                    }
+                })
+                .catch(error => {
+                    console.error(`✗ Error loading resource: ${path}`, error);
+                });
+        });
+        
+        // 检查全局变量设置
+        console.log('EXCALIDRAW_ASSET_PATH:', window.EXCALIDRAW_ASSET_PATH);
+    </script>
+</body>
+</html>
