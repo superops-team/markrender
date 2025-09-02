@@ -53,9 +53,10 @@ class CustomWebEnginePage(QWebEnginePage):
         if backend_interface:
             self.backend_interface = backend_interface
             channel = QWebChannel(self)
-            channel.registerObject("backend", backend_interface)
+            # 注册为 'backendInterface'，与前端JavaScript保持一致
+            channel.registerObject("backendInterface", backend_interface)
             self.setWebChannel(channel)
-            logger.debug(f"WebChannel initialized for page {self.page_type}")
+            logger.debug(f"WebChannel initialized for page {self.page_type} with backendInterface")
     
     def cleanup(self):
         """清理资源"""
@@ -127,9 +128,13 @@ class WebPageManager(QStackedWidget):
             
             if backend_interface:
                 self.backend_interfaces[page_type] = backend_interface
-                # 立即初始化WebChannel
-                page.initialize_web_channel(backend_interface)
-                logger.debug(f"页面 {page_type} WebChannel初始化完成")
+                # 延迟初始化WebChannel，确保在页面加载完成后执行
+                def init_webchannel_after_load():
+                    page.initialize_web_channel(backend_interface)
+                    logger.debug(f"页面 {page_type} WebChannel初始化完成")
+                
+                # 连接加载完成信号，确保WebChannel在页面加载后初始化
+                view.loadFinished.connect(lambda success: init_webchannel_after_load() if success else None)
             
             # 发送页面创建信号
             self.page_created.emit(page_type)
@@ -152,11 +157,16 @@ class WebPageManager(QStackedWidget):
             
         self.backend_interfaces[page_type] = backend_interface
         
-        # 获取页面并初始化WebChannel
+        # 获取页面并设置通信管理器的页面引用
         view = self.preloaded_pages[page_type]
         page = view.page()
         if isinstance(page, CustomWebEnginePage):
+            # 设置通信管理器的页面引用
+            backend_interface.set_page(page)
+            
+            # 初始化WebChannel
             page.initialize_web_channel(backend_interface)
+            logger.debug(f"页面 {page_type} 后端接口设置完成")
             return True
         
         return False
@@ -251,6 +261,9 @@ class WebPageManager(QStackedWidget):
                 self.backend_interfaces[page_type] = backend_interface
                 page = preloaded_view.page()
                 if isinstance(page, CustomWebEnginePage):
+                    # 设置通信管理器的页面引用
+                    backend_interface.set_page(page)
+                    # 初始化WebChannel
                     page.initialize_web_channel(backend_interface)
             
             return preloaded_view

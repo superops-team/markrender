@@ -37,7 +37,6 @@ class WebCommunicationManager(QObject):
         self.web_callbacks = {}
         self.page = None  # 添加page属性，初始为None
         self.ready = False
-        self.page_type = None  # 添加页面类型属性
     
     def set_page_type(self, page_type):
         """设置页面类型"""
@@ -45,12 +44,12 @@ class WebCommunicationManager(QObject):
         
     def attach_to_page_manager(self, page_manager):
         """附加到页面管理器并获取页面对象"""
-        page_manager.set_backend_interface(self.page_type, self)
-        # 获取对应的页面对象
-        if hasattr(page_manager, 'get_page'):
-            self.page = page_manager.get_page(self.page_type)
-        elif hasattr(page_manager, 'preloaded_pages') and self.page_type in page_manager.preloaded_pages:
-            self.page = page_manager.preloaded_pages[self.page_type].page()
+        success = page_manager.set_backend_interface(self.page_type, self)
+        if success:
+            logger.debug(f"通信管理器 {self.page_type} 成功附加到页面管理器")
+        else:
+            logger.warning(f"通信管理器 {self.page_type} 附加到页面管理器失败")
+        return success
     
     def set_page(self, page):
         """设置页面对象"""
@@ -146,7 +145,11 @@ class WebCommunicationManager(QObject):
     def send_message(self, action: str, data: dict = None, callback=None):
         """发送消息到前端页面，添加回调支持"""
         if not self.page:
-            logger.warning(f"[{self.page_type}] 无法发送消息 - 页面未初始化")
+            logger.warning(f"[{self.page_type}] 无法发送消息 - 页面未初始化，请检查set_page是否被正确调用")
+            return False
+            
+        if not self.ready:
+            logger.warning(f"[{self.page_type}] 无法发送消息 - WebChannel通道未就绪，请等待frontend_ready信号")
             return False
 
         data = data or {}
