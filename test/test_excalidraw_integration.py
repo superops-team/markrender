@@ -340,7 +340,7 @@ class ExcalidrawIntegrationTestWindow(QMainWindow):
                 body_children: document.body.children.length,
                 has_root: document.getElementById('root') !== null,
                 has_qwebchannel: typeof QWebChannel !== 'undefined',
-                has_window_handle: typeof window.handlePythonMessage !== 'undefined',
+                has_window_handle: typeof window.handleBackendMessage !== 'undefined',
                 has_webchannel_manager: typeof window.WebChannelManager !== 'undefined'
             };
             

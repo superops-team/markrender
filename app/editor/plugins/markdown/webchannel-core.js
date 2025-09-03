@@ -15,8 +15,8 @@ window.WebChannelManager = (function() {
         callbackMap: new Map(),
         requestCounter: 0,
         retryCount: 0,
-        maxRetries: 5,
-        pageType: 'Markdown',
+        maxRetries: 15,
+        pageType: 'markdown',
         initCallbacks: [],
         messageHandlers: new Map()
     };
@@ -36,8 +36,8 @@ window.WebChannelManager = (function() {
     }
 
     // 立即定义全局消息处理函数，防止早期调用失败
-    window.handlePythonMessage = function(action, data, requestId) {
-        logger.debug('收到Python消息:', action, data, 'requestId:', requestId);
+    window.handleBackendMessage = function(action, data, requestId) {
+        logger.debug('收到Backend消息:', action, data, 'requestId:', requestId);
         
         // 查找注册的消息处理器
         if (state.messageHandlers.has(action)) {
@@ -65,8 +65,8 @@ window.WebChannelManager = (function() {
         logger.debug('忽略编辑器消息: textChanged');
     });
     
-    registerMessageHandler('setCurrentFileId', (data, requestId) => {
-        logger.debug('忽略编辑器消息: setCurrentFileId');
+    registerMessageHandler('setCurrentItemId', (data, requestId) => {
+        logger.debug('忽略编辑器消息: setCurrentItemId');
     });
     
     registerMessageHandler('setValue', (data, requestId) => {
@@ -78,7 +78,7 @@ window.WebChannelManager = (function() {
     });
 
     // WebChannel初始化（带重试机制）
-    function initWebChannel(pageType = 'unknown') {
+    function initWebChannel(pageType = 'markdown') {
         state.pageType = pageType;
         logger.info('开始初始化WebChannel...');
 
@@ -90,7 +90,7 @@ window.WebChannelManager = (function() {
                 logger.info(`WebChannel初始化重试 ${state.retryCount}/${state.maxRetries}`);
                 setTimeout(() => initWebChannel(pageType), 200 * state.retryCount);
             } else {
-                logger.error('WebChannel初始化最终失败');
+                logger.error('makrdown WebChannel初始化最终失败');
             }
             return Promise.reject(new Error('WebChannel传输不可用'));
         }
@@ -134,7 +134,7 @@ window.WebChannelManager = (function() {
     }
 
     // 标准化消息发送到Python
-    function sendToPython(action, data = {}, callback = null) {
+    function sendToBackend(action, data = {}, callback = null) {
         logger.debug('发送到Python:', action, data);
 
         if (!state.isChannelReady || !state.backendInterface) {
@@ -159,7 +159,7 @@ window.WebChannelManager = (function() {
 
         try {
             return state.backendInterface.dispatch_request(JSON.stringify(request))
-                .then(responseJson => handlePythonResponse(responseJson))
+                .then(responseJson => handleBackendResponse(responseJson))
                 .catch(error => {
                     logger.error('请求失败:', error);
                     if (callback) {
@@ -178,7 +178,7 @@ window.WebChannelManager = (function() {
     }
 
     // 处理Python响应
-    function handlePythonResponse(responseJson) {
+    function handleBackendResponse(responseJson) {
         try {
             const response = typeof responseJson === 'string' ? 
                 JSON.parse(responseJson) : responseJson;
@@ -222,7 +222,7 @@ window.WebChannelManager = (function() {
     }
 
     // 发送响应到Python（兼容老接口）
-    function sendResponseToPython(requestId, data) {
+    function sendResponseToBackend(requestId, data) {
         if (!state.isChannelReady || !state.backendInterface) {
             logger.error('WebChannel未就绪，无法发送响应');
             return;
@@ -252,7 +252,7 @@ window.WebChannelManager = (function() {
         logger.error('报告错误:', errorData);
 
         if (state.isChannelReady) {
-            sendToPython('reportError', errorData).catch(e => {
+            sendToBackend('reportError', errorData).catch(e => {
                 logger.error('错误报告失败:', e);
             });
         }
@@ -288,8 +288,8 @@ window.WebChannelManager = (function() {
     return {
         // 核心功能
         init: initWebChannel,
-        sendToPython: sendToPython,
-        sendResponseToPython: sendResponseToPython,
+        sendToBackend: sendToBackend,
+        sendResponseToBackend: sendResponseToBackend,
         
         // 消息处理
         registerMessageHandler: registerMessageHandler,

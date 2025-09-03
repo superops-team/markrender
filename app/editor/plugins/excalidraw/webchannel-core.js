@@ -16,7 +16,7 @@ window.WebChannelManager = (function() {
         callbackMap: new Map(),
         requestCounter: 0,
         retryCount: 0,
-        maxRetries: 5,
+        maxRetries: 10,
         pageType: 'excalidraw',
         initCallbacks: [],
         messageHandlers: new Map()
@@ -42,7 +42,7 @@ window.WebChannelManager = (function() {
     }
 
     // 立即定义全局消息处理函数，防止早期调用失败
-    window.handlePythonMessage = function(action, data, requestId) {
+    window.handleBackendMessage = function(action, data, requestId) {
         try {
             logger.debug('收到Python消息:', action, data, 'requestId:', requestId);
             
@@ -64,10 +64,10 @@ window.WebChannelManager = (function() {
     };
 
     // WebChannel初始化（带重试机制）
-    function initWebChannel(pageType = 'unknown') {
+    function initWebChannel(pageType = 'excalidraw') {
         try {
             state.pageType = pageType;
-            logger.info('开始初始化WebChannel...');
+            logger.info('开始初始化excalidraw WebChannel...');
 
             if (!window.qt || !window.qt.webChannelTransport) {
                 logger.error('QWebChannel传输不可用，尝试重试...');
@@ -140,7 +140,7 @@ window.WebChannelManager = (function() {
     }
 
     // 标准化消息发送到Python
-    function sendToPython(action, data = {}, callback = null) {
+    function sendToBackend(action, data = {}, callback = null) {
         try {
             logger.debug('发送到Python:', action, data);
 
@@ -170,7 +170,7 @@ window.WebChannelManager = (function() {
                 return state.backendInterface.dispatch_request(JSON.stringify(request))
                     .then(responseJson => {
                         try {
-                            return handlePythonResponse(responseJson);
+                            return handleBackendResponse(responseJson);
                         } catch (error) {
                             logger.error('处理Python响应失败:', error);
                             return { success: false, error: '处理响应失败' };
@@ -202,14 +202,14 @@ window.WebChannelManager = (function() {
                 return Promise.resolve({ success: false, error: e.message });
             }
         } catch (error) {
-            logger.error('sendToPython执行异常:', error);
+            logger.error('sendToBackend执行异常:', error);
             // 不抛出异常，确保不影响主流程
             return Promise.resolve({ success: false, error: '执行异常' });
         }
     }
 
     // 处理Python响应
-    function handlePythonResponse(responseJson) {
+    function handleBackendResponse(responseJson) {
         try {
             const response = typeof responseJson === 'string' ? 
                 JSON.parse(responseJson) : responseJson;
@@ -279,7 +279,7 @@ window.WebChannelManager = (function() {
     }
 
     // 发送响应到Python（兼容老接口）
-    function sendResponseToPython(requestId, data) {
+    function sendResponseToBackend(requestId, data) {
         try {
             if (!state.isChannelReady || !state.backendInterface) {
                 logger.error('WebChannel未就绪，无法发送响应');
@@ -296,7 +296,7 @@ window.WebChannelManager = (function() {
                 logger.error('发送响应失败:', error);
             }
         } catch (error) {
-            logger.error('sendResponseToPython执行异常:', error);
+            logger.error('sendResponseToBackend执行异常:', error);
             // 不抛出异常，确保不影响主流程
         }
     }
@@ -315,7 +315,7 @@ window.WebChannelManager = (function() {
             logger.error('报告错误:', errorData);
 
             if (state.isChannelReady) {
-                sendToPython('reportError', errorData).catch(e => {
+                sendToBackend('reportError', errorData).catch(e => {
                     logger.error('错误报告失败:', e);
                 });
             }
@@ -367,8 +367,8 @@ window.WebChannelManager = (function() {
     return {
         // 核心功能
         init: initWebChannel,
-        sendToPython: sendToPython,
-        sendResponseToPython: sendResponseToPython,
+        sendToBackend: sendToBackend,
+        sendResponseToBackend: sendResponseToBackend,
         
         // 消息处理
         registerMessageHandler: registerMessageHandler,

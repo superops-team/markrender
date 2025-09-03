@@ -16,7 +16,7 @@ from PySide6.QtGui import QFont
 
 from utils.logger_utils import logger
 from app.editor.webengine import WebPageManager, PageType, PageConfig, CustomWebEnginePage
-from app.editor.channel import WebCommunicationManager
+from app.editor.backend_interface import BackendInterface
 
 class MultiPageTestWindow(QMainWindow):
     """多页面管理系统测试窗口"""
@@ -184,7 +184,7 @@ class MultiPageTestWindow(QMainWindow):
     def init_web_comm(self):
         """初始化WebChannel通信"""
         try:
-            self.web_comm = WebCommunicationManager("test_page_manager")
+            self.web_comm = BackendInterface("test_page_manager")
             logger.info("WebChannel通信管理器初始化成功")
         except Exception as e:
             logger.error(f"WebChannel通信管理器初始化失败: {e}")

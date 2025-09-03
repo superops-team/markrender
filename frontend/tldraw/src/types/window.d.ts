@@ -6,12 +6,12 @@ declare global {
       initWebChannel: (pageType: string) => Promise<void>;
       registerMessageHandler: (action: string, handler: Function) => void;
       unregisterMessageHandler: (action: string) => void;
-      sendToPython: (action: string, data: any) => Promise<any>;
+      sendToBackend: (action: string, data: any) => Promise<any>;
     };
     
     // For error reporting
     webChannelManager?: {
-      sendToPython: (action: string, data: any) => void;
+      sendToBackend: (action: string, data: any) => void;
     };
   }
 }

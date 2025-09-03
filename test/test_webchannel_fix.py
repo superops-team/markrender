@@ -14,7 +14,7 @@ sys.path.insert(0, str(project_root))
 from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton, QTextEdit
 from PySide6.QtCore import QTimer
 from app.editor.webengine import WebPageManager
-from app.editor.channel import WebCommunicationManager
+from app.editor.backend_interface import BackendInterface
 from utils import logger
 
 class WebChannelTestWindow(QMainWindow):
@@ -25,7 +25,7 @@ class WebChannelTestWindow(QMainWindow):
         
         # 创建页面管理器和通信管理器
         self.page_manager = WebPageManager()
-        self.web_comm = WebCommunicationManager("markdown")
+        self.web_comm = BackendInterface("markdown")
         
         # 设置测试处理器
         self.setup_test_handlers()
@@ -47,8 +47,8 @@ class WebChannelTestWindow(QMainWindow):
             return {"status": "success", "saved": True}
         
         # 注册处理器
-        self.web_comm.register_python_handler('test', handle_test_message)
-        self.web_comm.register_python_handler('autoSave', handle_auto_save)
+        self.web_comm.register_handler('test', handle_test_message)
+        self.web_comm.register_handler('autoSave', handle_auto_save)
         
         # 监听通道就绪信号
         self.web_comm.channel_ready.connect(self.on_channel_ready)
@@ -128,9 +128,9 @@ class WebChannelTestWindow(QMainWindow):
         
         # 检查页面对象是否设置
         if self.web_comm.page:
-            self.log_message("✅ WebCommunicationManager页面对象已设置")
+            self.log_message("✅ BackendInterface页面对象已设置")
         else:
-            self.log_message("❌ WebCommunicationManager页面对象未设置")
+            self.log_message("❌ BackendInterface页面对象未设置")
             return
         
         # 检查通道是否就绪
@@ -145,10 +145,10 @@ class WebChannelTestWindow(QMainWindow):
         # 测试JavaScript函数存在性
         js_check_code = """
         (function() {
-            if (typeof window.handlePythonMessage === 'function') {
-                return 'handlePythonMessage函数存在';
+            if (typeof window.handleBackendMessage === 'function') {
+                return 'handleBackendMessage函数存在';
             } else {
-                return 'handlePythonMessage函数不存在';
+                return 'handleBackendMessage函数不存在';
             }
         })();
         """

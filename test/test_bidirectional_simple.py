@@ -13,7 +13,7 @@ sys.path.insert(0, str(project_root))
 from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton, QTextEdit
 from PySide6.QtCore import QTimer
 from app.editor.webengine import WebPageManager
-from app.editor.channel import WebCommunicationManager
+from app.editor.backend_interface import BackendInterface
 from utils import logger
 
 class SimpleBidirectionalTest(QMainWindow):
@@ -24,7 +24,7 @@ class SimpleBidirectionalTest(QMainWindow):
         
         # 创建页面管理器和通信管理器
         self.page_manager = WebPageManager()
-        self.web_comm = WebCommunicationManager("markdown")
+        self.web_comm = BackendInterface("markdown")
         
         # 设置测试处理器
         self.setup_handlers()
@@ -43,7 +43,7 @@ class SimpleBidirectionalTest(QMainWindow):
             return {"success": True, "saved": True}
         
         # 注册处理器
-        self.web_comm.register_python_handler('autoSave', handle_auto_save)
+        self.web_comm.register_handler('autoSave', handle_auto_save)
         self.web_comm.channel_ready.connect(lambda: self.log_message("🎉 WebChannel通道就绪！"))
     
     def setup_ui(self):
@@ -110,8 +110,8 @@ class SimpleBidirectionalTest(QMainWindow):
         self.log_message("🔄 触发JS自动保存测试...")
         
         js_code = """
-        if (window.WebChannelManager && window.WebChannelManager.sendToPython) {
-            window.WebChannelManager.sendToPython('autoSave', {
+        if (window.WebChannelManager && window.WebChannelManager.sendToBackend) {
+            window.WebChannelManager.sendToBackend('autoSave', {
                 content: '来自前端的测试内容',
                 timestamp: new Date().toISOString()
             });

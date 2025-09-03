@@ -1,20 +1,23 @@
 # -*- coding: utf-8 -*-
-from app.editor.webengine import WebPageManager
 import sys
 import os
-
 import traceback
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QFrame, QMessageBox)
-from utils.logger_utils import logger
 from PySide6.QtWidgets import QSplitter
+
 from app.editor import MarkRenderEditor
 from app.statusbar import StatusBar
 from app.quickpick import QuickPickPanel
 from app.sidebar import SidebarManager
+from app.editor.backend_interface import BackendInterface
+
 from db.markrender_manager import MarkRenderManager
+
 from app.topbar import ButtonController
 from app.preference import MacOSButton, AppStyle  # 新增导入
+from utils.logger_utils import logger
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -23,8 +26,8 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("MarkRender")
         self.showMaximized()  # 恢复启动最大化
         self.setup_ui()
-        self.current_file = None
-        self.web_comm = None
+        self.current_item = None
+        self.backend_interface = None
         # 设置基础样式表
         self.setStyleSheet(AppStyle().get_main_style())
 
@@ -167,7 +170,7 @@ class MainWindow(QMainWindow):
             
             logger.info(f"开始更新编辑器页面: {quickpick_item.get('title', 'Unknown')}")
             
-            self.current_file = quickpick_item
+            self.current_item = quickpick_item
             
             # 获取页面类型，默认为markdown
             page_type_str = quickpick_item.get('page_type', '')
@@ -180,7 +183,6 @@ class MainWindow(QMainWindow):
                 elif page_type_str == "landing":
                     page_type = "landing"
                 else:
-                    logger.warning(f"未知页面类型: {page_type_str}，使用默认markdown类型")
                     page_type = "markdown"
             except Exception as e:
                 logger.warning(f"页面类型解析失败: {page_type_str}，使用默认markdown类型，错误: {e}")
@@ -224,24 +226,21 @@ class MainWindow(QMainWindow):
             # 获取或创建markdown页面
             markdown_view = page_manager.get_or_create_page(
                 page_type=page_type,
-                backend_interface=self.editor.web_comm
+                backend_interface=self.editor.backend_interface
             )
             
-            # 确保 WebCommunicationManager 和页面对象正确关联
+            # 确保 BackendInterface 和页面对象正确关联
             if markdown_view:
-                self.editor.web_comm.set_page(markdown_view.page())
+                self.editor.backend_interface.set_page(markdown_view.page())
                 # 切换到Markdown页面
                 page_manager.switch_to_page(page_type)
-            
-            if markdown_view:
                 # 获取内容
                 content = quickpick_item.get('content', '')
-                if content == '':
-                    content = self.markrender_manager.get_detail(quickpick_item.get('id', ''))['content']
                 
                 # 更新Markdown编辑器内容（但不重新创建页面）
-                self.editor.set_file_id(quickpick_item.get('id', ''))
-                self.editor.set_file_type(page_type)
+                self.editor.set_item_id(quickpick_item.get('id', ''))
+                self.editor.set_page_type(page_type)
+                self.editor.item.set_text(content)
                 
                 # 使用QTimer延迟设置内容，确保前端JavaScript已完全初始化
                 from PySide6.QtCore import QTimer
@@ -276,20 +275,19 @@ class MainWindow(QMainWindow):
             logger.info(f"创建独立Board页面实例: {page_type}")     
             
             # 获取或创建独立的通信管理器
-            board_web_comm = page_manager.get_backend_interface(page_type)
-            if not board_web_comm:
+            board_backend_interface = page_manager.get_backend_interface(page_type)
+            if not board_backend_interface:
                 # 如果不存在，则创建新的通信管理器
-                from app.editor.channel import WebCommunicationManager
-                board_web_comm = WebCommunicationManager(page_type)
+                board_backend_interface = BackendInterface(page_type)
             
             board_view = page_manager.get_or_create_page(
                 page_type=page_type,  # 使用EXCALIDRAW确保正确的页面类型和消息路由
-                backend_interface=board_web_comm  # 使用独立的通信管理器
+                backend_interface=board_backend_interface  # 使用独立的通信管理器
             )
             
-            # 确保 WebCommunicationManager 和页面对象正确关联
+            # 确保 BackendInterface 和页面对象正确关联
             if board_view:
-                board_web_comm.set_page(board_view.page())
+                board_backend_interface.set_page(board_view.page())
                 # 切换到Excalidraw页面
                 page_manager.switch_to_page(page_type)
             
@@ -303,10 +301,10 @@ class MainWindow(QMainWindow):
                         board_id = quickpick_item.get('id', '')
                         logger.debug(f"发送setBoardId消息到页面 {page_type}: {board_id}")
                         # 确保消息发送到正确的页面实例
-                        board_web_comm = page_manager.get_backend_interface(page_type)
-                        if board_web_comm:
+                        board_backend_interface = page_manager.get_backend_interface(page_type)
+                        if board_backend_interface:
                             # 发送初始化数据到前端
-                            board_web_comm.send_message('setBoardId', {
+                            board_backend_interface.send_message('setBoardId', {
                                 'boardId': board_id,
                                 'pageType': page_type,  # 同时发送页面类型，便于前端调试
                                 'title': quickpick_item.get('title', '')
@@ -316,7 +314,7 @@ class MainWindow(QMainWindow):
                             content = quickpick_item.get('content', '')
                             if content:
                                 logger.debug(f"发送loadExcalidrawData消息，内容长度: {len(content)}")
-                                board_web_comm.send_message('loadExcalidrawData', {
+                                board_backend_interface.send_message('loadExcalidrawData', {
                                     'boardId': board_id,
                                     'drawingData': content
                                 })
@@ -352,18 +350,18 @@ class MainWindow(QMainWindow):
             # 获取或创建Landing页面
             landing_view = page_manager.get_or_create_page(
                 page_type="landing",
-                backend_interface=self.editor.web_comm
+                backend_interface=self.editor.backend_interface
             )
             
-            # 确保 WebCommunicationManager 和页面对象正确关联
+            # 确保 BackendInterface 和页面对象正确关联
             if landing_view:
-                self.editor.web_comm.set_page(landing_view.page())
+                self.editor.backend_interface.set_page(landing_view.page())
                 # 切换到Landing页面
                 page_manager.switch_to_page("landing")
             
             if landing_view:
                 # 发送欢迎消息
-                self.editor.web_comm.send_message('showWelcomeMessage', {
+                self.editor.backend_interface.send_message('showWelcomeMessage', {
                     'message': '欢迎使用MarkRender!'
                 })
             else:
@@ -392,8 +390,8 @@ class MainWindow(QMainWindow):
     def update_quickpick_list(self):
         """更新快速选择列表"""
         self.quickpick_panel.load_quickpick_items()
-        if self.current_file:
-            self.quickpick_panel.select_quickpick_item(self.current_file)
+        if self.current_item:
+            self.quickpick_panel.select_quickpick_item(self.current_item)
 
     def _on_editor_close_ready(self):
         """当编辑器准备好关闭时的处理"""

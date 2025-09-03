@@ -19,7 +19,7 @@
             // 测试各种消息类型
             const testMessages = [
                 'textChanged',
-                'setCurrentFileId', 
+                'setCurrentItemId', 
                 'setValue',
                 'getContent',
                 'registerEditorEvents',
@@ -29,11 +29,11 @@
             testMessages.forEach(msgType => {
                 try {
                     // 模拟后端发送消息
-                    if (typeof window.handlePythonMessage === 'function') {
-                        window.handlePythonMessage(msgType, {test: true}, 'test_' + msgType);
+                    if (typeof window.handleBackendMessage === 'function') {
+                        window.handleBackendMessage(msgType, {test: true}, 'test_' + msgType);
                         output.innerHTML += `<p>✓ ${msgType} - 处理成功</p>`;
                     } else {
-                        output.innerHTML += `<p>✗ ${msgType} - handlePythonMessage函数不存在</p>`;
+                        output.innerHTML += `<p>✗ ${msgType} - handleBackendMessage函数不存在</p>`;
                     }
                 } catch (e) {
                     output.innerHTML += `<p>✗ ${msgType} - 处理异常: ${e.message}</p>`;

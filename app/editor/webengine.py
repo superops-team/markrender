@@ -8,7 +8,6 @@ from PySide6.QtCore import QUrl, QTimer, Signal, QObject
 from PySide6.QtWebChannel import QWebChannel
 
 from utils import logger
-from app.editor.channel import WebCommunicationManager
 from db import db_manager
 
 # 定义页面类型枚举
@@ -29,6 +28,10 @@ class PageType:
             cls.EXCALIDRAW,
             cls.LANDING
         ]
+    
+    @classmethod
+    def all_types(cls):
+        return [cls.MARKDOWN, cls.EXCALIDRAW, cls.LANDING]
 
 # 页面配置类
 class PageConfig:
@@ -265,7 +268,6 @@ class WebPageManager(QStackedWidget):
                     backend_interface.set_page(page)
                     # 初始化WebChannel
                     page.initialize_web_channel(backend_interface)
-            
             return preloaded_view
         
         # 创建新页面

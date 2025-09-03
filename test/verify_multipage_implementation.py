@@ -17,7 +17,7 @@ def verify_imports():
         from app.editor.webengine import WebPageManager, PageType, PageConfig, CustomWebEnginePage
         print("✅ webengine模块导入成功")
         
-        from app.editor.channel import WebCommunicationManager
+        from app.editor.backend_interface import BackendInterface
         print("✅ channel模块导入成功")
         
         # 验证PageType枚举

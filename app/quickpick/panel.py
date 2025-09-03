@@ -143,10 +143,10 @@ class QuickPickPanel(QWidget):
             return
         data = item.data(Qt.UserRole)
         if data and 'id' in data:
-            # 确保 parent 和 current_file 属性存在
-            if hasattr(self.parent, 'current_file'):
-                current_id = self.parent.current_file.get('id') if self.parent.current_file else None
-                # 检查当前点击项是否和 current_file 是同一项目
+            # 确保 parent 和 current_item 属性存在
+            if hasattr(self.parent, 'current_item'):
+                current_id = self.parent.current_item.get('id') if self.parent.current_item else None
+                # 检查当前点击项是否和 current_item 是同一项目
                 if current_id == data['id']:
                     logger.debug(f"点击的是当前正在查看的历史记录项: {data['id']}，跳过处理")
                     return
@@ -154,7 +154,7 @@ class QuickPickPanel(QWidget):
             # 存储待切换的项数据
             self.switch_pending = data
             # 在切换前保存当前 markdown 内容
-            self.save_current_file()
+            self.save_current_item()
         else:
             logger.warning("点击的列表项数据为空或缺少ID字段")
 
@@ -197,12 +197,14 @@ class QuickPickPanel(QWidget):
         except Exception as e:
             logger.error(f"过滤快速选择记录时发生错误: {e}", exc_info=True)
 
-    def save_current_file(self):
+    def save_current_item(self):
         """保存当前文件并执行页面切换"""
         try:
-            if hasattr(self.parent, 'editor') and hasattr(self.parent.editor, 'save_content'):
+            if hasattr(self.parent, 'editor') and hasattr(self.parent.editor, 'save_item'):
                 # 保存当前编辑内容
-                self.parent.editor.save_content()
+                if self.parent.current_item:
+                    logger.info(msg=f"切换页面触发保存动作，文件->{self.parent.current_item.get('title')}")
+                    self.parent.editor.save_item()
             
             # 执行页面切换
             if self.switch_pending:
@@ -230,7 +232,7 @@ class QuickPickPanel(QWidget):
             # 找到对应的完整历史记录项
             selected_item = next(
                 (x for x in self.all_quickpick_items if x['id'] == data['id']), None)
-            self.parent.current_file = selected_item
+            self.parent.current_item = selected_item
             if selected_item:
                 logger.debug(f"找到匹配的快速选择记录项: {selected_item}")
                 self.quickpick_item_selected.emit(selected_item)
@@ -240,17 +242,17 @@ class QuickPickPanel(QWidget):
 
     def rename_selected_file(self):
         """重命名选中的文件"""
-        current_file = self.parent.current_file
-        if not current_file:
+        current_item = self.parent.current_item
+        if not current_item:
             return
         # 修改获取项的方式
-        old_title = current_file['title']
+        old_title = current_item['title']
         new_title, ok = QInputDialog.getText(self, '重命名标题', '请输入新标题:', text=old_title)
         if ok and new_title and new_title != old_title:
             try:
                 # 使用 save_item 方法更新标题
                 self.markrender_manager.save_item(
-                    id=current_file['id'],
+                    id=current_item['id'],
                     title=new_title
                 )
                 self.load_quickpick_items()
@@ -288,9 +290,9 @@ class QuickPickPanel(QWidget):
                 # 清空编辑区
                 if hasattr(self.parent, 'editor'):
                     self.parent.editor.reset()
-                # 设置 current_file 为空
-                if hasattr(self.parent, 'current_file'):
-                    self.parent.current_file = None
+                # 设置 current_item 为空
+                if hasattr(self.parent, 'current_item'):
+                    self.parent.current_item = None
             else:
                 logger.warning(f'无法删除历史记录: {data}')
         except Exception as e:
@@ -419,15 +421,15 @@ class QuickPickPanel(QWidget):
         else:
             self.show()
 
-    def select_quickpick_item(self, current_file):
+    def select_quickpick_item(self, current_item):
         """根据文件路径选择快速选择项"""
-        if not current_file or 'id' not in current_file:
-            logger.warning("传入的 current_file 为空或缺少 id 字段")
+        if not current_item or 'id' not in current_item:
+            logger.warning("传入的 current_item 为空或缺少 id 字段")
             return
         for i in range(self.quickpick_list.count()):
             item = self.quickpick_list.item(i)
             data = item.data(Qt.UserRole)
-            if data and data.get('id') == current_file['id']:
+            if data and data.get('id') == current_item['id']:
                 self.quickpick_list.setCurrentItem(item)
                 break
 
@@ -470,8 +472,8 @@ class QuickPickPanel(QWidget):
                 self.load_quickpick_items()
                 # 清空编辑区
                 self.parent.editor.reset()
-                # 设置 current_file 为空
-                self.parent.current_file = None
+                # 设置 current_item 为空
+                self.parent.current_item = None
             else:
                 logger.warning(f'无法删除快速选择记录: ID为 {item_id} 的记录')
         except Exception as e:

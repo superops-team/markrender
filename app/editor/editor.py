@@ -2,10 +2,11 @@ import json  # 添加json导入
 import time
 
 from PySide6.QtWidgets import QWidget, QVBoxLayout
+from PySide6.QtWebEngineCore import QWebEnginePage
 from PySide6.QtCore import QObject, Signal, Property, QTimer, Slot
 from app.editor.background import ThreadPoolManager, AutoSaveWorker, ContentLoader
 from app.preference import AppStyle
-from app.editor.channel import WebCommunicationManager
+from app.editor.backend_interface import BackendInterface
 from app.editor.webengine import WebPageManager  # 导入页面管理器
 from utils import logger
 from utils import time_utils
@@ -15,46 +16,15 @@ from db.settings_manager import SettingsManager
 from app.editor.export_manager import ExportManager
 
 
-class MarkRenderDoc(QObject):
-    text_changed = Signal(str)  # 内容变更信号
-    content_changed = Signal(str)  # Web端内容变化时触发
+class MarkRenderItem(QObject):
+    text_changed = Signal(str)
 
-    def __init__(self, file_id, file_type):
+    def __init__(self, item_id, page_type, parent=None):
         super().__init__()
-        self._file_id = file_id
-        self.file_type = file_type
+        self.item_id = item_id
+        self.page_type = page_type
         self._text = ""
-        self._suppress_change_notification = False
-        # 新增防抖定时器，默认 200 毫秒
-        self._debounce_timer = QTimer(self)
-        self._debounce_timer.setSingleShot(True)
-        self._debounce_timer.timeout.connect(self._emit_delayed_change)
-        self._debounce_interval = 200
-
-    @Slot(str)
-    def on_content_changed(self, text):
-        """Web 端内容变化时的处理"""
-        if not self._suppress_change_notification:
-            self._text = text
-            self._debounce_timer.start(self._debounce_interval)
-            # 通知编辑器有内容变化
-            if hasattr(self, 'parent') and self.parent and hasattr(self.parent(), 'on_document_modified'):
-                self.parent().on_document_modified(text, source="user")
-
-    def _emit_delayed_change(self):
-        """延迟发射内容变化信号"""
-        logger.debug(f"MarkdownDocument text updated, length: {len(self._text)}, first 20 chars: {self._text[:20]}")
-        self.content_changed.emit(self._text)
-
-    @property
-    def file_id(self):
-        return self._file_id
-
-    @file_id.setter
-    def file_id(self, value):
-        if value != self._file_id:
-            self.reset()
-            self._file_id = value
+        self.parent = parent
 
     def get_text(self):
         return self._text
@@ -72,48 +42,45 @@ class MarkRenderDoc(QObject):
 
 
 class MarkRenderEditor(QWidget):
-    def __init__(self, parent=None, file_id="", file_type=""):
+    def __init__(self, parent=None, item_id="", page_type=""):
         super().__init__(parent)
         # 初始化线程池管理器
         self.thread_pool = ThreadPoolManager()
-        # 连接线程池信号
         self.thread_pool.task_completed.connect(self.on_task_completed)
         self.thread_pool.task_failed.connect(self.on_task_failed)
         
         # 初始化页面管理器
         self.page_manager = WebPageManager()
-        self.page_type = f"{file_type}"  # 使用文件类型
+        self.page_type = page_type
+        self.page_loaded = False
         
         # 初始化文档
-        self.document = MarkRenderDoc(file_id, file_type)
+        self.item = MarkRenderItem(item_id, page_type, self)
         # 注册文档到通信管理器
-        if file_id:
-            self.web_comm.document_map[file_id] = self.document
-            self.file_id = file_id
+        if item_id:
+            self.backend_interface.item_map[item_id] = self.item
+            self.item_id = item_id
             
         # 初始化其他组件
         self.markrender_manager = MarkRenderManager()
         self.last_saved_text = None
         
         # 建立信号连接
-        self.document.text_changed.connect(self.on_document_text_changed)
+        self.item.text_changed.connect(self.on_item_text_changed)
         
         # 设置UI
         self.setup_ui()
         
         # 自动保存相关初始化
-        self.document_modified = False
+        self.item_modified = False
         self.init_auto_save()
     
     def get_page_type(self):
-        return f"{self.page_type}"
+        return self.page_type
 
-    def setup_ui(self):
-        # 创建页面管理器实例
-        self.page_manager = WebPageManager()
-        
+    def setup_ui(self):        
         # 创建通信管理器（每个页面一个实例）
-        self.web_comm = WebCommunicationManager("markdown")  # 默认设置为markdown类型
+        self.backend_interface = BackendInterface("landing")  # 默认设置为landing类型
         # 然后再调用init_web_handlers()
         self.init_web_handlers()
         
@@ -127,22 +94,22 @@ class MarkRenderEditor(QWidget):
         logger.info("开始预加载常用页面类型...")
         
         # 预加载页面
-        self.page_manager.preload_page_type("markdown", self.web_comm)
-        self.page_manager.preload_page_type("landing", self.web_comm)
-        self.page_manager.preload_page_type("excalidraw", self.web_comm)
+        self.page_manager.preload_page_type("markdown")
+        self.page_manager.preload_page_type("landing", self.backend_interface) # 首页默认打开页
+        self.page_manager.preload_page_type("excalidraw")
         
-        # 初始创建默认的Markdown页面作为主显示区域
+        # 
         self.preview = self.page_manager.get_or_create_page(
-            page_type="markdown",
-            backend_interface=self.web_comm
+            page_type="landing",
+            backend_interface=self.backend_interface
         )
         
         if not self.preview:
-            logger.error("创建Editor页面失败")
+            logger.error("创建页面失败")
             return
         
         # 将通信管理器附加到页面管理器
-        self.web_comm.set_page(self.preview.page())  # 直接设置页面对象
+        self.backend_interface.set_page(self.preview.page())  # 直接设置页面对象
         
         # 加载HTML文件，并在加载完成后初始化WebChannel
         success = self.page_manager.load_page_content("markdown")
@@ -162,21 +129,21 @@ class MarkRenderEditor(QWidget):
         logger.info("编辑器UI初始化完成")
 
     @property
-    def file_id(self):
-        return self.document.file_id
+    def item_id(self):
+        return self.item.item_id
 
-    @file_id.setter
-    def file_id(self, value):
-        if value != self.document.file_id:
-            if self.document.file_id:
-                del self.web_comm.document_map[self.document.file_id]
+    @item_id.setter
+    def item_id(self, value):
+        if value != self.item.item_id:
+            if self.item.item_id:
+                del self.backend_interface.item_map[self.item.item_id]
             if value:
-                self.document.file_id = value
-                self.web_comm.document_map[value] = self.document
+                self.item.item_id = value
+                self.backend_interface.item_map[value] = self.item
 
-    def on_document_text_changed(self, text):
+    def on_item_text_changed(self, text):
         """转发文档变更到前端"""
-        self.web_comm.send_message("textChanged", {"content": text})
+        self.backend_interface.send_message("textChanged", {"content": text})
 
     def init_auto_save(self):
         """初始化自动保存功能"""
@@ -191,12 +158,9 @@ class MarkRenderEditor(QWidget):
 
     def submit_auto_save_task(self):
         """提交自动保存任务"""
-        if self.document_modified and self.document.file_id:
-            task_id = f"auto_save_{self.document.file_id}_{int(time.time())}"
-            save_worker = AutoSaveWorker(
-                file_id=self.document.file_id,
-                content=self.document.get_text()
-            )
+        if self.item_modified and self.item.item_id:
+            task_id = f"auto_save_{self.item.item_id}_{int(time.time())}"
+            save_worker = AutoSaveWorker(item_id=self.item.item_id, content=self.item.get_text())
             self.thread_pool.submit_task(
                 task_id=task_id,
                 worker=save_worker,
@@ -207,29 +171,29 @@ class MarkRenderEditor(QWidget):
     def on_auto_save_completed(self, task_id, result):
         """自动保存完成回调"""
         if result:
-            self.last_saved_text = self.document.get_text()
-            self.document_modified = False
+            self.last_saved_text = result.get("content")
+            self.item_modified = False
             logger.info(f"自动保存成功: {task_id}, save content: {self.last_saved_text[-10:-1]}")
 
-    def on_document_modified(self, text, source="user"):
+    def on_item_modified(self, text, source="user"):
         """标记文档为已修改，source: user/program"""
         if self.last_saved_text is None:
             self.last_saved_text = text
-            self.document_modified = False  # 初始化时不算修改
+            self.item_modified = False  # 初始化时不算修改
             return
         
         # 程序更新不触发修改标记
         if source == "program":
             self.last_saved_text = text
-            self.document_modified = False
+            self.item_modified = False
             return
         
         # 用户修改时检查内容是否真的发生了变化（忽略空格等微小变化）
         if text.strip() != self.last_saved_text.strip():
-            self.document_modified = True
+            self.item_modified = True
             logger.debug(f"文档已修改，新内容长度: {len(text)}")
         else:
-            self.document_modified = False
+            self.item_modified = False
             logger.debug("文档内容未变化")
     
     def _on_page_loaded(self, page_type, success):
@@ -241,84 +205,30 @@ class MarkRenderEditor(QWidget):
     
     # 修复_on_page_switched方法中的页面切换逻辑
     def _on_page_switched(self, from_page_type, to_page_type):  
-        """页面切换回调 - 优化版本，避免布局重排，添加转场效果"""
-        logger.info(f"页面切换: {from_page_type} -> {to_page_type}")
-        
+        """页面切换回调 - 优化版本，避免布局重排，添加转场效果"""        
         try:
-            # 页面切换已经在QStackedWidget中完成，这里只需要处理通信管理器的更新
-            if hasattr(self, 'web_comm') and self.web_comm:
-                current_page_type = self.page_manager.current_page_type
-                if current_page_type:
-                    page = self.page_manager.get_page(current_page_type)
-                    if page:
-                        self.web_comm.set_page(page)
+            logger.info(f"页面切换from {from_page_type} -> {to_page_type}，设置新页面内容为{self.item.get_text()}")
+            self.set_text_content(self.item.get_text())
         except Exception as e:
             logger.error(f"页面切换失败: {e}")
-    
-    def _perform_smooth_page_switch(self, layout, old_widget, new_widget):
-        """执行平滑的页面切换动画"""
-        from PySide6.QtCore import QPropertyAnimation, QEasingCurve, QTimer
-        from PySide6.QtWidgets import QGraphicsOpacityEffect
-        
-        try:
-            # 预先设置新页面为透明状态
-            new_effect = QGraphicsOpacityEffect()
-            new_effect.setOpacity(0.0)
-            new_widget.setGraphicsEffect(new_effect)
-            
-            # 移除旧页面
-            if old_widget and old_widget is not new_widget:
-                old_item = layout.takeAt(0)
-                if old_item:
-                    old_item.widget().setParent(None)
-            
-            # 添加新页面
-            layout.addWidget(new_widget)
-            self.preview = new_widget
-            new_widget.show()
-            
-            # 创建淡入动画
-            self.fade_animation = QPropertyAnimation(new_effect, b"opacity")
-            self.fade_animation.setDuration(200)  # 200ms的快速淡入
-            self.fade_animation.setStartValue(0.0)
-            self.fade_animation.setEndValue(1.0)
-            self.fade_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
-            
-            # 动画完成后清理效果
-            def cleanup_effect():
-                new_widget.setGraphicsEffect(None)
-            
-            self.fade_animation.finished.connect(cleanup_effect)
-            self.fade_animation.start()
-            
-        except Exception as e:
-            logger.warning(f"页面切换动画失败，使用默认切换: {e}")
-            # 回退到直接切换
-            if old_widget and old_widget is not new_widget:
-                old_item = layout.takeAt(0)
-                if old_item:
-                    old_item.widget().setParent(None)
-            layout.addWidget(new_widget)
-            self.preview = new_widget
-            new_widget.show()
 
     def save_markrender_content(self, data):
         """线程安全的保存方法"""
         try:
             data = json.loads(data) if isinstance(data, str) else data
             content = data.get('content', '')
-            if not self.document.file_id:
+            if not self.item.item_id:
                 return {"error": "无文件ID"}
             
             # 数据库操作通常是线程安全的
             success = self.markrender_manager.save_item(
-                id=self.document.file_id,
+                id=self.item.item_id,
                 content=content,
             )
             
             return {
                 "success": success,
-                "file_id": self.document.file_id,
+                "item_id": self.item.item_id,
                 "content_length": len(content)
             }
             
@@ -326,26 +236,27 @@ class MarkRenderEditor(QWidget):
             logger.error(f"保存失败: {str(e)}")
             return {"error": str(e)}
 
-    def save_document(self):
+    def save_item(self):
         """手动保存当前文档"""
-        if not self.document.file_id:
+        if not self.item.item_id:
             logger.warning("无法保存：文档未关联文件ID")
             return False
         logger.info("快捷键触发保存动作")
         try:
             # 获取当前编辑内容
-            def handle_save_content(content):
+            def handle_save_content(data):
+                content = data.get("content")
                 if content:
                     # 保存到数据库
                     success = self.markrender_manager.save_item(
-                        id=self.document.file_id, 
+                        id=self.item.item_id, 
                         content=content
                     )
                     
                     if success:
                         self.last_saved_text = content
-                        self.document_modified = False
-                        logger.info(f"手动保存成功: {self.document.file_id}")
+                        self.item_modified = False
+                        logger.info(f"手动保存成功: {self.item.item_id}")
                     else:
                         logger.error("保存到数据库失败")
                         
@@ -358,36 +269,28 @@ class MarkRenderEditor(QWidget):
             return False
 
     def reset(self):
-        self.document.file_id = ""
-        self.document.file_type = ""
-        self.document.reset()  # 调用文档的 reset 方法
+        self.item.item_id = ""
+        self.item.page_type = ""
+        self.item.reset()  # 调用文档的 reset 方法
         # 通过channel发送清空内容请求
-        self.web_comm.send_message("setValue", {
+        self.backend_interface.send_message("setValue", {
             "content": ""
         })
-        self.document.reset()  # 调用文档的 reset 方法
-        # 执行 JavaScript 清空编辑区内容
-        js_code = """
-            if (window.editor) {
-                window.editor.setValue('');
-            }
-        """
-        self.preview.page().runJavaScript(js_code)
 
-    def set_file_id(self, file_id):
-        self.document.file_id = file_id
+    def set_item_id(self, item_id):
+        self.item.item_id = item_id
         # 通知前端当前文件ID
-        if hasattr(self, 'web_comm') and self.web_comm:
+        if hasattr(self, 'backend_interface') and self.backend_interface:
             # 发送文件ID变更通知到前端
-            self.web_comm.send_message('setCurrentFileId', {
-                'file_id': file_id
+            self.backend_interface.send_message('setCurrentItemId', {
+                'item_id': item_id
             })
-            logger.debug(f"已通知前端当前文件ID: {file_id}")
+            logger.debug(f"已通知前端当前文件ID: {item_id}")
         else:
-            logger.warning("web_comm未初始化，无法通知前端当前文件ID变更")
+            logger.warning("backend_interface未初始化，无法通知前端当前文件ID变更")
 
-    def set_file_type(self, file_type):
-        self.document.file_type = file_type
+    def set_page_type(self, page_type):
+        self.item.page_type = page_type
 
     def get_content(self, callback):
         """获取markdown内容"""
@@ -401,7 +304,7 @@ class MarkRenderEditor(QWidget):
         timeout_timer.start(5000)
 
         # 发送获取请求
-        self.web_comm.send_message(
+        self.backend_interface.send_message(
             'getContent',
             callback=lambda response: (
                 timeout_timer.stop(),
@@ -411,12 +314,12 @@ class MarkRenderEditor(QWidget):
 
     def set_text_content(self, text_content):
         # 通过channel设置内容
-        if not self.web_comm or not self.web_comm.page:
-            logger.error("web_comm未初始化或页面未加载，无法设置内容")
+        if not self.backend_interface or not self.backend_interface.page:
+            logger.error("backend_interface未初始化或页面未加载，无法设置内容")
             return
 
         # 检查页面是否已加载
-        if not hasattr(self, 'page_loaded') or not self.page_loaded:
+        if not self.page_loaded:
             # 页面未加载，延迟发送
             logger.warning("页面未加载，延迟设置内容")
             self.initial_content = text_content
@@ -430,7 +333,7 @@ class MarkRenderEditor(QWidget):
             else:
                 logger.error(f"设置内容失败: {response.get('error')}")
 
-        self.web_comm.send_message("setValue", {
+        self.backend_interface.send_message("setValue", {
             "content": text_content
         }, handle_set_value)
         self.last_saved_text = text_content
@@ -457,22 +360,15 @@ class MarkRenderEditor(QWidget):
             # 设置页面加载状态
             self.page_loaded = True
             logger.debug("WebChannel初始化完成")
-            
-            # 延迟发送消息，确保JavaScript完全初始化
-            # 使用QTimer延迟300ms后发送
-            def send_delayed_messages():
-                try:
-                    # 通过channel注册web端事件
-                    self.web_comm.send_message("registerEditorEvents", {})
-                    # 通过channel设置内容变化监听
-                    self.web_comm.send_message("setupContentChangeListener", {
-                        "callback": "contentChanged"
-                    })
-                except Exception as e:
-                    logger.error(f"发送延迟消息失败: {e}")
-            
-            from PySide6.QtCore import QTimer
-            QTimer.singleShot(300, send_delayed_messages)
+            try:
+                # 通过channel注册web端事件
+                self.backend_interface.send_message("registerEditorEvents", {})
+                # 通过channel设置内容变化监听
+                self.backend_interface.send_message("setupContentChangeListener", {
+                    "callback": "contentChanged"
+                })
+            except Exception as e:
+                logger.error(f"发送延迟消息失败: {e}")
         else:
             logger.error("页面加载失败")
             self.page_loaded = False
@@ -481,16 +377,16 @@ class MarkRenderEditor(QWidget):
         """更新页面内容"""
         try:
             # 使用线程池提交内容加载任务
-            loader = ContentLoader(item.file_id, self.markrender_manager)
-            self.thread_pool.submit_task(f"load_{item.file_id}", loader, self.on_content_loaded)
+            loader = ContentLoader(item.item_id)
+            self.thread_pool.submit_task(f"load_{item.item_id}", loader, self.on_content_loaded)
         except Exception as e:
             logger.error(f"更新 Markdown 内容失败: {str(e)}")
 
     def on_content_loaded(self, content):
         """内容加载完成回调"""
-        self.document.set_text(content)
+        self.item.set_text(content)
         self.last_saved_text = content
-        self.document_modified = False
+        self.item_modified = False
 
     @Slot(str, object)
     def on_task_completed(self, task_id, result):
@@ -515,7 +411,7 @@ class MarkRenderEditor(QWidget):
         need_save = self._check_if_save_needed()
         
         if need_save:
-            logger.info(f"检测到需要保存文档: {self.document.file_id}")
+            logger.info(f"检测到需要保存文档: {self.item.item_id}")
             self._perform_save_and_close(event)
         else:
             logger.debug("无需保存，直接关闭")
@@ -524,15 +420,15 @@ class MarkRenderEditor(QWidget):
     def _check_if_save_needed(self):
         """快速检查是否需要保存"""
         # 基本条件检查
-        if not (hasattr(self, 'web_comm') and self.web_comm):
+        if not (hasattr(self, 'backend_interface') and self.backend_interface):
             return False
-        if not (hasattr(self, 'document') and self.document and self.document.file_id):
+        if not (hasattr(self, 'item') and self.item and self.item.item_id):
             return False
-        if not (hasattr(self, 'page_loaded') and self.page_loaded):
+        if self.page_loaded:
             return False
         
         # 检查是否有修改需要保存
-        if hasattr(self, 'document_modified') and not self.document_modified:
+        if hasattr(self, 'item_modified') and not self.item_modified:
             logger.debug("文档未修改，跳过保存")
             return False
             
@@ -556,9 +452,9 @@ class MarkRenderEditor(QWidget):
             # 快速处理保存响应
             try:
                 content = response.get('content', '') if response else ''
-                if content and self.document.file_id:
-                    self.markrender_manager.save_item(id=self.document.file_id, content=content)
-                    logger.debug(f"文档已保存: {self.document.file_id}")
+                if content and self.item.item_id:
+                    self.markrender_manager.save_item(id=self.item.item_id, content=content)
+                    logger.debug(f"文档已保存: {self.item.item_id}")
             except Exception as e:
                 logger.error(f"保存文档时出错: {e}")
             
@@ -567,7 +463,7 @@ class MarkRenderEditor(QWidget):
         
         # 尝试快速获取内容并保存
         try:
-            success = self.web_comm.send_message("getContent", {}, callback=save_content)
+            success = self.backend_interface.send_message("getContent", {}, callback=save_content)
             if not success:
                 logger.warning("发送getContent消息失败，1.5秒后强制关闭")
                 self._cleanup_and_close()
@@ -596,9 +492,9 @@ class MarkRenderEditor(QWidget):
         
         # 通知父窗口编辑器已经准备好关闭，但不直接关闭父窗口
         # 让主窗口控制整个关闭流程，避免组件分离
-        if self.parent() and hasattr(self.parent(), '_on_editor_close_ready'):
-            self.parent()._on_editor_close_ready()
-        elif self.parent():
+        if self.parent and hasattr(self.parent, '_on_editor_close_ready'):
+            self.parent._on_editor_close_ready()
+        elif self.parent:
             # 如果父窗口没有_on_editor_close_ready方法，则标记为准备关闭
             # 但不触发关闭，由父窗口自己控制关闭时机
             logger.info("编辑器已准备关闭，等待主窗口统一关闭")
@@ -617,33 +513,33 @@ class MarkRenderEditor(QWidget):
             logger.info("Thread pool resources cleaned up")
 
         # 释放Web通信资源
-        if hasattr(self, 'web_comm'):
-            self.web_comm.cleanup()
+        if hasattr(self, 'backend_interface'):
+            self.backend_interface.cleanup()
 
     def init_web_handlers(self):
         """初始化Web发起请求处理器 - 线程安全版本"""
         # Markdown编辑器相关 - 使用异步处理，但确保线程安全
-        self.web_comm.register_python_handler('autoSave', self.handle_set_content, is_async=True)
-        self.web_comm.register_python_handler('contentChanged', self.handle_content_changed, is_async=False)
-        self.web_comm.register_python_handler('getContent', self.handle_get_content, is_async=False)
-        self.web_comm.register_python_handler('setValue', self.handle_set_content, is_async=False)
-        self.web_comm.register_python_handler('setCurrentFileId', self.handle_set_file_id, is_async=False)
+        self.backend_interface.register_handler('autoSave', self.save_markrender_content, is_async=True)
+        self.backend_interface.register_handler('contentChanged', self.handle_content_changed, is_async=False)
+        self.backend_interface.register_handler('getContent', self.handle_get_content, is_async=False)
+        self.backend_interface.register_handler('setValue', self.handle_set_content, is_async=False)
+        self.backend_interface.register_handler('setCurrentItemId', self.handle_set_item_id, is_async=False)
         
         # WebChannel基本通信相关
-        self.web_comm.register_python_handler('frontendReady', self.handle_frontend_ready, is_async=False)
+        self.backend_interface.register_handler('frontendReady', self.handle_frontend_ready, is_async=False)
         
         # Excalidraw白板相关
-        self.web_comm.register_python_handler('save_excalidraw_board', self.save_excalidraw_board, is_async=True)
-        self.web_comm.register_python_handler('load_excalidraw_board', self.load_excalidraw_board, is_async=False)
-        self.web_comm.register_python_handler('export_excalidraw_board', self.export_excalidraw_board, is_async=True)
-        self.web_comm.register_python_handler('get_excalidraw_data', self.get_excalidraw_data, is_async=False)
-        self.web_comm.register_python_handler('excalidrawDataResponse', self.handle_excalidraw_data_response, is_async=False)
+        self.backend_interface.register_handler('save_excalidraw_board', self.save_excalidraw_board, is_async=True)
+        self.backend_interface.register_handler('load_excalidraw_board', self.load_excalidraw_board, is_async=False)
+        self.backend_interface.register_handler('export_excalidraw_board', self.export_excalidraw_board, is_async=True)
+        self.backend_interface.register_handler('get_excalidraw_data', self.get_excalidraw_data, is_async=False)
+        self.backend_interface.register_handler('excalidrawDataResponse', self.handle_excalidraw_data_response, is_async=False)
         
         # Board/Excalidraw页面消息路由
-        self.web_comm.register_python_handler('setBoardId', self.handle_set_board_id, is_async=False)
+        self.backend_interface.register_handler('setBoardId', self.handle_set_board_id, is_async=False)
         
         # 通用错误处理
-        self.web_comm.register_python_handler('reportError', self.handle_frontend_error, is_async=False)
+        self.backend_interface.register_handler('reportError', self.handle_frontend_error, is_async=False)
         
         logger.info(f"已注册多个WebChannel消息处理器")
 
@@ -652,7 +548,7 @@ class MarkRenderEditor(QWidget):
         导出指定格式的文件
         :param format: 导出文件的格式，支持 'html', 'md', 'pdf', 'epub'
         """
-        content = self.document.get_text()
+        content = self.item.get_text()
         export_manager = ExportManager(self, content)
         export_manager.export_file(format)
     
@@ -843,9 +739,9 @@ class MarkRenderEditor(QWidget):
             content = data.get('content', '')
             source = data.get('source', 'user')
             
-            if hasattr(self, 'document') and self.document:
-                self.document.set_text(content)
-                self.on_document_modified(content, source)
+            if hasattr(self, 'item') and self.item:
+                self.item.set_text(content)
+                self.on_item_modified(content, source)
                 
             return {"success": True}
         except Exception as e:
@@ -855,8 +751,8 @@ class MarkRenderEditor(QWidget):
     def handle_get_content(self, data):
         """获取Markdown内容"""
         try:
-            if hasattr(self, 'document') and self.document:
-                content = self.document.get_text()
+            if hasattr(self, 'item') and self.item:
+                content = self.item.get_text()
                 return {"success": True, "content": content}
             else:
                 return {"success": False, "error": "文档未初始化"}
@@ -868,8 +764,8 @@ class MarkRenderEditor(QWidget):
         """设置内容值"""
         try:
             content = data.get('content', '')
-            if hasattr(self, 'document') and self.document:
-                self.document.set_text(content)
+            if hasattr(self, 'item') and self.item:
+                self.item.set_text(content)
                 return {"success": True}
             else:
                 return {"success": False, "error": "文档未初始化"}
@@ -898,13 +794,13 @@ class MarkRenderEditor(QWidget):
                 "error": str(e)
             }
     
-    def handle_set_file_id(self, data):
+    def handle_set_item_id(self, data):
         """设置文件ID"""
         try:
-            file_id = data.get('fileId')
-            if file_id and hasattr(self, 'document') and self.document:
-                self.document.file_id = file_id
-                return {"success": True, "file_id": file_id}
+            item_id = data.get('fileId')
+            if item_id and hasattr(self, 'item') and self.item:
+                self.item.item_id = item_id
+                return {"success": True, "item_id": item_id}
             else:
                 return {"success": False, "error": "无效的文件ID"}
         except Exception as e:

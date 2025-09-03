@@ -60,6 +60,7 @@ class MarkRenderManager:
                     'converter_start': h.converter_start,
                     'converter_end': h.converter_end,
                     'status': h.status,
+                    'content': h.content,
                     'render_style': h.render_style,
                     'updated_at': h.updated_at,
                     'content_md5': h.content_md5,
@@ -157,7 +158,6 @@ class MarkRenderManager:
                 session.add(new_history)
                 session.commit()
                 id = new_history.id
-                return id
         except Exception as e:
             session.rollback()
             logger.error(f"Error saving markdown: {e}")
@@ -166,6 +166,8 @@ class MarkRenderManager:
             session.close()
             if id and content and changed:
                 self.sync_write_localdisk(id, content)
+        return id
+
 
     def sync_write_localdisk(self, id, content, page_type=None, page_engine=None):
         """

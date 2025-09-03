@@ -11,7 +11,7 @@ const testWebChannelManager = {
         console.log(`注册消息处理器: ${action}`);
     },
     
-    handlePythonMessage(action, data, requestId) {
+    handleBackendMessage(action, data, requestId) {
         console.log(`收到Python消息: ${action}`, data, requestId);
         
         if (this.messageHandlers.has(action)) {
@@ -30,7 +30,7 @@ const testWebChannelManager = {
 // 预注册常用消息处理器
 const commonHandlers = [
     'textChanged',
-    'setCurrentFileId', 
+    'setCurrentItemId', 
     'setValue',
     'getContent',
     'registerEditorEvents',
@@ -48,14 +48,14 @@ console.log("开始测试消息处理器...");
 
 const testMessages = [
     { action: 'textChanged', data: { content: '测试内容' } },
-    { action: 'setCurrentFileId', data: { file_id: 'test123' } },
+    { action: 'setCurrentItemId', data: { item_id: 'test123' } },
     { action: 'setValue', data: { content: '# 标题\n内容' } },
     { action: 'getContent', data: {} },
     { action: 'unknownMessage', data: {} }  // 测试未注册的消息
 ];
 
 testMessages.forEach(msg => {
-    testWebChannelManager.handlePythonMessage(msg.action, msg.data, 'test_request_id');
+    testWebChannelManager.handleBackendMessage(msg.action, msg.data, 'test_request_id');
 });
 
 console.log("测试完成");

@@ -12,7 +12,7 @@ sys.path.insert(0, str(project_root))
 
 from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton
 from app.editor.webengine import WebPageManager, PageType
-from app.editor.channel import WebCommunicationManager
+from app.editor.backend_interface import BackendInterface
 
 class TestWindow(QMainWindow):
     def __init__(self):
@@ -24,9 +24,9 @@ class TestWindow(QMainWindow):
         self.page_manager = WebPageManager()
         
         # 创建通信管理器
-        self.markdown_comm = WebCommunicationManager("markdown")
-        self.excalidraw_comm = WebCommunicationManager("excalidraw")
-        self.landing_comm = WebCommunicationManager("landing")
+        self.markdown_comm = BackendInterface("markdown")
+        self.excalidraw_comm = BackendInterface("excalidraw")
+        self.landing_comm = BackendInterface("landing")
         
         # 连接信号
         self.page_manager.page_loaded.connect(self.on_page_loaded)

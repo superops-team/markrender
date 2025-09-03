@@ -37,7 +37,7 @@
         // 页面特定状态管理
         const editorState = {
             editor: null,
-            currentDocumentId: null
+            currentItemId: null
         };
 
         // 注册Markdown编辑器特定的消息处理器
@@ -53,9 +53,9 @@
                 }
             });
 
-            WCM.registerMessageHandler('setCurrentFileId', (data, requestId) => {
-                editorState.currentDocumentId = data.file_id;
-                WCM.logger.info('当前文件ID已更新:', data.file_id);
+            WCM.registerMessageHandler('setCurrentItemId', (data, requestId) => {
+                editorState.currentItemId = data.item_id;
+                WCM.logger.info('当前文件ID已更新:', data.item_id);
             });
 
             WCM.registerMessageHandler('textChanged', (data, requestId) => {
@@ -69,11 +69,11 @@
 
             WCM.registerMessageHandler('getContent', (data, requestId) => {
                 if (editorState.editor) {
-                    WCM.sendResponseToPython(requestId, {
+                    WCM.sendResponseToBackend(requestId, {
                         content: editorState.editor.getValue()
                     });
                 } else {
-                    WCM.sendResponseToPython(requestId, {
+                    WCM.sendResponseToBackend(requestId, {
                         error: '编辑器未初始化，无法获取Markdown'
                     });
                 }
@@ -89,8 +89,8 @@
         }
 
         // 响应发送函数（使用WebChannel核心库）
-        function sendResponseToPython(requestId, data) {
-            window.WebChannelManager.sendResponseToPython(requestId, data);
+        function sendResponseToBackend(requestId, data) {
+            window.WebChannelManager.sendResponseToBackend(requestId, data);
         }
 
         // 初始化Cherry Markdown编辑器
@@ -156,13 +156,13 @@
             setInterval(() => {
                 if (editorState.editor) {
                     const currentContent = editorState.editor.getValue();
-                    if (currentContent !== lastContent && editorState.currentDocumentId) {
+                    if (currentContent !== lastContent && editorState.currentItemId) {
                         lastContent = currentContent;
                         
                         // 发送内容变化通知给后端
-                        window.WebChannelManager.sendToPython('contentChanged', {
+                        window.WebChannelManager.sendToBackend('contentChanged', {
                             content: currentContent,
-                            docId: editorState.currentDocumentId
+                            docId: editorState.currentItemId
                         }).catch(error => {
                             window.WebChannelManager.logger.error('发送内容变化通知失败:', error);
                         });
@@ -176,10 +176,10 @@
         // 设置自动保存功能
         function setupAutoSave() {
             setInterval(() => {
-                if (editorState.editor && editorState.currentDocumentId) {
-                    window.WebChannelManager.sendToPython('autoSave', {
+                if (editorState.editor && editorState.currentItemId) {
+                    window.WebChannelManager.sendToBackend('autoSave', {
                         content: editorState.editor.getValue(),
-                        docId: editorState.currentDocumentId
+                        docId: editorState.currentItemId
                     }).catch(error => {
                         window.WebChannelManager.logger.error('自动保存失败:', error);
                     });
@@ -195,20 +195,20 @@
         }
 
         // 标准化消息发送（使用WebChannel核心库）
-        function sendToPython(action, data = {}, callback = null) {
+        function sendToBackend(action, data = {}, callback = null) {
             // 确保包含文档ID
             const requestData = { 
                 ...data, 
-                docId: editorState.currentDocumentId || 'default' 
+                docId: editorState.currentItemId || 'default' 
             };
             
-            return window.WebChannelManager.sendToPython(action, requestData, callback);
+            return window.WebChannelManager.sendToBackend(action, requestData, callback);
         }
 
         // 处理Python响应（由WebChannel核心库统一处理）
-        function handlePythonResponse(responseJson) {
+        function handleBackendResponse(responseJson) {
             // 这个函数保留用于向后兼容，实际处理由核心库完成
-            return window.WebChannelManager.handlePythonResponse?.(responseJson);
+            return window.WebChannelManager.handleBackendResponse?.(responseJson);
         }
 
         // 错误处理（使用WebChannel核心库统一处理）

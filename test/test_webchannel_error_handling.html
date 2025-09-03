@@ -23,7 +23,7 @@
             
         // 模拟发送消息
         setTimeout(() => {
-            window.WebChannelManager.sendToPython('testAction', {data: 'test'})
+            window.WebChannelManager.sendToBackend('testAction', {data: 'test'})
                 .then(response => {
                     console.log("消息发送成功:", response);
                 })

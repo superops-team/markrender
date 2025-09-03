@@ -70,7 +70,7 @@ class ContentCloseTestWindow(QMainWindow):
         
         ✅ 1. 完善状态检查条件：
         • 检查 web_comm 是否存在且有效
-        • 检查 document 是否存在且有 file_id
+        • 检查 document 是否存在且有 item_id
         • 检查 page_loaded 状态是否为 True
         • 只有所有条件满足才尝试保存
         
@@ -106,13 +106,13 @@ class ContentCloseTestWindow(QMainWindow):
         test_scenarios = QLabel("""
         🧪 重点测试场景：
         
-        📝 场景1 - 有file_id的文档：
-        • 打开或创建一个文档（有明确的file_id）
+        📝 场景1 - 有item_id的文档：
+        • 打开或创建一个文档（有明确的item_id）
         • 编辑一些内容
         • 点击关闭按钮
         • 预期：应该保存内容后在3秒内关闭
         
-        📝 场景2 - 无file_id但有内容：
+        📝 场景2 - 无item_id但有内容：
         • 在编辑器中输入内容但未保存为文档
         • 点击关闭按钮
         • 预期：应该直接关闭（跳过保存）
@@ -164,7 +164,7 @@ class ContentCloseTestWindow(QMainWindow):
         ✅ 成功标准：
         • 有内容时点击关闭按钮一次即可生效
         • 关闭时间不超过3秒
-        • 内容被正确保存（如果有file_id）
+        • 内容被正确保存（如果有item_id）
         • 控制台无错误日志
         """)
         verification_steps.setFont(QFont("Menlo", 10))

@@ -22,7 +22,7 @@ class ErrorBoundary extends React.Component<
     
     // 报告错误到后端
     if (window.webChannelManager) {
-      window.webChannelManager.sendToPython('reportError', {
+      window.webChannelManager.sendToBackend('reportError', {
         message: error.message,
         stack: error.stack,
         componentStack: errorInfo.componentStack

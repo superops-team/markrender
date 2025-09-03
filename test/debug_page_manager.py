@@ -12,7 +12,7 @@ sys.path.insert(0, str(project_root))
 
 from PySide6.QtWidgets import QApplication
 from app.editor.webengine import WebPageManager, PageType
-from app.editor.channel import WebCommunicationManager
+from app.editor.backend_interface import BackendInterface
 
 def debug_page_manager():
     """调试页面管理器"""
@@ -22,9 +22,9 @@ def debug_page_manager():
     page_manager = WebPageManager()
     
     # 创建通信管理器
-    markdown_comm = WebCommunicationManager("markdown")
-    excalidraw_comm = WebCommunicationManager("excalidraw")
-    landing_comm = WebCommunicationManager("landing")
+    markdown_comm = BackendInterface("markdown")
+    excalidraw_comm = BackendInterface("excalidraw")
+    landing_comm = BackendInterface("landing")
     
     print("\n1. 创建Markdown页面:")
     markdown_page = page_manager.get_or_create_page(PageType.MARKDOWN, markdown_comm)

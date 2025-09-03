@@ -29,8 +29,8 @@ app/editor/resources/
 window.WebChannelManager = {
     // 🔄 核心通信功能
     init: initWebChannel,                    // 初始化(带重试机制)
-    sendToPython: sendToPython,              // 发送消息
-    sendResponseToPython: sendResponseToPython, // 发送响应
+    sendToBackend: sendToBackend,              // 发送消息
+    sendResponseToBackend: sendResponseToBackend, // 发送响应
     
     // 📝 消息处理
     registerMessageHandler: registerMessageHandler,   // 注册处理器
@@ -52,7 +52,7 @@ window.WebChannelManager = {
 #### 1. 统一的消息处理机制
 ```javascript
 // 立即定义全局处理函数，防止早期调用失败
-window.handlePythonMessage = function(action, data, requestId) {
+window.handleBackendMessage = function(action, data, requestId) {
     // 查找注册的消息处理器并执行
     if (state.messageHandlers.has(action)) {
         state.messageHandlers.get(action)(data, requestId);
@@ -85,7 +85,7 @@ window.addEventListener('error', function(event) {
 ```javascript
 // 每个HTML都有相同的WebChannel初始化代码
 const appState = { /* 状态管理 */ };
-window.handlePythonMessage = function() { /* 处理逻辑 */ };
+window.handleBackendMessage = function() { /* 处理逻辑 */ };
 function initWebChannel() { /* 初始化逻辑 */ };
 // ... 大量重复代码
 ```
@@ -112,7 +112,7 @@ function initApp() {
 ## 📈 性能提升效果
 
 ### WebChannel错误率对比
-- **重构前**: 频繁出现 `window.handlePythonMessage is not a function`
+- **重构前**: 频繁出现 `window.handleBackendMessage is not a function`
 - **重构后**: 偶发错误，主要是变量引用问题
 
 ### 代码维护性提升
@@ -145,7 +145,7 @@ WCM.registerMessageHandler('setBoardId', (data, requestId) => {
 });
 
 // 核心库统一分发消息
-window.handlePythonMessage = function(action, data, requestId) {
+window.handleBackendMessage = function(action, data, requestId) {
     if (messageHandlers.has(action)) {
         messageHandlers.get(action)(data, requestId);
     }
@@ -182,7 +182,7 @@ const pageState = {
 ```
 
 ### 错误情况对比
-- **重构前**: 连续大量`window.handlePythonMessage is not a function`
+- **重构前**: 连续大量`window.handleBackendMessage is not a function`
 - **重构后**: 偶发`Uncaught ReferenceError: boardState is not defined`
 
 ## 🚀 后续优化方向

@@ -60,10 +60,10 @@ class TLDrawWebChannelManager {
   }
 
   // 发送消息到Python
-  async sendToPython(action: string, data: any): Promise<WebChannelResponse> {
+  async sendToBackend(action: string, data: any): Promise<WebChannelResponse> {
     if (typeof window !== 'undefined' && window.WebChannelManager) {
       try {
-        const response = await window.WebChannelManager.sendToPython(action, data);
+        const response = await window.WebChannelManager.sendToBackend(action, data);
         return response as WebChannelResponse;
       } catch (error) {
         console.error('发送消息失败:', error);
@@ -75,7 +75,7 @@ class TLDrawWebChannelManager {
 
   // 保存TLDraw画板
   async saveTLDrawBoard(boardId: string, drawingData: BoardData): Promise<WebChannelResponse> {
-    return this.sendToPython('save_tldraw_board', {
+    return this.sendToBackend('save_tldraw_board', {
       boardId,
       drawingData: JSON.stringify(drawingData)
     });
@@ -83,12 +83,12 @@ class TLDrawWebChannelManager {
 
   // 加载TLDraw画板
   async loadTLDrawBoard(boardId: string): Promise<WebChannelResponse> {
-    return this.sendToPython('load_tldraw_board', { boardId });
+    return this.sendToBackend('load_tldraw_board', { boardId });
   }
 
   // 导出TLDraw画板
   async exportTLDrawBoard(boardId: string, format: string, imageData: string): Promise<WebChannelResponse> {
-    return this.sendToPython('export_tldraw_board', {
+    return this.sendToBackend('export_tldraw_board', {
       boardId,
       format,
       imageData

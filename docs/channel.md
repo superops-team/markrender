@@ -6,12 +6,12 @@
 ## 通信基础
 - **通信协议**：QWebChannel
 - **数据格式**：JSON
-- **核心通道**：`window.bridge.channel` (前端) 与 `WebCommunicationManager` (后端)
-- **文档隔离**：所有通信均包含`document_id`参数以支持多文档并发编辑
+- **核心通道**：`window.bridge.channel` (前端) 与 `BackendInterface` (后端)
+- **文档隔离**：所有通信均包含`item_id`参数以支持多文档并发编辑
 
 ## 后端接口 (Python)
 
-### WebCommunicationManager类
+### BackendInterface类
 位于<mcfile name="channel.py" path="/Users/bytedance/workspace/github/markrender/app/editor/channel.py"></mcfile>中的核心通信管理类，实现为单例模式。
 
 #### 主要方法
@@ -23,9 +23,9 @@
   发送请求到前端
   - 参数: `action` (str) - 前端方法名, `data` (dict) - 请求数据, `callback` (callable) - 响应回调
 
-- **unregister_document(document_id)**
+- **unregister_document(item_id)**
   解除文档与通信通道的关联
-  - 参数: `document_id` (str) - 文档唯一标识
+  - 参数: `item_id` (str) - 文档唯一标识
 
 #### 内置事件处理器
 - **contentChanged**：处理前端内容变更通知
@@ -39,7 +39,7 @@
 new QWebChannel(qt.webChannelTransport, function(channel) {
     window.bridge = {
         channel: channel.objects.document,
-        currentDocumentId: null
+        currentItemId: null
     };
     // 注册事件监听器
     setupEventListeners();
@@ -47,18 +47,18 @@ new QWebChannel(qt.webChannelTransport, function(channel) {
 ```
 
 #### 核心方法
-- **setDocumentId(document_id)**
+- **setDocumentId(item_id)**
   设置当前活动文档ID
-  - 参数: `document_id` (str) - 文档唯一标识
+  - 参数: `item_id` (str) - 文档唯一标识
 
 - **sendContentChanged(content)**
   发送内容变更事件到后端
   - 参数: `content` (str) - Markdown内容
-  - 示例: `window.bridge.channel.contentChanged(window.bridge.currentDocumentId, content)`
+  - 示例: `window.bridge.channel.contentChanged(window.bridge.currentItemId, content)`
 
 - **requestSave()**
   请求后端保存文档
-  - 示例: `window.bridge.channel.requestSave(window.bridge.currentDocumentId)`
+  - 示例: `window.bridge.channel.requestSave(window.bridge.currentItemId)`
 
 - **reportError(message)**
   向后端报告错误
@@ -71,7 +71,7 @@ new QWebChannel(qt.webChannelTransport, function(channel) {
 请求数据验证模型:
 ```python
 class RequestModel(BaseModel):
-    document_id: str
+    item_id: str
     method: str
     params: dict = Field(default_factory=dict)
 ```
@@ -92,15 +92,15 @@ class RequestModel(BaseModel):
 // 前端发送内容变更
 editor.on('change', () => {
     const content = editor.getValue();
-    window.bridge.channel.contentChanged(window.bridge.currentDocumentId, content);
+    window.bridge.channel.contentChanged(window.bridge.currentItemId, content);
 });
 ```
 
 ```python
 # 后端处理
-@WebCommunicationManager.register_web_handler('contentChanged')
-def handle_content_changed(document_id, content):
-    document = MarkdownDocument.get(document_id)
+@BackendInterface.register_web_handler('contentChanged')
+def handle_content_changed(item_id, content):
+    document = MarkdownDocument.get(item_id)
     document.set_content(content)
     return {'status': 'received'}
 ```
@@ -110,7 +110,7 @@ def handle_content_changed(document_id, content):
 // 前端请求保存
 function saveDocument() {
     return new Promise((resolve) => {
-        window.bridge.channel.requestSave(window.bridge.currentDocumentId, (response) => {
+        window.bridge.channel.requestSave(window.bridge.currentItemId, (response) => {
             resolve(response);
         });
     });
@@ -119,9 +119,9 @@ function saveDocument() {
 
 ```python
 # 后端处理保存
-@WebCommunicationManager.register_web_handler('requestSave')
-def handle_request_save(document_id):
-    document = MarkdownDocument.get(document_id)
+@BackendInterface.register_web_handler('requestSave')
+def handle_request_save(item_id):
+    document = MarkdownDocument.get(item_id)
     success = document.save()
     return {'success': success}
 ```
@@ -142,7 +142,7 @@ def handle_request_save(document_id):
 ```
 
 ## 多文档管理
-- 所有通信必须包含`document_id`参数
+- 所有通信必须包含`item_id`参数
 - 切换文档时调用`setDocumentId()`更新上下文
 - 关闭文档时后端调用`unregister_document()`清理资源
 

@@ -87,7 +87,7 @@ class ThreadPoolManager(QObject):
                 # 调用回调函数
                 if self.callback:
                     logger.info(f"任务 {self.task_id} 完成")
-                    QMetaObject.invokeMethod(
+                    QMetaObject.invokeMethod(  # pyright: ignore[reportCallIssue]
                         self.manager,
                         "on_task_complete",
                         Qt.QueuedConnection,
@@ -96,7 +96,7 @@ class ThreadPoolManager(QObject):
                     )
             except Exception as e:
                 logger.error(f"任务 {self.task_id} 运行时出错: {e}")
-                QMetaObject.invokeMethod(
+                QMetaObject.invokeMethod(  # pyright: ignore[reportCallIssue]
                     self.manager,
                     "on_task_error",
                     Qt.QueuedConnection,
@@ -179,21 +179,26 @@ class AutoSaveWorker(QRunnable):
     """
     自动保存工作线程
     """
-    def __init__(self, file_id, content):
+    def __init__(self, item_id, content):
         super().__init__()
-        self.file_id = file_id
+        self.item_id = item_id
         self.content = content
         self.markrender_manager = MarkRenderManager()
         self.result = None
         self.canceled = False
 
-    def run(self):
+    def run(self):  # pyright: ignore[reportIncompatibleMethodOverride]
         if self.canceled:
             return False
         try:
-            success = self.markrender_manager.save_item(
-                id=self.file_id, content=self.content)
-            return success  # 不需要转为字符串
+            save_id = self.markrender_manager.save_item(id=self.item_id, content=self.content)
+            if save_id:
+                success = True
+                logger.info(f"自动保存成功: {save_id}")
+            else:
+                success = False
+                logger.warning(f"自动保存失败")
+            return success
         except Exception as e:
             logger.error(f"自动保存失败: {str(e)}")
             return False
@@ -207,16 +212,16 @@ class ContentLoader(QRunnable):
     """
     内容加载工作线程
     """
-    def __init__(self, file_id):
+    def __init__(self, item_id):
         super().__init__()
-        self.file_id = file_id
+        self.item_id = item_id
         self.markrender_manager = MarkRenderManager()
         self.result = None
 
     def run(self):
         try:
-            self.result = self.markrender_manager.get_content(self.file_id)
+            self.result = self.markrender_manager.get_detail(self.item_id)
             return self.result
         except Exception as e:
-            logger.error(f"内容加载失败: {str(e)}")
-            return None
+            logger.error(f"{self.item_id}内容加载失败: {str(e)}")
+            return {}

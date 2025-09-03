@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-测试页面切换功能，验证页面切换时WebCommunicationManager是否正确更新
+测试页面切换功能，验证页面切换时BackendInterface是否正确更新
 """
 
 import sys
@@ -12,7 +12,7 @@ sys.path.insert(0, str(project_root))
 
 from PySide6.QtWidgets import QApplication
 from app.editor.webengine import WebPageManager, PageType
-from app.editor.channel import WebCommunicationManager
+from app.editor.channel import BackendInterface
 
 def test_page_switching():
     """测试页面切换功能"""
@@ -22,7 +22,7 @@ def test_page_switching():
     page_manager = WebPageManager()
     
     # 创建通信管理器
-    web_comm = WebCommunicationManager("test")
+    web_comm = BackendInterface("test")
     
     # 测试创建不同类型的页面
     print("\n1. 测试创建不同类型的页面:")

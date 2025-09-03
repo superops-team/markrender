@@ -326,13 +326,13 @@
         }
 
         // 标准化消息发送到Python（使用WebChannel核心库）
-        function sendToPython(action, data = {}, callback = null) {
-            return window.WebChannelManager.sendToPython(action, data, callback);
+        function sendToBackend(action, data = {}, callback = null) {
+            return window.WebChannelManager.sendToBackend(action, data, callback);
         }
 
         // 处理Python响应（由WebChannel核心库统一处理）
-        function handlePythonResponse(responseJson) {
-            return window.WebChannelManager.handlePythonResponse?.(responseJson);
+        function handleBackendResponse(responseJson) {
+            return window.WebChannelManager.handleBackendResponse?.(responseJson);
         }
 
         // 创建新文档
@@ -340,7 +340,7 @@
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
             const title = type === 'markdown' ? `新建文档-${timestamp}` : `新建画板-${timestamp}`;
             
-            sendToPython('createNewDocument', {
+            sendToBackend('createNewDocument', {
                 type: type,
                 title: title
             }, (response) => {
@@ -356,14 +356,14 @@
 
         // 打开文件导入
         function openFileImport() {
-            sendToPython('openFileImport', {}, (response) => {
+            sendToBackend('openFileImport', {}, (response) => {
                 console.log('打开文件导入:', response);
             });
         }
 
         // 加载最近文件
         function loadRecentFiles() {
-            sendToPython('getRecentFiles', {}, (response) => {
+            sendToBackend('getRecentFiles', {}, (response) => {
                 if (response.success && response.data.files) {
                     updateRecentFilesList(response.data.files);
                 }
@@ -404,7 +404,7 @@
 
         // 打开最近文件
         function openRecentFile(file) {
-            sendToPython('openRecentFile', {
+            sendToBackend('openRecentFile', {
                 fileId: file.id,
                 pageType: file.page_type
             }, (response) => {
@@ -456,7 +456,7 @@
             });
             
             if (appState.isChannelReady) {
-                sendToPython('reportError', {
+                sendToBackend('reportError', {
                     message,
                     source,
                     line: lineno,
