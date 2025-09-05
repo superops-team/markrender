@@ -242,12 +242,19 @@ class MarkRenderEditor(QWidget):
             logger.warning("无法保存：文档未关联文件ID")
             return False
         logger.info("快捷键触发保存动作")
+        
+        # 使用一个标志来跟踪保存是否成功
+        save_result = False
+        
         try:
             # 获取当前编辑内容
             def handle_save_content(data):
-                content = data.get("content")
-                if content:
-                    # 保存到数据库
+                nonlocal save_result
+                if data.get('success'):
+                    # 只根据success状态码判断，不检查content是否为空
+                    content = data.get("content", "")
+                    
+                    # 无论content是否为空，都尝试保存到数据库
                     success = self.markrender_manager.save_item(
                         id=self.item.item_id, 
                         content=content
@@ -256,13 +263,44 @@ class MarkRenderEditor(QWidget):
                     if success:
                         self.last_saved_text = content
                         self.item_modified = False
-                        logger.info(f"手动保存成功: {self.item.item_id}")
+                        logger.info(f"手动保存成功: {self.item.item_id}，内容长度: {len(content)}")
+                        save_result = True
                     else:
                         logger.error("保存到数据库失败")
-                        
+                        save_result = False
+                else:
+                    # 只有当success为False时才认为获取内容失败
+                    logger.error(f"获取编辑器内容失败: {data.get('error', '未知错误')}")
+                    save_result = False
+            
             # 获取当前内容并保存
-            self.get_content(handle_save_content)
-            return True
+            if not self.backend_interface or not self.backend_interface.ready:
+                logger.error("backend_interface未初始化或未就绪，无法获取内容")
+                return False
+            
+            success = self.backend_interface.send_message(
+                'getContent',
+                callback=handle_save_content
+            )
+            
+            if not success:
+                logger.error("发送getContent消息失败")
+                return False
+            
+            # 等待回调完成
+            import time
+            start_time = time.time()
+            timeout = 2.0  # 2秒超时
+            while not isinstance(save_result, bool) and time.time() - start_time < timeout:
+                QApplication.processEvents()
+                time.sleep(0.01)
+            
+            # 如果超时，认为保存失败
+            if not isinstance(save_result, bool):
+                logger.error("保存操作超时")
+                return False
+            
+            return save_result
             
         except Exception as e:
             logger.error(f"保存文档失败: {str(e)}")
@@ -316,27 +354,53 @@ class MarkRenderEditor(QWidget):
         # 通过channel设置内容
         if not self.backend_interface or not self.backend_interface.page:
             logger.error("backend_interface未初始化或页面未加载，无法设置内容")
-            return
-
+            return False
+    
         # 检查页面是否已加载
         if not self.page_loaded:
             # 页面未加载，延迟发送
             logger.warning("页面未加载，延迟设置内容")
             self.initial_content = text_content
-            return
-
+            return False
+    
+        # 使用一个标志来跟踪设置是否成功
+        set_result = False
+    
         # 添加回调机制确认消息发送状态
         def handle_set_value(response):
+            nonlocal set_result
             if response.get('success'):
                 self.last_saved_text = text_content
                 logger.debug("内容已成功设置到前端")
+                set_result = True
             else:
                 logger.error(f"设置内容失败: {response.get('error')}")
-
-        self.backend_interface.send_message("setValue", {
+                set_result = False
+    
+        # 发送消息并检查是否成功
+        success = self.backend_interface.send_message("setValue", {
             "content": text_content
         }, handle_set_value)
-        self.last_saved_text = text_content
+        
+        if not success:
+            logger.error("发送setValue消息失败")
+            return False
+        
+        # 等待回调完成
+        import time
+        from PySide6.QtWidgets import QApplication
+        start_time = time.time()
+        timeout = 1.0  # 1秒超时
+        while not isinstance(set_result, bool) and time.time() - start_time < timeout:
+            QApplication.processEvents()
+            time.sleep(0.01)
+        
+        # 如果超时，认为设置失败
+        if not isinstance(set_result, bool):
+            logger.error("设置内容操作超时")
+            return False
+        
+        return set_result
 
     def resizeEvent(self, event):
         """窗口大小改变时触发，确保编辑区高度自适应"""

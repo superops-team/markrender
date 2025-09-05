@@ -200,11 +200,28 @@ class QuickPickPanel(QWidget):
     def save_current_item(self):
         """保存当前文件并执行页面切换"""
         try:
+            save_success = True
+            # 保存当前编辑内容
             if hasattr(self.parent, 'editor') and hasattr(self.parent.editor, 'save_item'):
-                # 保存当前编辑内容
                 if self.parent.current_item:
-                    logger.info(msg=f"切换页面触发保存动作，文件->{self.parent.current_item.get('title')}")
-                    self.parent.editor.save_item()
+                    # 检查编辑器是否有文件ID
+                    can_save = hasattr(self.parent.editor, 'item') and hasattr(self.parent.editor.item, 'item_id') and self.parent.editor.item.item_id
+                    
+                    if can_save:
+                        logger.info(msg=f"切换页面触发保存动作，文件->{self.parent.current_item.get('title')}")
+                        save_success = self.parent.editor.save_item()
+                    else:
+                        logger.info(f"当前文档未关联文件ID，跳过保存: {self.parent.current_item.get('title')}")
+                        save_success = True  # 未关联文件ID时，视为保存成功，允许切换
+            
+            # 检查保存是否成功
+            if not save_success:
+                logger.error("保存当前文件失败，取消页面切换")
+                # 弹窗报错
+                QMessageBox.warning(self, "保存失败", "无法保存当前文件，请稍后再试。")
+                # 清除待切换状态
+                self.switch_pending = None
+                return
             
             # 执行页面切换
             if self.switch_pending:
@@ -214,6 +231,8 @@ class QuickPickPanel(QWidget):
                     self.parent.update_editor_and_previewer(self.switch_pending)
                 else:
                     logger.error("父窗口没有update_editor_and_previewer方法")
+                    # 弹窗报错
+                    QMessageBox.warning(self, "切换失败", "无法执行页面切换，请稍后再试。")
                 
                 # 清除待切换状态
                 self.switch_pending = None
@@ -223,6 +242,10 @@ class QuickPickPanel(QWidget):
             import traceback
             logger.error(f"保存当前文件并切换页面失败: {e}")
             logger.error(traceback.format_exc())
+            # 弹窗报错
+            QMessageBox.warning(self, "切换失败", f"页面切换过程中发生错误: {str(e)}")
+            # 清除待切换状态
+            self.switch_pending = None
         
     def _complete_item_switch(self):
         """完成历史项切换"""

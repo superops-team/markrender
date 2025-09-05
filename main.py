@@ -215,7 +215,7 @@ class MainWindow(QMainWindow):
             logger.error(f"更新编辑区和预览区失败: {e}", exc_info=True)
     
     def _handle_markdown_page(self, quickpick_item):
-        """处理Markdown页面 - 优化版本，使用统一page_type避免不必要的页面创建"""
+        """处理Markdown页面"""
         logger.debug(f"处理Markdown页面: {quickpick_item.get('title')}")
         
         try:
@@ -237,6 +237,14 @@ class MainWindow(QMainWindow):
                 # 获取内容
                 content = quickpick_item.get('content', '')
                 
+                # 如果content为空，从数据库获取
+                if not content and quickpick_item.get('id'):
+                    try:
+                        item_detail = self.markrender_manager.get_detail(quickpick_item.get('id', ''))
+                        content = item_detail.get('content', '')
+                    except Exception as e:
+                        logger.error(f"从数据库获取内容失败: {e}")
+                
                 # 更新Markdown编辑器内容（但不重新创建页面）
                 self.editor.set_item_id(quickpick_item.get('id', ''))
                 self.editor.set_page_type(page_type)
@@ -246,7 +254,13 @@ class MainWindow(QMainWindow):
                 from PySide6.QtCore import QTimer
                 
                 def set_content_delayed():
-                    self.editor.set_text_content(content)
+                    if content:
+                        success = self.editor.set_text_content(content)
+                        if not success:
+                            QMessageBox.warning(self, "内容设置失败", "无法设置Markdown内容，请稍后再试。")
+                    else:
+                        # 内容为空时重置页面
+                        self.editor.reset()
                 
                 # 延迟100ms设置内容，确保WebChannel通信已建立
                 QTimer.singleShot(100, set_content_delayed)
@@ -258,9 +272,11 @@ class MainWindow(QMainWindow):
                 
             else:
                 logger.error(f"创建页面失败: {page_type}")
+                QMessageBox.warning(self, "页面创建失败", f"无法创建{page_type}页面，请稍后再试。")
                 
         except Exception as e:
             logger.error(f"页面处理失败: {e}", exc_info=True)
+            QMessageBox.warning(self, "页面处理失败", f"处理{page_type}页面时发生错误: {str(e)}")
         
         logger.debug(f"页面处理完成")
     
