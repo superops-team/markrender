@@ -73,6 +73,34 @@ document.addEventListener('DOMContentLoaded', function() {
                 return { error: '处理消息时出错: ' + error.message };
             }
         };
+        
+        // 添加resetExcalidraw函数
+        window.resetExcalidraw = function() {
+            try {
+                console.log('重置Excalidraw状态');
+                
+                // 重置当前项目ID
+                window.currentItemId = null;
+                
+                // 清空场景
+                if (typeof window.ExcalidrawLib !== 'undefined' && typeof window.ExcalidrawLib.clearScene === 'function') {
+                    window.ExcalidrawLib.clearScene();
+                    console.log('Excalidraw场景已清空 (使用ExcalidrawLib.clearScene)');
+                } else if (typeof window.updateScene === 'function') {
+                    window.updateScene({ elements: [] });
+                    console.log('Excalidraw场景已清空 (使用updateScene)');
+                }
+                
+                // 重置其他状态
+                if (window.editorState) {
+                    window.editorState.currentItemId = null;
+                }
+                
+                console.log('Excalidraw状态重置完成');
+            } catch (error) {
+                console.error('重置Excalidraw状态失败:', error);
+            }
+        };
 
         console.log('Excalidraw消息处理器注册完成');
     }

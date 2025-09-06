@@ -1,24 +1,26 @@
 (function() {
     try {
-        console.log('开始获取编辑器内容');
+        console.log('开始获取编辑器内容和项目ID');
         
-        // 首先尝试使用防抖机制确保获取到最新内容
-        if (window.editorState && window.editorState.lastContent) {
-            console.log('使用缓存的最新内容，长度:', window.editorState.lastContent.length);
-            return JSON.stringify({ success: true, content: window.editorState.lastContent });
+        // 获取当前项目ID
+        let currentItemId = '';
+        if (window.editorState && window.editorState.currentItemId !== undefined) {
+            currentItemId = window.editorState.currentItemId;
+        } else if (typeof window.getCurrentItemId === 'function') {
+            currentItemId = window.getCurrentItemId();
         }
+        
         
         // 获取Cherry编辑器内容
         if (window.editorState && window.editorState.editor && typeof window.editorState.editor.getValue === 'function') {
             const content = window.editorState.editor.getValue();
-            console.log('获取到Cherry编辑器内容，长度:', content ? content.length : 0);
-            return JSON.stringify({ success: true, content: content || '' });
+            return JSON.stringify({ success: true, content: content || '', item_id: currentItemId });
         } 
         // 获取Excalidraw内容
         else if (typeof window.getExcalidrawData === 'function') {
             const content = window.getExcalidrawData();
             console.log('获取到Excalidraw内容，长度:', content ? content.length : 0);
-            return JSON.stringify({ success: true, content: content || '[]' });
+            return JSON.stringify({ success: true, content: content || '[]', item_id: currentItemId });
         }
         // 检查Excalidraw的其他可能状态
         else if (typeof window.excalidrawAppRef !== 'undefined' && window.excalidrawAppRef) {
@@ -26,9 +28,11 @@
                 const elements = window.excalidrawAppRef.getSceneElements();
                 const content = JSON.stringify(elements);
                 console.log('通过excalidrawAppRef获取到Excalidraw内容，长度:', content ? content.length : 0);
-                return JSON.stringify({ success: true, content: content || '[]' });
+                return JSON.stringify({ success: true, content: content || '[]', item_id: currentItemId });
             } catch (ex) {
                 console.warn('通过excalidrawAppRef获取Excalidraw内容失败:', ex);
+                // 返回错误信息
+                return JSON.stringify({ success: false, error: '获取Excalidraw内容失败: ' + ex.message });
             }
         }
         // 其他情况 - 返回空内容而不是错误
@@ -40,7 +44,7 @@
                 hasExcalidrawAppRef: typeof window.excalidrawAppRef !== 'undefined',
                 hasGetExcalidrawData: typeof window.getExcalidrawData === 'function'
             });
-            return JSON.stringify({ success: true, content: '' });
+            return JSON.stringify({ success: true, content: '', item_id: currentItemId });
         }
     } catch (error) {
         console.error('获取编辑器内容失败:', error);

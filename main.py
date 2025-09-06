@@ -165,28 +165,10 @@ class MainWindow(QMainWindow):
 
     def update_editor_and_previewer(self, quickpick_item):
         """更新编辑区和预览区内容，支持多页面类型路由"""
-        try:
-            from app.editor.webengine import PageType
-            
+        try:            
             logger.info(f"开始更新编辑器页面: {quickpick_item.get('title', 'Unknown')}")
-            
-            # 在切换页面前，先保存当前编辑器内容
-            def after_save_callback(success):
-                if not success:
-                    logger.warning("保存当前内容失败，但仍继续页面切换")
-                
-                # 继续执行页面切换逻辑
-                self._continue_update_editor_and_previewer(quickpick_item)
-            
-            # 如果有当前项且有修改，则先保存
-            if (hasattr(self, 'current_item') and self.current_item and 
-                hasattr(self.editor, 'item_modified') and self.editor.item_modified):
-                logger.info("检测到编辑器内容有修改，先保存再切换页面")
-                self.editor.save_current_item(callback=after_save_callback)
-                return
-            else:
-                # 没有修改或没有当前项，直接切换
-                self._continue_update_editor_and_previewer(quickpick_item)
+            # 没有修改或没有当前项，直接切换
+            self._continue_update_editor_and_previewer(quickpick_item)
             
         except Exception as e:
             logger.error(f"更新编辑区和预览区失败: {e}", exc_info=True)
@@ -217,6 +199,18 @@ class MainWindow(QMainWindow):
                 page_type = "markdown"
             
             logger.info(f"页面类型: {page_type}")
+            
+            # 从数据库获取最新的内容
+            item_id = quickpick_item.get('id')
+            if item_id:
+                try:
+                    latest_item = self.markrender_manager.get_detail(item_id)
+                    if latest_item and 'content' in latest_item:
+                        # 使用数据库中的最新内容
+                        quickpick_item['content'] = latest_item['content']
+                        logger.info(f"从数据库获取到最新内容，长度: {len(latest_item['content'])}")
+                except Exception as e:
+                    logger.error(f"从数据库获取最新内容失败: {e}")
             
             # 根据页面类型路由到不同的处理逻辑
             if page_type == "markdown":
@@ -264,32 +258,28 @@ class MainWindow(QMainWindow):
                 page_manager.switch_to_page(page_type)
                 
                 # 获取内容 - 对于不同的item，必须从对应的item获取内容
-                content = quickpick_item.get('content', '')
-                if not content and quickpick_item.get('id'):
+                item_id = quickpick_item.get('id')
+                content = ''
+                
+                # 总是从数据库获取最新内容，确保数据一致性
+                if item_id:
                     try:
-                        item_detail = self.markrender_manager.get_detail(quickpick_item.get('id', ''))
-                        content = item_detail.get('content', '')
+                        item_detail = self.markrender_manager.get_detail(item_id)
+                        if item_detail and item_detail.get('content'):
+                            content = item_detail.get('content')
+                            logger.info(f"从数据库获取到最新内容，长度: {len(content)}")
+                        else:
+                            logger.info(f"数据库中未找到内容，使用空内容初始化")
                     except Exception as e:
                         logger.error(f"从数据库获取内容失败: {e}")
+                else:
+                    # 如果没有item_id，使用quickpick_item中的内容
+                    content = quickpick_item.get('content', '')
                 
                 # 更新Markdown编辑器内容（但不重新创建页面）
-                self.editor.set_item_id(quickpick_item.get('id', ''))
+                self.editor.set_item_id(item_id or '')
                 self.editor.set_page_type(page_type)
-                self.editor.item.set_text(content)
-                
-                # 使用QTimer延迟设置内容，确保前端JavaScript已完全初始化
-                from PySide6.QtCore import QTimer
-                
-                def set_content_delayed():
-                    if content:
-                        # 使用带重试机制的内容设置方法
-                        self.editor.set_text_content_with_retry(content)
-                    else:
-                        # 内容为空时重置页面
-                        self.editor.reset()
-                
-                # 延迟100ms设置内容，确保页面通信已建立
-                QTimer.singleShot(100, set_content_delayed)
+                self.editor.set_text_content(content)
                 
                 # 确保Markdown编辑器可见
                 self.editor.show()
@@ -352,8 +342,18 @@ class MainWindow(QMainWindow):
                                 'title': quickpick_item.get('title', '')
                             })
                             
-                            # 获取内容 - 对于不同的item，必须从对应的item获取内容
-                            content = quickpick_item.get('content', '')
+                            # 获取内容 - 总是从数据库获取最新内容，确保数据一致性
+                            content = ''
+                            if board_id:
+                                try:
+                                    item_detail = self.markrender_manager.get_detail(board_id)
+                                    if item_detail and item_detail.get('content'):
+                                        content = item_detail.get('content')
+                                        logger.info(f"从数据库获取到最新Excalidraw内容，长度: {len(content)}")
+                                    else:
+                                        logger.info(f"数据库中未找到Excalidraw内容，使用空内容初始化")
+                                except Exception as e:
+                                    logger.error(f"从数据库获取Excalidraw内容失败: {e}")
                             
                             # 如果有存储的画板数据，加载它
                             if content:
@@ -378,9 +378,22 @@ class MainWindow(QMainWindow):
                 QTimer.singleShot(300, send_board_id)
                 
                 # 更新编辑器状态
-                self.editor.set_item_id(quickpick_item.get('id', ''))
+                item_id = quickpick_item.get('id', '')
+                content = ''
+                
+                # 总是从数据库获取最新内容
+                if item_id:
+                    try:
+                        item_detail = self.markrender_manager.get_detail(item_id)
+                        if item_detail and item_detail.get('content'):
+                            content = item_detail.get('content')
+                            logger.info(f"从数据库获取到最新Excalidraw内容用于编辑器状态，长度: {len(content)}")
+                    except Exception as e:
+                        logger.error(f"从数据库获取Excalidraw内容失败: {e}")
+                
+                self.editor.set_item_id(item_id)
                 self.editor.set_page_type(page_type)
-                self.editor.item.set_text(quickpick_item.get('content', ''))
+                self.editor.item.set_text(content)
                 
             else:
                 logger.error(f"创建Board页面失败: {page_type}")
@@ -445,7 +458,7 @@ class MainWindow(QMainWindow):
         self.quickpick_panel.load_quickpick_items()
         if self.current_item:
             self.quickpick_panel.select_quickpick_item(self.current_item)
-
+    
     def _on_editor_close_ready(self):
         """当编辑器准备好关闭时的处理"""
         logger.info("接收到编辑器关闭准备信号，开始关闭主窗口")

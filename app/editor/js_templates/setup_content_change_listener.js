@@ -2,21 +2,22 @@
     try {
         console.log('设置内容变化监听器');
         
-        // 为Cherry编辑器设置内容变化监听
-        if (window.editorState && window.editorState.editor) {
-            // 设置内容变化监听
-            if (typeof window.editorState.editor.on === 'function') {
-                window.editorState.editor.on('change', function() {
-                    console.log('检测到内容变化');
-                    // 可以在这里添加内容变化的处理逻辑
-                });
-            }
+        // 初始化editorState对象
+        if (!window.editorState) {
+            window.editorState = {};
         }
         
         // 为Excalidraw设置内容变化监听
         if (typeof window.excalidrawAppRef !== 'undefined' && window.excalidrawAppRef) {
-            // Excalidraw内容变化监听逻辑可以在这里添加
+            // Excalidraw内容变化监听逻辑
             console.log('Excalidraw内容变化监听已设置');
+            
+            // 如果Excalidraw提供了场景变化监听接口
+            if (window.excalidrawAppRef && typeof window.excalidrawAppRef.onSceneChange === 'function') {
+                window.excalidrawAppRef.onSceneChange(function() {
+                    console.log('检测到Excalidraw场景变化');
+                });
+            }
         }
         
         return JSON.stringify({ success: true, message: '内容变化监听器设置完成' });

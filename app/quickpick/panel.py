@@ -268,8 +268,8 @@ class QuickPickPanel(QWidget):
         
         # 执行保存操作，传入回调函数
         logger.info("开始执行保存操作")
-        # 增加重试机制
-        self._save_with_retry(save_callback, retry_count=3)
+        # 直接调用编辑器的保存方法，它已经使用同步方式获取内容
+        self.parent.editor.save_current_item(callback=save_callback)
     
     def _save_with_retry(self, callback, retry_count=3):
         """带重试机制的保存方法"""
@@ -286,64 +286,7 @@ class QuickPickPanel(QWidget):
                 callback(success)
         
         self.parent.editor.save_current_item(callback=internal_callback)
-    
-    def save_current_item_with_retry(self):
-        """增强版保存方法，确保获取到最新的页面内容"""
-        try:
-            # 保存当前编辑内容
-            if hasattr(self.parent, 'editor') and hasattr(self.parent.editor, 'save_current_item'):
-                # 检查是否有当前项需要保存
-                if self.parent.current_item:
-                    # 检查编辑器是否有文件ID，如果没有则使用current_item的ID
-                    editor_item_id = getattr(self.parent.editor.item, 'item_id', '') if hasattr(self.parent.editor, 'item') else ''
-                    current_item_id = self.parent.current_item.get('id', '')
-                    
-                    # 如果编辑器没有ID但current_item有ID，则使用current_item的ID
-                    if not editor_item_id and current_item_id:
-                        logger.info(f"编辑器缺少文件ID，使用current_item ID: {current_item_id}")
-                        editor_item_id = current_item_id
-                        # 同时更新编辑器的item_id
-                        self.parent.editor.set_item_id(current_item_id)
-                    
-                    can_save = bool(editor_item_id)
-                    
-                    if can_save:
-                        logger.info(msg=f"切换页面触发保存动作，文件->{self.parent.current_item.get('title')}")
-                        
-                        # 使用回调方式保存，确保获取到内容后再切换页面
-                        self._save_with_callback()
-                        return  # 等待回调完成后再执行页面切换
-                    else:
-                        logger.info(f"当前文档未关联文件ID，跳过保存: {self.parent.current_item.get('title')}")
-                else:
-                    logger.info("没有当前项需要保存")
-            else:
-                logger.warning("编辑器或保存方法不可用")
-            
-            # 如果不需要保存或保存方法不可用，直接执行页面切换
-            self._execute_switch()
-            
-        except Exception as e:
-            import traceback
-            logger.error(f"保存当前文件并切换页面失败: {e}")
-            logger.error(traceback.format_exc())
-            # 弹窗报错
-            QMessageBox.warning(self, "切换失败", f"页面切换过程中发生错误: {str(e)}")
-            # 清除待切换状态
-            self.switch_pending = None
 
-    def _delayed_save_and_switch(self):
-        """延迟保存和切换 - 给WebChannel建立时间"""
-        try:
-            if hasattr(self.parent, 'editor') and hasattr(self.parent.editor, 'save_current_item'):
-                # 使用回调方式保存，确保获取到内容后再切换页面
-                self._save_with_callback()
-            else:
-                # 如果保存方法不可用，直接切换
-                self._execute_switch()
-        except Exception as e:
-            logger.error(f"延迟保存失败: {e}")
-            self.switch_pending = None
 
     def _execute_switch(self):
         """执行页面切换"""

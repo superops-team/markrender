@@ -248,6 +248,9 @@ class WebPageManager(QStackedWidget):
                     if isinstance(page, CustomWebEnginePage):
                         # 设置通信管理器的页面引用
                         backend_interface.set_page(page)
+                
+                # 重置页面状态，确保数据隔离
+                self._reset_page_state(preloaded_view, page_type)
                 return preloaded_view
             
             # 创建新页面
@@ -319,6 +322,25 @@ class WebPageManager(QStackedWidget):
             if page_type in self.preloaded_pages:
                 return self.preloaded_pages[page_type].page()
             return None
+    
+    def _reset_page_state(self, view: QWebEngineView, page_type: str):
+        """重置页面状态，确保数据隔离"""
+        try:
+            logger.info(f"重置页面状态: {page_type}")
+            
+            # 使用JSScriptManager获取重置脚本
+            from app.editor.js_scripts import JSScriptManager
+            reset_script = JSScriptManager.get_script("reset_page_state")
+            
+            if reset_script:
+                # 异步执行重置脚本
+                view.page().runJavaScript(reset_script)
+                logger.info("页面状态重置脚本已执行")
+            else:
+                logger.error("获取页面状态重置脚本失败")
+            
+        except Exception as e:
+            logger.error(f"重置页面状态失败: {page_type}, 错误: {e}")
 
     def get_page_count(self) -> int:
         """获取当前页面数量"""

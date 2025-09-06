@@ -1,7 +1,8 @@
 import json
 import threading
 
-from PySide6.QtCore import QObject, Slot, QRunnable, QThreadPool, Signal
+from PySide6.QtCore import QObject, Slot, QRunnable, QThreadPool, Signal, QEventLoop, QTimer
+from PySide6.QtWebEngineCore import QWebEnginePage
 from utils import logger
 from db.markrender_manager import MarkRenderManager
 # Add the import statement at the top with other imports
@@ -66,6 +67,97 @@ class BackendInterface(QObject):
 
     # 移除dispatch_request方法，不再需要处理前端请求
 
+    def send_message_sync(self, action: str, data: dict = None, item_id: str = None, timeout: int = 15000):
+        """
+        同步发送消息到前端页面，使用QEventLoop阻塞主线程直到获取到数据
+        """
+        if not self.page:
+            logger.warning(f"[{self.page_type}] 无法发送消息 - 页面未初始化")
+            return {'success': False, 'error': '页面未初始化'}
+            
+        data = data or {}
+        result = None
+        error_occurred = False
+        error_message = ""
+        
+        try:
+            # 根据action构造相应的JavaScript代码
+            js_code = self._construct_js_code(action, data, item_id)
+            
+            if not js_code:
+                logger.error(f"[{self.page_type}] 无法构造JavaScript代码: {action}")
+                return {'success': False, 'error': '无法构造JavaScript代码'}
+
+            logger.debug(f"[{self.page_type}] 同步执行JavaScript代码: {js_code[:100]}...")
+            
+            # 创建事件循环
+            loop = QEventLoop()
+            
+            # 设置超时定时器
+            timeout_timer = QTimer()
+            timeout_timer.setSingleShot(True)
+            timeout_timer.timeout.connect(lambda: (
+                logger.error(f"[{self.page_type}] JavaScript执行超时: {action}"),
+                setattr(self, '_sync_error', True),
+                setattr(self, '_sync_error_message', 'JavaScript执行超时'),
+                loop.quit()
+            ))
+            timeout_timer.start(timeout)
+            
+            # 执行JavaScript代码并等待结果
+            def js_callback(js_result):
+                nonlocal result
+                try:
+                    logger.debug(f"[{self.page_type}] JavaScript执行完成，action: {action}, result: {js_result}")
+                    
+                    # 解析JSON结果
+                    if isinstance(js_result, str):
+                        try:
+                            result = json.loads(js_result)
+                            logger.debug(f"[{self.page_type}] 解析后的结果: {result}")
+                        except json.JSONDecodeError:
+                            # 如果不是JSON格式，直接返回原始结果
+                            result = js_result
+                    else:
+                        result = js_result
+                        
+                except Exception as e:
+                    logger.error(f"[{self.page_type}] 处理JavaScript结果时出错: {str(e)}", exc_info=True)
+                    error_occurred = True
+                    error_message = str(e)
+                finally:
+                    # 停止超时定时器并退出事件循环
+                    timeout_timer.stop()
+                    loop.quit()
+            
+            # 执行JavaScript
+            self.page.runJavaScript(js_code, js_callback)
+            
+            # 运行事件循环直到获取到结果或超时
+            loop.exec()
+            
+            # 检查是否有错误
+            if hasattr(self, '_sync_error') and self._sync_error:
+                delattr(self, '_sync_error')
+                error_msg = getattr(self, '_sync_error_message', '未知错误')
+                if hasattr(self, '_sync_error_message'):
+                    delattr(self, '_sync_error_message')
+                return {'success': False, 'error': error_msg}
+            
+            if error_occurred:
+                return {'success': False, 'error': error_message}
+                
+            # 如果没有结果，返回空结果
+            if result is None:
+                logger.warning(f"[{self.page_type}] JavaScript执行返回空结果: {action}")
+                return {'success': True, 'content': ''}
+                
+            return result
+            
+        except Exception as e:
+            logger.error(f"[{self.page_type}] 同步执行JavaScript失败: {str(e)}", exc_info=True)
+            return {'success': False, 'error': f'同步执行JavaScript失败: {str(e)}'}
+
     def send_message(self, action: str, data: dict = None, callback=None, item_id: str = None):
         """发送消息到前端页面，改为直接执行JavaScript"""
         if not self.page:
@@ -100,13 +192,16 @@ class BackendInterface(QObject):
             # 使用JSScriptManager获取预定义的脚本
             if action == "setValue":
                 content = data.get("content", "")
+                item_id_param = data.get("item_id", item_id or "")
                 # 转义内容中的特殊字符
-                return JSScriptManager.get_script("set_editor_content", content=content)
+                return JSScriptManager.get_script("set_editor_content", content=content, item_id=item_id_param)
             elif action == "getContent":
                 return JSScriptManager.get_script("get_editor_content")
+            elif action == "getCurrentItemId":
+                return JSScriptManager.get_script("get_current_item_id")
             elif action == "setCurrentItemId":
-                item_id = data.get("item_id", "")
-                return JSScriptManager.get_script("set_current_item_id", item_id=item_id)
+                item_id_param = data.get("item_id", "")
+                return JSScriptManager.get_script("set_current_item_id", item_id=item_id_param)
             elif action == "reset":
                 return JSScriptManager.get_script("reset_editor_content")
             elif action == "registerEditorEvents":
