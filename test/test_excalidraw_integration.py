@@ -372,6 +372,26 @@ class ExcalidrawIntegrationTestWindow(QMainWindow):
                 self.log_message(f"解析{version}版本页面内容结果时出错: {e}")
                 
         web_view.page().runJavaScript(js_code, handle_result)
+        
+        # 检查关键对象是否存在
+        diagnostics = page.runJavaScript("""
+        (function() {
+            return {
+                has_qt: typeof window.qt !== 'undefined',
+                has_webchannel_transport: window.qt && typeof window.qt.webChannelTransport !== 'undefined',
+                has_handle_backend_message: typeof window.handleBackendMessage === 'function',
+                has_update_scene: typeof window.updateScene === 'function',
+                has_get_scene_elements: typeof window.getSceneElements === 'function'
+            };
+        })();
+        """)
+        diagnostics.then(function(result) {
+            self.log_message(f"{version}版本页面关键对象检查:")
+            for key, value in result.items():
+                self.log_message(f"  {key}: {value}")
+        }).catch(function(error) {
+            self.log_message(f"检查{version}版本页面关键对象时出错: {error}")
+        })
 
 
 def main():

@@ -1,0 +1,153 @@
+#!/usr/bin/env python3
+"""
+测试用例：直接QWebChannel通信 - Markdown编辑器
+测试markdown页面在移除webchannel-core.js后的功能
+"""
+
+import sys
+import os
+import json
+import time
+from PySide6.QtWidgets import QApplication
+from PySide6.QtWebEngineWidgets import QWebEngineView
+from PySide6.QtWebChannel import QWebChannel
+from PySide6.QtCore import QUrl, QObject, Slot, Signal, QTimer
+from PySide6.QtWebEngineCore import QWebEnginePage
+
+# 添加项目根目录到路径
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+from app.editor.backend_interface import BackendInterface
+
+class TestBackendInterface(QObject):
+    def __init__(self):
+        super().__init__()
+        self.received_messages = []
+        self.sent_responses = []
+        
+    @Slot(str)
+    def handle_web_response(self, response_json):
+        """处理前端响应"""
+        try:
+            response = json.loads(response_json)
+            self.received_messages.append(response)
+            print(f"收到前端响应: {response}")
+        except Exception as e:
+            print(f"解析响应失败: {e}")
+    
+    @Slot()
+    def frontend_ready(self):
+        """前端就绪回调"""
+        print("前端已就绪")
+
+class MarkdownWebChannelTest:
+    def __init__(self):
+        self.app = QApplication(sys.argv)
+        self.view = QWebEngineView()
+        self.backend = TestBackendInterface()
+        self.channel = QWebChannel()
+        
+    def setup_webchannel(self):
+        """设置WebChannel"""
+        self.channel.registerObject("backendInterface", self.backend)
+        self.view.page().setWebChannel(self.channel)
+        
+    def load_markdown_page(self):
+        """加载markdown页面"""
+        page_path = os.path.join(
+            os.path.dirname(__file__), 
+            '..', 'app', 'editor', 'plugins', 'markdown', 'index.html'
+        )
+        
+        if os.path.exists(page_path):
+            self.view.load(QUrl.fromLocalFile(page_path))
+            print(f"加载页面: {page_path}")
+        else:
+            print(f"页面不存在: {page_path}")
+            return False
+        return True
+    
+    def test_set_value(self):
+        """测试设置值功能"""
+        print("\n=== 测试设置值功能 ===")
+        
+        def send_test_message():
+            test_content = "# 测试文档\n\n这是测试内容。"
+            js_code = f"""
+                if (window.handleBackendMessage) {{
+                    window.handleBackendMessage('setValue', {{content: '{test_content}'}}, 'test-1');
+                }}
+            """
+            self.view.page().runJavaScript(js_code)
+            print(f"发送测试内容: {test_content}")
+        
+        QTimer.singleShot(2000, send_test_message)
+    
+    def test_get_content(self):
+        """测试获取内容功能"""
+        print("\n=== 测试获取内容功能 ===")
+        
+        def send_get_content():
+            js_code = """
+                if (window.handleBackendMessage) {
+                    window.handleBackendMessage('getContent', {}, 'test-2');
+                }
+            """
+            self.view.page().runJavaScript(js_code)
+            print("请求获取内容")
+        
+        QTimer.singleShot(3000, send_get_content)
+    
+    def test_set_item_id(self):
+        """测试设置item ID功能"""
+        print("\n=== 测试设置item ID功能 ===")
+        
+        def send_item_id():
+            js_code = """
+                if (window.handleBackendMessage) {
+                    window.handleBackendMessage('setCurrentItemId', {item_id: 'test-item-123'}, 'test-3');
+                }
+            """
+            self.view.page().runJavaScript(js_code)
+            print("设置item ID: test-item-123")
+        
+        QTimer.singleShot(4000, send_item_id)
+    
+    def run_tests(self):
+        """运行所有测试"""
+        print("开始测试直接QWebChannel通信 - Markdown编辑器")
+        
+        self.setup_webchannel()
+        
+        if not self.load_markdown_page():
+            return False
+        
+        self.view.show()
+        self.view.setWindowTitle("Markdown WebChannel测试")
+        self.view.resize(800, 600)
+        
+        # 设置测试序列
+        self.test_set_value()
+        self.test_get_content()
+        self.test_set_item_id()
+        
+        # 5秒后关闭
+        QTimer.singleShot(6000, self.app.quit)
+        
+        return self.app.exec()
+
+def main():
+    """主函数"""
+    print("=" * 50)
+    print("直接QWebChannel通信测试 - Markdown编辑器")
+    print("=" * 50)
+    
+    test = MarkdownWebChannelTest()
+    success = test.run_tests()
+    
+    print(f"\n测试完成: {'成功' if success else '失败'}")
+    return success
+
+if __name__ == "__main__":
+    success = main()
+    sys.exit(0 if success else 1)

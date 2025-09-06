@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarkRender Markdown Editor</title>
+    <script src="qrc:/qtwebchannel/qwebchannel.js"></script>
+    <link rel="stylesheet" type="text/css" href="./dist/cherry-markdown.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            height: 100vh;
+            background: #ffffff;
+            overflow: hidden;
+        }
+        
+        #editor {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            font-size: 18px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading" class="loading">正在加载编辑器...</div>
+    <div id="editor" style="display: none;"></div>
+
+    <script src="./dist/cherry-markdown.min.js"></script>
+    <script>
+        'use strict';
+        
+        // 编辑器状态
+        const editorState = {
+            editor: null,
+            currentItemId: null,
+            backend: null
+        };
+
+        // 直接WebChannel初始化
+        function initWebChannel() {
+            console.log('开始WebChannel初始化...');
+            
+            if (typeof QWebChannel === 'undefined') {
+                console.error('❌ QWebChannel未定义');
+                return false;
+            }
+            
+            if (!window.qt || !window.qt.webChannelTransport) {
+                console.error('❌ webChannelTransport不可用');
+                console.log('qt对象:', window.qt);
+                return false;
+            }
+            
+            try {
+                new QWebChannel(window.qt.webChannelTransport, function(channel) {
+                    editorState.backend = channel.objects.backendInterface;
+                    
+                    if (editorState.backend) {
+                        console.log('✅ WebChannel已建立');
+                        
+                        // 注册全局消息处理
+                        window.handleBackendMessage = function(action, data, requestId) {
+                            console.log('收到后端消息:', action, data);
+                            
+                            switch(action) {
+                                case 'setValue':
+                                    if (editorState.editor) {
+                                        editorState.editor.setValue(data.content || '');
+                                        if (requestId && editorState.backend.handle_web_response) {
+                                            editorState.backend.handle_web_response(JSON.stringify({
+                                                requestId: requestId,
+                                                result: { success: true }
+                                            }));
+                                        }
+                                    }
+                                    break;
+                                    
+                                case 'getContent':
+                                    if (editorState.editor) {
+                                        const content = editorState.editor.getValue() || '';
+                                        if (requestId && editorState.backend.handle_web_response) {
+                                            editorState.backend.handle_web_response(JSON.stringify({
+                                                requestId: requestId,
+                                                result: { content: content }
+                                            }));
+                                        }
+                                    }
+                                    break;
+                                    
+                                case 'setCurrentItemId':
+                                    editorState.currentItemId = data.item_id;
+                                    if (requestId && editorState.backend.handle_web_response) {
+                                        editorState.backend.handle_web_response(JSON.stringify({
+                                            requestId: requestId,
+                                            result: { success: true }
+                                        }));
+                                    }
+                                    break;
+                                    
+                                case 'setupContentChangeListener':
+                                    if (editorState.editor) {
+                                        editorState.editor.on('change', function() {
+                                            if (editorState.currentItemId && editorState.backend) {
+                                                editorState.backend.handle_web_response(JSON.stringify({
+                                                    action: 'contentChanged',
+                                                    data: {
+                                                        content: editorState.editor.getValue(),
+                                                        docId: editorState.currentItemId
+                                                    }
+                                                }));
+                                            }
+                                        });
+                                    }
+                                    if (requestId && editorState.backend.handle_web_response) {
+                                        editorState.backend.handle_web_response(JSON.stringify({
+                                            requestId: requestId,
+                                            result: { success: true }
+                                        }));
+                                    }
+                                    break;
+                            }
+                        };
+                        
+                        // 通知后端前端已就绪
+                        if (editorState.backend.frontend_ready) {
+                            editorState.backend.frontend_ready();
+                        }
+                        
+                        // 隐藏加载，显示编辑器
+                        document.getElementById('loading').style.display = 'none';
+                        document.getElementById('editor').style.display = 'block';
+                        
+                        // 初始化Cherry编辑器
+                        initCherryEditor();
+                        
+                    } else {
+                        console.error('❌ 后端接口未找到');
+                    }
+                });
+                
+                return true;
+                
+            } catch (error) {
+                console.error('❌ WebChannel初始化失败:', error);
+                return false;
+            }
+        }
+
+        // 初始化Cherry编辑器
+        function initCherryEditor() {
+            if (typeof Cherry === 'undefined') {
+                console.error('❌ Cherry Markdown未加载');
+                // 回退到简单文本区域
+                createSimpleEditor();
+                return;
+            }
+            
+            try {
+                editorState.editor = new Cherry({
+                    id: 'editor',
+                    value: '# 欢迎使用MarkRender\n\n您的Markdown编辑器已准备就绪！',
+                    toolbars: {
+                        theme: 'light',
+                        toolbar: [
+                            'bold', 'italic', 'strikethrough', '|',
+                            'color', 'header', '|',
+                            'quote', 'list', '|',
+                            { insert: ['image', 'link', 'code', 'table'] }
+                        ],
+                        toolbarRight: ['undo', 'redo'],
+                        bubble: ['bold', 'italic', 'link'],
+                        float: []
+                    },
+                    defaultModel: 'editOnly',
+                    fileUpload: (file, callback) => {
+                        callback('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==');
+                    }
+                });
+                
+                console.log('✅ Cherry编辑器初始化成功');
+                
+            } catch (error) {
+                console.error('❌ Cherry编辑器初始化失败:', error);
+                createSimpleEditor();
+            }
+        }
+
+        // 创建简单编辑器作为后备
+        function createSimpleEditor() {
+            const editorDiv = document.getElementById('editor');
+            editorDiv.innerHTML = `
+                <div style="padding: 20px; height: 100%;">
+                    <textarea id="simple-editor" style="width: 100%; height: calc(100vh - 40px); 
+                              font-family: Monaco, Consolas, monospace; font-size: 14px; 
+                              border: 1px solid #ddd; padding: 10px; resize: none;"
+                              placeholder="开始编写您的Markdown内容..."># 欢迎使用MarkRender
+
+这是一个简单但功能完整的Markdown编辑器。
+
+## 功能特性
+
+- 支持基本Markdown语法
+- 实时内容同步
+- 简洁易用的界面
+
+开始编写您的内容吧！</textarea>
+                </div>
+            `;
+            
+            editorState.editor = {
+                setValue: function(content) {
+                    document.getElementById('simple-editor').value = content;
+                },
+                getValue: function() {
+                    return document.getElementById('simple-editor').value;
+                },
+                on: function(event, callback) {
+                    if (event === 'change') {
+                        document.getElementById('simple-editor').addEventListener('input', callback);
+                    }
+                }
+            };
+            
+            console.log('✅ 简单编辑器初始化成功');
+        }
+
+        // 启动应用
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(initWebChannel, 500); // 给Qt时间设置webChannelTransport
+        });
+    </script>
+</body>
+</html>

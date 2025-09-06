@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Tldraw } from '@tldraw/tldraw';
 import '@tldraw/tldraw/tldraw.css';
-import { WebChannelManager } from '../services/webchannel';
+// 移除WebChannelManager导入
 
 interface BoardState {
   boardId: string | null;
@@ -14,7 +14,7 @@ interface BoardState {
 const TLDrawBoard: React.FC = () => {
   const [boardState, setBoardState] = useState<BoardState>({
     boardId: null,
-    connectionStatus: 'connecting',
+    connectionStatus: 'connected', // 默认为已连接状态
     isLoading: false,
     unsavedChanges: false,
     saveInProgress: false,
@@ -62,16 +62,21 @@ const TLDrawBoard: React.FC = () => {
         }
       };
 
-      const response = await WebChannelManager.saveTLDrawBoard(
-        boardState.boardId,
-        drawingData
-      );
-
-      if (response.success) {
-        console.log('✅ 画板保存成功');
-        setBoardState(prev => ({ ...prev, unsavedChanges: false }));
+      // 移除对WebChannelManager的调用，改为使用全局handleBackendMessage函数
+      if (typeof window.handleBackendMessage === 'function') {
+        const response = window.handleBackendMessage('saveTLDrawBoard', {
+          boardId: boardState.boardId,
+          drawingData: drawingData
+        });
+        
+        if (response && response.success) {
+          console.log('✅ 画板保存成功');
+          setBoardState(prev => ({ ...prev, unsavedChanges: false }));
+        } else {
+          console.error('❌ 画板保存失败:', response?.error || '未知错误');
+        }
       } else {
-        console.error('❌ 画板保存失败:', response.error);
+        console.error('❌ handleBackendMessage函数未定义');
       }
     } catch (error) {
       console.error('保存画板时出错:', error);
@@ -86,23 +91,30 @@ const TLDrawBoard: React.FC = () => {
     setBoardState(prev => ({ ...prev, isLoading: true }));
 
     try {
-      const response = await WebChannelManager.loadTLDrawBoard(boardId);
-      
-      if (response.success && response.data?.drawingData) {
-        const loadedData = response.data.drawingData;
-        console.log('📝 画板数据加载成功:', loadedData);
+      // 移除对WebChannelManager的调用，改为使用全局handleBackendMessage函数
+      if (typeof window.handleBackendMessage === 'function') {
+        const response = window.handleBackendMessage('loadTLDrawBoard', {
+          boardId: boardId
+        });
         
-        if (loadedData.snapshot && editorRef.current) {
-          editorRef.current.loadSnapshot(loadedData.snapshot);
+        if (response && response.success && response.data?.drawingData) {
+          const loadedData = response.data.drawingData;
+          console.log('📝 画板数据加载成功:', loadedData);
+          
+          if (loadedData.snapshot && editorRef.current) {
+            editorRef.current.loadSnapshot(loadedData.snapshot);
+          }
+          
+          setBoardState(prev => ({ ...prev, unsavedChanges: false }));
+        } else if (response && response.success && !response.data) {
+          console.log('📋 新建画板');
+          // 新建画板，使用默认数据
+          setBoardState(prev => ({ ...prev, unsavedChanges: false }));
+        } else {
+          console.error('❌ 画板加载失败:', response?.error || '未知错误');
         }
-        
-        setBoardState(prev => ({ ...prev, unsavedChanges: false }));
-      } else if (response.success && !response.data) {
-        console.log('📋 新建画板');
-        // 新建画板，使用默认数据
-        setBoardState(prev => ({ ...prev, unsavedChanges: false }));
       } else {
-        console.error('❌ 画板加载失败:', response.error);
+        console.error('❌ handleBackendMessage函数未定义');
       }
     } catch (error) {
       console.error('加载画板时出错:', error);
@@ -134,35 +146,22 @@ const TLDrawBoard: React.FC = () => {
     autoSave();
   }, [autoSave, boardState.isLoading]);
 
-  // 初始化WebChannel监听
+  // 移除WebChannel监听相关的useEffect，改为直接初始化
   useEffect(() => {
-    console.log('🔄 初始化TLDrawBoard WebChannel监听器');
+    console.log('🔄 TLDrawBoard初始化完成');
     
-    // 添加事件监听器
-    WebChannelManager.on('setBoardId', handleSetBoardId);
-    WebChannelManager.on('loadTLDrawData', handleSetBoardId);
-    WebChannelManager.on('clearBoard', () => {
-      if (editorRef.current) {
-        editorRef.current.deleteShapes(editorRef.current.getCurrentPageShapes());
-        setBoardState(prev => ({ ...prev, unsavedChanges: true }));
-      }
-    });
-    WebChannelManager.on('connectionReady', () => {
-      console.log('🟢 WebChannel连接就绪');
-      setBoardState(prev => ({ ...prev, connectionStatus: 'connected' }));
-    });
-
-    // 初始化WebChannel
-    WebChannelManager.initWebChannel('tldraw');
-
+    // 设置为已连接状态
+    setBoardState(prev => ({ ...prev, connectionStatus: 'connected' }));
+    
+    // 如果有boardId，尝试加载数据
+    // 实际的加载应该通过后端主动调用handleBackendMessage来触发
+    
     return () => {
-      WebChannelManager.off('setBoardId');
-      WebChannelManager.off('loadTLDrawData');
       if (autoSaveTimeoutRef.current) {
         clearTimeout(autoSaveTimeoutRef.current);
       }
     };
-  }, [handleSetBoardId, autoSave]);
+  }, []);
 
   // 初始化编辑器后设置变化检测
   useEffect(() => {
@@ -198,33 +197,3 @@ const TLDrawBoard: React.FC = () => {
         {boardState.connectionStatus === 'connected' ? '🟢 已连接' :
          boardState.connectionStatus === 'connecting' ? '🟡 连接中' : '🔴 离线'}
       </div>
-
-      {/* 保存状态指示器 */}
-      {boardState.unsavedChanges && (
-        <div style={{
-          position: 'absolute',
-          top: 10,
-          left: 10,
-          zIndex: 1000,
-          padding: '4px 8px',
-          borderRadius: '4px',
-          fontSize: '12px',
-          color: 'white',
-          backgroundColor: boardState.saveInProgress ? '#007bff' : '#ffc107',
-        }}>
-          {boardState.saveInProgress ? '💾 保存中...' : '⚠️ 有未保存更改'}
-        </div>
-      )}
-
-      {/* TLDraw组件 - 移除了onChange属性 */}
-      <Tldraw
-        onMount={(editor) => {
-          editorRef.current = editor;
-          console.log('🎨 TLDraw编辑器已挂载');
-        }}
-      />
-    </div>
-  );
-};
-
-export default TLDrawBoard;

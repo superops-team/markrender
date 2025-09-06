@@ -249,6 +249,32 @@ class ExcalidrawTestWindow(QMainWindow):
                 self.log_message(f"解析页面内容结果时出错: {e}")
                 
         self.web_view.page().runJavaScript(js_code, handle_result)
+        
+        # 检查关键对象是否存在
+        diagnostics = self.web_view.page().runJavaScript("""
+        (function() {
+            return {
+                // 移除对WebChannelManager的检查
+                has_qt: typeof window.qt !== 'undefined',
+                has_webchannel_transport: window.qt && typeof window.qt.webChannelTransport !== 'undefined',
+                has_handle_backend_message: typeof window.handleBackendMessage === 'function',
+                has_update_scene: typeof window.updateScene === 'function',
+                has_get_scene_elements: typeof window.getSceneElements === 'function'
+            };
+        })();
+        """)
+        diagnostics.connect(self.log_diagnostics)
+        
+    def log_diagnostics(self, result):
+        """记录诊断信息"""
+        try:
+            if result:
+                data = json.loads(result)
+                self.log_message(f"诊断信息: {json.dumps(data, indent=2, ensure_ascii=False)}")
+            else:
+                self.log_message("无法获取诊断信息")
+        except Exception as e:
+            self.log_message(f"解析诊断信息时出错: {e}")
 
 
 def main():

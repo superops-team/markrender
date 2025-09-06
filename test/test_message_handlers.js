@@ -2,46 +2,43 @@
  * 测试消息处理器注册
  */
  
-// 模拟WebChannelManager对象
-const testWebChannelManager = {
-    messageHandlers: new Map(),
+// 移除模拟WebChannelManager对象，改为直接使用全局handleBackendMessage函数
+
+// 预注册常用消息处理器到全局handleBackendMessage函数
+window.handleBackendMessage = function(action, data, requestId) {
+    console.log(`收到Python消息: ${action}`, data, requestId);
     
-    registerMessageHandler(action, handler) {
-        this.messageHandlers.set(action, handler);
-        console.log(`注册消息处理器: ${action}`);
-    },
-    
-    handleBackendMessage(action, data, requestId) {
-        console.log(`收到Python消息: ${action}`, data, requestId);
-        
-        if (this.messageHandlers.has(action)) {
-            try {
-                this.messageHandlers.get(action)(data, requestId);
-                console.log(`成功处理消息: ${action}`);
-            } catch (error) {
-                console.error(`处理消息 ${action} 时出错:`, error);
-            }
-        } else {
+    // 处理各种消息类型
+    switch(action) {
+        case 'textChanged':
+            console.log(`处理消息: textChanged`, data, requestId);
+            return { success: true };
+            
+        case 'setCurrentItemId':
+            console.log(`处理消息: setCurrentItemId`, data, requestId);
+            return { success: true };
+            
+        case 'setValue':
+            console.log(`处理消息: setValue`, data, requestId);
+            return { success: true };
+            
+        case 'getContent':
+            console.log(`处理消息: getContent`, data, requestId);
+            return { content: '# 测试内容' };
+            
+        case 'registerEditorEvents':
+            console.log(`处理消息: registerEditorEvents`, data, requestId);
+            return { success: true };
+            
+        case 'setupContentChangeListener':
+            console.log(`处理消息: setupContentChangeListener`, data, requestId);
+            return { success: true };
+            
+        default:
             console.warn(`未注册的消息类型: ${action}`);
-        }
+            return { error: `未注册的消息类型: ${action}` };
     }
 };
-
-// 预注册常用消息处理器
-const commonHandlers = [
-    'textChanged',
-    'setCurrentItemId', 
-    'setValue',
-    'getContent',
-    'registerEditorEvents',
-    'setupContentChangeListener'
-];
-
-commonHandlers.forEach(handler => {
-    testWebChannelManager.registerMessageHandler(handler, (data, requestId) => {
-        console.log(`处理消息: ${handler}`, data, requestId);
-    });
-});
 
 // 测试消息处理
 console.log("开始测试消息处理器...");
@@ -55,7 +52,8 @@ const testMessages = [
 ];
 
 testMessages.forEach(msg => {
-    testWebChannelManager.handleBackendMessage(msg.action, msg.data, 'test_request_id');
+    const result = window.handleBackendMessage(msg.action, msg.data, 'test_request_id');
+    console.log(`消息 ${msg.action} 处理结果:`, result);
 });
 
 console.log("测试完成");

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Markdown Editor</title>
+    <script src="./dist/marked.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            height: 100vh;
+            background: #ffffff;
+            overflow: hidden;
+        }
+        
+        #editor {
+            width: 100%;
+            height: 100%;
+            padding: 20px;
+        }
+        
+        #markdown-editor {
+            width: 100%;
+            height: calc(100vh - 40px);
+            border: none;
+            outline: none;
+            font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            padding: 20px;
+            resize: none;
+            background: #ffffff;
+            color: #333333;
+        }
+        
+        .toolbar {
+            padding: 10px 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .toolbar button {
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .toolbar button:hover {
+            background: #f0f0f0;
+        }
+    </style>
+</head>
+<body>
+    <div id="editor">
+        <div class="toolbar">
+            <button onclick="insertMarkdown('# ')">H1</button>
+            <button onclick="insertMarkdown('## ')">H2</button>
+            <button onclick="insertMarkdown('**粗体**')">粗体</button>
+            <button onclick="insertMarkdown('*斜体*')">斜体</button>
+            <button onclick="insertMarkdown('- 列表项')">列表</button>
+            <button onclick="insertMarkdown('[链接](url)')">链接</button>
+            <button onclick="insertMarkdown('```\n代码块\n```')">代码块</button>
+        </div>
+        <textarea id="markdown-editor" placeholder="开始编写您的Markdown内容..."></textarea>
+    </div>
+
+    <script>
+        'use strict';
+        
+        // 编辑器状态
+        const editorState = {
+            editor: null,
+            currentItemId: null
+        };
+
+        // 初始化简单编辑器
+        function initSimpleEditor() {
+            editorState.editor = document.getElementById('markdown-editor');
+            if (editorState.editor) {
+                console.log('简单Markdown编辑器初始化成功');
+            } else {
+                console.error('找不到编辑器元素');
+            }
+        }
+
+        // 插入Markdown语法
+        function insertMarkdown(markdown) {
+            if (!editorState.editor) return;
+            
+            const textarea = editorState.editor;
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const text = textarea.value;
+            
+            const newText = text.substring(0, start) + markdown + text.substring(end);
+            textarea.value = newText;
+            textarea.focus();
+            textarea.setSelectionRange(start + markdown.length, start + markdown.length);
+            
+            // 触发内容变化事件
+            triggerContentChange();
+        }
+
+        // 触发内容变化
+        function triggerContentChange() {
+            if (editorState.editor && editorState.currentItemId) {
+                const content = editorState.editor.value;
+                console.log('内容已变化:', content);
+            }
+        }
+
+        // 注册消息处理器
+        function registerSimpleHandlers() {
+            window.handleBackendMessage = function(action, data, requestId) {
+                if (action === 'setValue') {
+                    if (editorState.editor) {
+                        editorState.editor.value = data.content || '';
+                        return { success: true };
+                    } else {
+                        return { error: '编辑器未初始化' };
+                    }
+                } else if (action === 'getContent') {
+                    if (editorState.editor) {
+                        return { content: editorState.editor.value || '' };
+                    } else {
+                        return { content: '', error: '编辑器未初始化' };
+                    }
+                } else if (action === 'setCurrentItemId') {
+                    editorState.currentItemId = data.item_id;
+                    return { success: true };
+                } else if (action === 'setupContentChangeListener') {
+                    if (editorState.editor) {
+                        editorState.editor.addEventListener('input', triggerContentChange);
+                        editorState.editor.addEventListener('change', triggerContentChange);
+                    }
+                    return { success: true };
+                }
+            };
+
+            console.log('简单编辑器消息处理器注册完成');
+        }
+
+        // 初始化应用
+        function initApp() {
+            console.log('初始化简单Markdown编辑器...');
+            
+            initSimpleEditor();
+            registerSimpleHandlers();
+            
+            // 设置默认内容
+            if (editorState.editor) {
+                editorState.editor.value = '# 欢迎使用MarkRender\\n\\n这是一个简单但功能完整的Markdown编辑器。\\n\\n## 功能特性\\n\\n- 支持基本Markdown语法\\n- 实时内容同步\\n- 工具栏快捷操作\\n- 简洁易用的界面\\n\\n开始编写您的内容吧！';
+            }
+            
+            console.log('简单Markdown编辑器初始化完成');
+        }
+
+        // 启动应用
+        window.addEventListener('load', function() {
+            console.log('跳过WebChannelManager检查，直接初始化应用');
+            initApp();
+        });
+    </script>
+</body>
+</html>

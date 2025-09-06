@@ -5,15 +5,15 @@
 
 class RequestModel:
     """纯Python实现的RequestModel类"""
-    def __init__(self, action: str, data: dict = None, request_id: str = None):
+    def __init__(self, action: str, data: dict = None, item_id: str = None):
         self.action = action
         self.data = data or {}
-        self.request_id = request_id
+        self.item_id = item_id
         
     @classmethod
     def from_dict(cls, data: dict):
         return cls(
             action=data.get('action'),
             data=data.get('data'),
-            request_id=data.get('requestId')
+            item_id=data.get('itemId')
         )

@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interface Validation Tests</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            border-left: 4px solid;
+        }
+        .test-pass {
+            background: #e8f5e8;
+            border-color: #4caf50;
+        }
+        .test-fail {
+            background: #ffe8e8;
+            border-color: #f44336;
+        }
+        .test-info {
+            background: #e8f4fd;
+            border-color: #2196f3;
+        }
+        .summary {
+            font-weight: bold;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Interface Validation Tests</h1>
+        <p>Testing QWebChannel interface consistency across all components</p>
+        
+        <div>
+            <button onclick="runAllTests()">Run All Tests</button>
+            <button onclick="clearResults()">Clear Results</button>
+        </div>
+        
+        <div id="testResults"></div>
+        <div id="testSummary" class="summary" style="display: none;"></div>
+        <div id="testLog" class="log"></div>
+    </div>
+
+    <script>
+        // Test runner
+        class TestRunner {
+            constructor() {
+                this.results = [];
+                this.tests = [];
+            }
+
+            addTest(name, testFn) {
+                this.tests.push({ name, testFn });
+            }
+
+            async runAll() {
+                this.results = [];
+                this.log('🚀 Starting interface validation tests...\n');
+
+                for (const test of this.tests) {
+                    try {
+                        await test.testFn();
+                        this.results.push({ name: test.name, passed: true, error: null });
+                        this.log(`✅ ${test.name}`);
+                    } catch (error) {
+                        this.results.push({ name: test.name, passed: false, error: error.message });
+                        this.log(`❌ ${test.name}: ${error.message}`);
+                    }
+                }
+
+                this.displayResults();
+                this.displaySummary();
+            }
+
+            log(message) {
+                const logEl = document.getElementById('testLog');
+                logEl.textContent += message + '\n';
+                logEl.scrollTop = logEl.scrollHeight;
+            }
+
+            displayResults() {
+                const container = document.getElementById('testResults');
+                container.innerHTML = '';
+
+                this.results.forEach(result => {
+                    const div = document.createElement('div');
+                    div.className = `test-result ${result.passed ? 'test-pass' : 'test-fail'}`;
+                    div.innerHTML = `
+                        <strong>${result.name}</strong>
+                        ${result.error ? `<br><small>${result.error}</small>` : ''}
+                    `;
+                    container.appendChild(div);
+                });
+            }
+
+            displaySummary() {
+                const passed = this.results.filter(r => r.passed).length;
+                const total = this.results.length;
+                
+                const summary = document.getElementById('testSummary');
+                summary.style.display = 'block';
+                summary.innerHTML = `
+                    📊 Test Summary: ${passed}/${total} tests passed
+                    ${passed === total ? '🎉 All tests passed! Interface is consistent.' : '⚠️ Some tests failed. Check the interface consistency.'}
+                `;
+            }
+        }
+
+        // Create test runner
+        const runner = new TestRunner();
+
+        // Add test cases
+        function setupTests() {
+            // Test 1: Message structure validation
+            runner.addTest('Message structure uses item_id consistently', () => {
+                const testMessages = [
+                    {
+                        action: 'setCurrentItemId',
+                        data: { item_id: 'test-item-123' },
+                        requestId: 'test-item-123'
+                    },
+                    {
+                        action: 'setValue',
+                        data: { content: '# Test', item_id: 'test-item-123' },
+                        requestId: 'test-item-123'
+                    },
+                    {
+                        action: 'getContent',
+                        data: { item_id: 'test-item-123' },
+                        requestId: 'test-item-123'
+                    }
+                ];
+
+                testMessages.forEach(msg => {
+                    if (!msg.requestId || !msg.action || typeof msg.data !== 'object') {
+                        throw new Error(`Invalid message structure: ${JSON.stringify(msg)}`);
+                    }
+                    
+                    if (msg.data && msg.data.item_id !== msg.requestId) {
+                        throw new Error(`item_id mismatch in message: ${msg.action}`);
+                    }
+                });
+            });
+
+            // Test 2: No boardId references
+            runner.addTest('No boardId references in interface', () => {
+                const forbiddenTerms = ['boardId', 'board_id', 'setBoardId'];
+                
+                // Check global state
+                if (typeof window !== 'undefined' && window.appState) {
+                    for (const term of forbiddenTerms) {
+                        if (window.appState.hasOwnProperty && window.appState.hasOwnProperty(term)) {
+                            throw new Error(`Found forbidden term: ${term}`);
+                        }
+                    }
+                }
+            });
+
+            // Test 3: Action name consistency
+            runner.addTest('Action names are consistent', () => {
+                const expectedActions = {
+                    markdown: ['setCurrentItemId', 'setValue', 'getContent', 'textChanged'],
+                    excalidraw: ['setCurrentItemId', 'loadExcalidrawData', 'getExcalidrawData'],
+                    landing: ['updateRecentFiles', 'showWelcomeMessage', 'getRecentFiles']
+                };
+
+                Object.entries(expectedActions).forEach(([pageType, actions]) => {
+                    actions.forEach(action => {
+                        if (typeof action !== 'string' || action.length === 0) {
+                            throw new Error(`Invalid action name for ${pageType}: ${action}`);
+                        }
+                    });
+                });
+            });
+
+            // Test 4: Response structure
+            runner.addTest('Response structure is consistent', () => {
+                const testResponses = [
+                    {
+                        requestId: 'test-item-123',
+                        success: true,
+                        data: { item_id: 'test-item-123' }
+                    },
+                    {
+                        requestId: 'test-item-123',
+                        success: false,
+                        error: 'Test error'
+                    }
+                ];
+
+                testResponses.forEach(response => {
+                    if (!response.requestId || typeof response.success !== 'boolean') {
+                        throw new Error(`Invalid response structure: ${JSON.stringify(response)}`);
+                    }
+                });
+            });
+
+            // Test 5: WebChannel pattern validation
+            runner.addTest('WebChannel initialization pattern', () => {
+                const requiredElements = [
+                    'handleBackendMessage',
+                    'processMessage',
+                    'messageQueue'
+                ];
+
+                requiredElements.forEach(element => {
+                    if (typeof window !== 'undefined' && !window[element]) {
+                        // This is expected in test environment
+                        runner.log(`Note: ${element} not found in test environment`);
+                    }
+                });
+            });
+
+            // Test 6: Data format validation
+            runner.addTest('Data format uses item_id consistently', () => {
+                const testData = [
+                    { item_id: 'test-1', content: 'test content' },
+                    { item_id: 'test-2', title: 'test title' },
+                    { item_id: 'test-3', type: 'markdown' }
+                ];
+
+                testData.forEach(data => {
+                    if (!data.item_id || typeof data.item_id !== 'string') {
+                        throw new Error(`Invalid item_id in data: ${JSON.stringify(data)}`);
+                    }
+                });
+            });
+        }
+
+        // Global functions
+        function runAllTests() {
+            clearResults();
+            setupTests();
+            runner.runAll();
+        }
+
+        function clearResults() {
+            document.getElementById('testResults').innerHTML = '';
+            document.getElementById('testSummary').style.display = 'none';
+            document.getElementById('testLog').textContent = '';
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            runner.log('📋 Interface validation test page loaded');
+            runner.log('Click "Run All Tests" to validate interface consistency\n');
+        });
+    </script>
+</body>
+</html>

@@ -1,242 +1,222 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="zh-CN">
 <head>
-    <meta charset="utf-8">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarkRender Markdown Editor</title>
+
     <link rel="stylesheet" type="text/css" href="./dist/cherry-markdown.min.css">
-    <script src="qrc:/qtwebchannel/qwebchannel.js"></script>
-    <script src="./webchannel-core.js"></script>
-    <script src="./dist/cherry-markdown.min.js"></script>
-    <script src="./dist/echarts.min.js"></script>
-    <script src="./dist/text-svg.js"></script>
-     <style>
-        body {
+    <style>
+        * {
             margin: 0;
-            height: 100vh;
             padding: 0;
             box-sizing: border-box;
-            border: 5;
-            overflow: hidden;
-            background-color: transparent;
         }
-
-        #editor {
-            width: calc(100% - 20px);
-            height: auto;
-            margin: 0;
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            height: 100vh;
+            background: #ffffff;
             overflow: hidden;
+        }
+        
+        #editor {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            font-size: 18px;
+            color: #666;
         }
     </style>
 </head>
-
 <body>
-    <div id="editor"></div>
+    <div id="loading" class="loading">正在加载编辑器...</div>
+    <div id="editor" style="display: none;"></div>
+    <script src="./dist/echarts.min.js"></script>
+    <script src="./dist/cherry-markdown.min.js"></script>
+
     <script>
         'use strict';
         
-        // 页面特定状态管理
-        const editorState = {
+        // 增强的全局错误处理
+        window.addEventListener('error', function(event) {
+            // 更详细地记录错误信息
+            const errorInfo = {
+                message: event.message,
+                filename: event.filename,
+                lineno: event.lineno,
+                colno: event.colno,
+                stack: event.error ? event.error.stack : '无堆栈信息'
+            };
+            
+            console.error('全局错误详情:', JSON.stringify(errorInfo, null, 2));
+            
+            // 防止错误冒泡
+            event.preventDefault();
+            return true;
+        });
+        
+        // 处理未捕获的Promise拒绝
+        window.addEventListener('unhandledrejection', function(event) {
+            console.error('未捕获的Promise拒绝:', {
+                reason: event.reason,
+                promise: event.promise
+            });
+            
+            // 防止错误冒泡
+            event.preventDefault();
+            return true;
+        });
+        
+        // 编辑器状态
+        window.editorState = {
             editor: null,
             currentItemId: null
         };
-
-        // 注册Markdown编辑器特定的消息处理器
-        function registerMarkdownHandlers() {
-            const WCM = window.WebChannelManager;
-            
-            WCM.registerMessageHandler('setValue', (data, requestId) => {
-                if (editorState.editor) {
-                    editorState.editor.setValue(data.content);
-                    WCM.logger.info('编辑器内容已更新');
-                } else {
-                    WCM.logger.error('编辑器未初始化，无法设置内容');
+        
+        // 处理消息的核心函数
+        function processMessage(action, data, requestId) {
+            try {
+                switch(action) {
+                    case 'setValue':
+                        if (window.editorState.editor) {
+                            window.editorState.editor.setValue(data.content || '');
+                        }
+                        break;
+                        
+                    case 'getContent':
+                        if (window.editorState.editor) {
+                            const content = window.editorState.editor.getValue() || '';
+                            return content;
+                        }
+                        break;
+                        
+                    case 'setCurrentItemId':
+                        window.editorState.currentItemId = data.item_id;
+                        break;
+                        
+                    case 'textChanged':
+                        if (window.editorState.editor) {
+                            console.log('文本变化已处理');
+                        }
+                        break;
+                        
+                    case 'registerEditorEvents':
+                        // 注册编辑器事件
+                        if (window.editorState.editor) {
+                            // 注册内容变化事件
+                            if (typeof window.editorState.editor.on === 'function') {
+                                window.editorState.editor.on('change', function() {
+                                    console.log('编辑器内容已变化');
+                                });
+                            }
+                        }
+                        break;
+                        
+                    case 'setupContentChangeListener':
+                        // 设置内容变化监听器
+                        if (window.editorState.editor) {
+                            // 设置内容变化监听
+                            if (typeof window.editorState.editor.on === 'function') {
+                                window.editorState.editor.on('change', function() {
+                                    console.log('检测到内容变化');
+                                });
+                            }
+                        }
+                        break;
+                        
+                    default:
+                        console.warn('未知的action类型:', action);
+                        break;
                 }
-            });
-
-            WCM.registerMessageHandler('setCurrentItemId', (data, requestId) => {
-                editorState.currentItemId = data.item_id;
-                WCM.logger.info('当前文件ID已更新:', data.item_id);
-            });
-
-            WCM.registerMessageHandler('textChanged', (data, requestId) => {
-                if (editorState.editor) {
-                    editorState.editor.setValue(data.content);
-                    WCM.logger.info('编辑器内容已更新');
-                } else {
-                    WCM.logger.error('编辑器未初始化，无法设置内容');
-                }
-            });
-
-            WCM.registerMessageHandler('getContent', (data, requestId) => {
-                if (editorState.editor) {
-                    WCM.sendResponseToBackend(requestId, {
-                        content: editorState.editor.getValue()
-                    });
-                } else {
-                    WCM.sendResponseToBackend(requestId, {
-                        error: '编辑器未初始化，无法获取Markdown'
-                    });
-                }
-            });
-
-            WCM.registerMessageHandler('registerEditorEvents', (data, requestId) => {
-                WCM.logger.debug('注册编辑器事件请求');
-            });
-
-            WCM.registerMessageHandler('setupContentChangeListener', (data, requestId) => {
-                WCM.logger.debug('设置内容变化监听请求');
-            });
-        }
-
-        // 响应发送函数（使用WebChannel核心库）
-        function sendResponseToBackend(requestId, data) {
-            window.WebChannelManager.sendResponseToBackend(requestId, data);
-        }
-
-        // 初始化Cherry Markdown编辑器
-        function initEditor() {
-            editorState.editor = new Cherry({
-                id: 'editor',
-                value: '',
-                toolbars: {
-                    theme: 'light',
-                    toolbar: [
-                        'bold', 'italic', 'strikethrough', '|',
-                        'color', 'header', 'ruby', '|',
-                        'quote', 'list', 'panel', 'detail', 'justify', 'checklist', '|',
-                        { insert: ['image', 'audio', 'video', 'link', 'hr', 'br', 'code', 'formula', 'toc', 'table'] },
-                        'graph'
-                    ],
-                    toolbarRight: ['undo', 'redo', 'togglePreview', 'codeTheme'],
-                    bubble:  ['bold', 'italic', 'underline', 'strikethrough', 'sub', 'sup', 'quote', '|', 'size', 'color'],
-                    float: []
-                },
-                defaultModel: 'editOnly',
-                writingStyle: 'typewriter',
-                preview: { style: { height: 'auto', width: '100%' } },
-                header: { anchorStyle: 'none' }
-            });
-            
-            window.WebChannelManager.logger.info('Cherry Markdown编辑器初始化完成');
-        }
-
-
-        // 初始化WebChannel通信（使用核心库）
-        function initWebChannel() {
-            return window.WebChannelManager.init('markdown')
-                .then(() => {
-                    window.WebChannelManager.logger.info('Markdown编辑器WebChannel初始化成功');
-                    
-                    // 直接注册消息处理器，不再使用onReady
-                    registerMarkdownHandlers();
-                    
-                    // 设置编辑器内容变化监听
-                    setupContentChangeListener();
-                    
-                    // 设置自动保存功能
-                    setupAutoSave();
-                    
-                    window.WebChannelManager.logger.info('Markdown编辑器消息处理器注册完成');
-                })
-                .catch(error => {
-                    window.WebChannelManager.logger.error('Markdown编辑器WebChannel初始化失败:', error);
+            } catch (error) {
+                console.error('处理消息时出错:', {
+                    action: action,
+                    error: error.message,
+                    stack: error.stack
                 });
+            }
         }
-
-        // 设置编辑器内容变化监听
-        function setupContentChangeListener() {
-            if (!editorState.editor) {
-                window.WebChannelManager.logger.error('编辑器未初始化，无法设置内容监听');
+        
+        // 全局消息处理函数
+        window.handleBackendMessage = function(action, data, requestId) {
+            console.log('收到后端消息:', action, data);
+            try {
+                return processMessage(action, data, requestId);
+            } catch (error) {
+                console.error('处理后端消息时出错:', {
+                    action: action,
+                    data: data,
+                    error: error.message,
+                    stack: error.stack
+                });
+                return null;
+            }
+        };
+        
+        // 初始化Cherry编辑器
+        function initCherryEditor() {
+            if (typeof Cherry === 'undefined') {
+                console.error('❌ Cherry Markdown未加载');
                 return;
             }
             
-            // Cherry Markdown编辑器使用不同的事件API
-            // 监听编辑器内容变化 - 使用轮询方式监控内容变化
-            let lastContent = '';
-            setInterval(() => {
-                if (editorState.editor) {
-                    const currentContent = editorState.editor.getValue();
-                    if (currentContent !== lastContent && editorState.currentItemId) {
-                        lastContent = currentContent;
-                        
-                        // 发送内容变化通知给后端
-                        window.WebChannelManager.sendToBackend('contentChanged', {
-                            content: currentContent,
-                            docId: editorState.currentItemId
-                        }).catch(error => {
-                            window.WebChannelManager.logger.error('发送内容变化通知失败:', error);
-                        });
-                    }
-                }
-            }, 1000); // 每秒1秒检查一次
-            
-            window.WebChannelManager.logger.info('编辑器内容变化监听器已设置');
+            try {
+                window.editorState.editor = new Cherry({
+                    id: 'editor',
+                    value: '',
+                    toolbars: {
+                        theme: 'light',
+                        toolbar: [
+                            'bold', 'italic', 'strikethrough', '|',
+                            'color', 'header', '|',
+                            'quote', 'list', '|',
+                            { insert: ['image', 'link', 'code', 'table'] }
+                        ],
+                        toolbarRight: ['undo', 'redo'],
+                        bubble: ['bold', 'italic', 'link'],
+                        float: []
+                    },
+                    defaultModel: 'editOnly',
+                    writingStyle: 'typewriter'
+                });
+                
+                console.log('✅ Cherry编辑器初始化成功');
+                
+                // 设置内容变化监听
+                window.editorState.editor.on('change', function() {
+                    console.log('内容已变化');
+                });
+                
+                // 隐藏加载，显示编辑器
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('editor').style.display = 'block';
+                
+            } catch (error) {
+                console.error('❌ Cherry编辑器初始化失败:', {
+                    error: error.message,
+                    stack: error.stack
+                });
+            }
         }
-
-        // 设置自动保存功能
-        function setupAutoSave() {
-            setInterval(() => {
-                if (editorState.editor && editorState.currentItemId) {
-                    window.WebChannelManager.sendToBackend('autoSave', {
-                        content: editorState.editor.getValue(),
-                        docId: editorState.currentItemId
-                    }).catch(error => {
-                        window.WebChannelManager.logger.error('自动保存失败:', error);
-                    });
-                }
-            }, 10000);
-        }
-
-        // 处理Python发送的消息（由WebChannel核心库统一处理）
-
-        // 处理异步执行结果（使用WebChannel核心库）
-        function handleAsyncResponse(requestId, success, data) {
-            window.WebChannelManager.logger.debug('处理异步响应:', requestId, success, data);
-        }
-
-        // 标准化消息发送（使用WebChannel核心库）
-        function sendToBackend(action, data = {}, callback = null) {
-            // 确保包含文档ID
-            const requestData = { 
-                ...data, 
-                docId: editorState.currentItemId || 'default' 
-            };
-            
-            return window.WebChannelManager.sendToBackend(action, requestData, callback);
-        }
-
-        // 处理Python响应（由WebChannel核心库统一处理）
-        function handleBackendResponse(responseJson) {
-            // 这个函数保留用于向后兼容，实际处理由核心库完成
-            return window.WebChannelManager.handleBackendResponse?.(responseJson);
-        }
-
-        // 错误处理（使用WebChannel核心库统一处理）
-        // 核心库已经设置了全局错误处理，这里只需要页面特定的错误处理
-
-        // 初始化应用
-        function initApp() {
-            window.WebChannelManager.logger.info('Markdown编辑器页面开始初始化...');
-            
-            // 先初始化编辑器
-            initEditor();
-            
-            // 然后初始化WebChannel（这会自动注册消息处理器）
-            initWebChannel();
-            
-            window.WebChannelManager.logger.info('Markdown编辑器页面初始化完成');
-        }
-
-        // 启动应用
-        document.addEventListener('DOMContentLoaded', initApp);
         
-        // 确保WebChannel核心库可用时才初始化
-        if (window.WebChannelManager) {
-            window.WebChannelManager.onReady(function() {
-                window.WebChannelManager.logger.info('WebChannel核心库就绪，Markdown编辑器可以开始通信');
-            });
-        }
+        // 启动应用
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                initCherryEditor();
+            } catch (error) {
+                console.error('启动应用时出错:', {
+                    error: error.message,
+                    stack: error.stack
+                });
+            }
+        });
     </script>
 </body>
-
 </html>

@@ -170,6 +170,34 @@ class MainWindow(QMainWindow):
             
             logger.info(f"开始更新编辑器页面: {quickpick_item.get('title', 'Unknown')}")
             
+            # 在切换页面前，先保存当前编辑器内容
+            def after_save_callback(success):
+                if not success:
+                    logger.warning("保存当前内容失败，但仍继续页面切换")
+                
+                # 继续执行页面切换逻辑
+                self._continue_update_editor_and_previewer(quickpick_item)
+            
+            # 如果有当前项且有修改，则先保存
+            if (hasattr(self, 'current_item') and self.current_item and 
+                hasattr(self.editor, 'item_modified') and self.editor.item_modified):
+                logger.info("检测到编辑器内容有修改，先保存再切换页面")
+                self.editor.save_current_item(callback=after_save_callback)
+                return
+            else:
+                # 没有修改或没有当前项，直接切换
+                self._continue_update_editor_and_previewer(quickpick_item)
+            
+        except Exception as e:
+            logger.error(f"更新编辑区和预览区失败: {e}", exc_info=True)
+    
+    def _continue_update_editor_and_previewer(self, quickpick_item):
+        """继续执行更新编辑区和预览区内容的逻辑"""
+        try:
+            from app.editor.webengine import PageType
+            
+            logger.info(f"继续更新编辑器页面: {quickpick_item.get('title', 'Unknown')}")
+            
             self.current_item = quickpick_item
             
             # 获取页面类型，默认为markdown
@@ -234,10 +262,9 @@ class MainWindow(QMainWindow):
                 self.editor.backend_interface.set_page(markdown_view.page())
                 # 切换到Markdown页面
                 page_manager.switch_to_page(page_type)
-                # 获取内容
-                content = quickpick_item.get('content', '')
                 
-                # 如果content为空，从数据库获取
+                # 获取内容 - 对于不同的item，必须从对应的item获取内容
+                content = quickpick_item.get('content', '')
                 if not content and quickpick_item.get('id'):
                     try:
                         item_detail = self.markrender_manager.get_detail(quickpick_item.get('id', ''))
@@ -255,14 +282,13 @@ class MainWindow(QMainWindow):
                 
                 def set_content_delayed():
                     if content:
-                        success = self.editor.set_text_content(content)
-                        if not success:
-                            QMessageBox.warning(self, "内容设置失败", "无法设置Markdown内容，请稍后再试。")
+                        # 使用带重试机制的内容设置方法
+                        self.editor.set_text_content_with_retry(content)
                     else:
                         # 内容为空时重置页面
                         self.editor.reset()
                 
-                # 延迟100ms设置内容，确保WebChannel通信已建立
+                # 延迟100ms设置内容，确保页面通信已建立
                 QTimer.singleShot(100, set_content_delayed)
                 
                 # 确保Markdown编辑器可见
@@ -326,8 +352,10 @@ class MainWindow(QMainWindow):
                                 'title': quickpick_item.get('title', '')
                             })
                             
-                            # 如果有存储的画板数据，加载它
+                            # 获取内容 - 对于不同的item，必须从对应的item获取内容
                             content = quickpick_item.get('content', '')
+                            
+                            # 如果有存储的画板数据，加载它
                             if content:
                                 logger.debug(f"发送loadExcalidrawData消息，内容长度: {len(content)}")
                                 board_backend_interface.send_message('loadExcalidrawData', {
@@ -335,7 +363,11 @@ class MainWindow(QMainWindow):
                                     'drawingData': content
                                 })
                             else:
-                                logger.debug(f"Board项目无内容，跳过数据加载: {board_id}")
+                                logger.debug(f"Board项目无内容，重置页面: {board_id}")
+                                # 如果content为空，重置页面
+                                board_backend_interface.send_message('setValue', {
+                                    'content': '[]'
+                                })
                         else:
                             logger.error(f"无法获取页面 {page_type} 的后端接口")
                             
@@ -344,6 +376,11 @@ class MainWindow(QMainWindow):
                 
                 # 延迟300ms发送，确保前端页面准备就绪
                 QTimer.singleShot(300, send_board_id)
+                
+                # 更新编辑器状态
+                self.editor.set_item_id(quickpick_item.get('id', ''))
+                self.editor.set_page_type(page_type)
+                self.editor.item.set_text(quickpick_item.get('content', ''))
                 
             else:
                 logger.error(f"创建Board页面失败: {page_type}")

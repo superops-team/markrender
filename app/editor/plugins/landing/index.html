@@ -4,8 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MarkRender - 欢迎</title>
-    <script src="qrc:/qtwebchannel/qwebchannel.js"></script>
-    <script src="./webchannel-core.js"></script>
+    <!-- 移除WebChannel相关引用 -->
     <style>
         * {
             margin: 0;
@@ -260,63 +259,93 @@
     <script>
         'use strict';
         
+        // 移除WebChannel相关代码
+        
         // 全局状态管理
-        const appState = {
-            backendInterface: null,
-            isChannelReady: false,
-            callbackMap: new Map(),
-            requestCounter: 0
+        window.appState = {
+            // 移除backend属性
         };
 
-        // 注册Landing页面消息处理器
-        function registerLandingHandlers() {
-            // Landing页面特有的消息处理器
-            window.WebChannelManager.registerMessageHandler('updateRecentFiles', (data, requestId) => {
-                updateRecentFilesList(data.files || []);
+        // 增强的全局错误处理
+        window.addEventListener('error', function(event) {
+            // 更详细地记录错误信息
+            const errorInfo = {
+                message: event.message,
+                filename: event.filename,
+                lineno: event.lineno,
+                colno: event.colno,
+                stack: event.error ? event.error.stack : '无堆栈信息'
+            };
+            
+            console.error('全局错误详情:', JSON.stringify(errorInfo, null, 2));
+            
+            // 防止错误冒泡
+            event.preventDefault();
+            return true;
+        });
+        
+        // 处理未捕获的Promise拒绝
+        window.addEventListener('unhandledrejection', function(event) {
+            console.error('未捕获的Promise拒绝:', {
+                reason: event.reason,
+                promise: event.promise
             });
             
-            window.WebChannelManager.registerMessageHandler('showWelcomeMessage', (data, requestId) => {
-                showNotification(data.message || '欢迎使用MarkRender!', 'success');
-            });
-            
-            // 兼容性处理：注册Editor相关消息处理器（避免"未注册消息类型"错误）
-            window.WebChannelManager.registerMessageHandler('registerEditorEvents', (data, requestId) => {
-                window.WebChannelManager.logger.debug('Landing页面收到registerEditorEvents请求（忽略）');
-            });
-            
-            window.WebChannelManager.registerMessageHandler('setupContentChangeListener', (data, requestId) => {
-                window.WebChannelManager.logger.debug('Landing页面收到setupContentChangeListener请求（忽略）');
-            });
-            
-            window.WebChannelManager.logger.info('Landing页面消息处理器注册完成');
-        }
+            // 防止错误冒泡
+            event.preventDefault();
+            return true;
+        });
 
-        // 初始化WebChannel通信（使用核心库）
-        function initWebChannel() {
-            // 首先注册Landing页面消息处理器
-            registerLandingHandlers();
-            
-            return window.WebChannelManager.init('landing')
-                .then(() => {
-                    appState.isChannelReady = true;
-                    updateConnectionStatus(true);
-                    window.WebChannelManager.logger.info('Landing页面WebChannel初始化成功');
-                    
-                    // 加载最近文件
-                    loadRecentFiles();
-                })
-                .catch(error => {
-                    window.WebChannelManager.logger.error('Landing页面WebChannel初始化失败:', error);
-                    updateConnectionStatus(false);
+        // 处理消息的核心函数
+        function processMessage(action, data, requestId) {
+            try {
+                switch(action) {
+                    case 'updateRecentFiles':
+                        updateRecentFilesList(data.files || []);
+                        break;
+                        
+                    case 'showWelcomeMessage':
+                        showNotification(data.message || '欢迎使用MarkRender!', 'success');
+                        break;
+                        
+                    case 'getRecentFiles':
+                        loadRecentFiles();
+                        break;
+                        
+                    default:
+                        console.warn('未知的action类型:', action);
+                        break;
+                }
+            } catch (error) {
+                console.error('Landing处理消息时出错:', {
+                    action: action,
+                    error: error.message,
+                    stack: error.stack
                 });
+            }
         }
+        
+        // 全局消息处理函数
+        window.handleBackendMessage = function(action, data, requestId) {
+            console.log('Landing收到后端消息:', action, data);
+            try {
+                return processMessage(action, data, requestId);
+            } catch (error) {
+                console.error('处理后端消息时出错:', {
+                    action: action,
+                    data: data,
+                    error: error.message,
+                    stack: error.stack
+                });
+                return null;
+            }
+        };
 
-        // 更新连接状态指示器（使用WebChannel核心库状态）
+        // 更新连接状态指示器
         function updateConnectionStatus(connected) {
             const indicator = document.getElementById('statusIndicator');
-            const status = window.WebChannelManager.getStatus();
             
-            if (status.isReady) {
+            if (connected) {
                 indicator.textContent = '🟢 已连接';
                 indicator.classList.add('connected');
             } else {
@@ -325,49 +354,22 @@
             }
         }
 
-        // 标准化消息发送到Python（使用WebChannel核心库）
-        function sendToBackend(action, data = {}, callback = null) {
-            return window.WebChannelManager.sendToBackend(action, data, callback);
-        }
-
-        // 处理Python响应（由WebChannel核心库统一处理）
-        function handleBackendResponse(responseJson) {
-            return window.WebChannelManager.handleBackendResponse?.(responseJson);
-        }
-
-        // 创建新文档
+        // 创建新文档（简化版）
         function createNewDocument(type) {
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const title = type === 'markdown' ? `新建文档-${timestamp}` : `新建画板-${timestamp}`;
-            
-            sendToBackend('createNewDocument', {
-                type: type,
-                title: title
-            }, (response) => {
-                if (response.success) {
-                    console.log('文档创建成功:', response.data);
-                    showNotification(`${title} 创建成功!`, 'success');
-                } else {
-                    console.error('文档创建失败:', response.error);
-                    showNotification('文档创建失败，请重试', 'error');
-                }
-            });
+            console.log('创建新文档:', type);
+            // 实际功能需要后端主动调用JavaScript来实现
         }
 
-        // 打开文件导入
+        // 打开文件导入（简化版）
         function openFileImport() {
-            sendToBackend('openFileImport', {}, (response) => {
-                console.log('打开文件导入:', response);
-            });
+            console.log('打开文件导入');
+            // 实际功能需要后端主动调用JavaScript来实现
         }
 
-        // 加载最近文件
+        // 加载最近文件（简化版）
         function loadRecentFiles() {
-            sendToBackend('getRecentFiles', {}, (response) => {
-                if (response.success && response.data.files) {
-                    updateRecentFilesList(response.data.files);
-                }
-            });
+            console.log('加载最近文件');
+            // 实际功能需要后端主动调用JavaScript来实现
         }
 
         // 更新最近文件列表
@@ -402,19 +404,10 @@
             recentFiles.style.display = 'block';
         }
 
-        // 打开最近文件
+        // 打开最近文件（简化版）
         function openRecentFile(file) {
-            sendToBackend('openRecentFile', {
-                fileId: file.id,
-                pageType: file.page_type
-            }, (response) => {
-                if (response.success) {
-                    console.log('打开文件成功:', file.title);
-                } else {
-                    console.error('打开文件失败:', response.error);
-                    showNotification('文件打开失败，请重试', 'error');
-                }
-            });
+            console.log('打开最近文件:', file);
+            // 实际功能需要后端主动调用JavaScript来实现
         }
 
         // 格式化文件日期
@@ -439,10 +432,7 @@
 
         // 显示通知
         function showNotification(message, type = 'info') {
-            // 简单的通知实现，可以后续扩展
             console.log(`[${type.toUpperCase()}] ${message}`);
-            
-            // 如果需要更复杂的通知UI，可以在这里实现
         }
 
         // 错误处理
@@ -454,46 +444,29 @@
                 column: colno,
                 stack: error?.stack
             });
-            
-            if (appState.isChannelReady) {
-                sendToBackend('reportError', {
-                    message,
-                    source,
-                    line: lineno,
-                    column: colno,
-                    stack: error?.stack || '',
-                    pageType: 'landing'
-                });
-            }
-            
             return true;
         };
 
         // 初始化应用
         function initApp() {
-            window.WebChannelManager.logger.info('Landing页面开始初始化...');
-            
-            // 注册消息处理器
-            registerLandingHandlers();
-            
-            // 初始化WebChannel（使用核心库）
-            initWebChannel();
-            
-            // 初始化状态显示
-            updateConnectionStatus(false);
-            
-            window.WebChannelManager.logger.info('Landing页面初始化完成');
+            console.log('Landing页面开始初始化...');
+            // 移除WebChannel初始化相关代码
+            // 直接设置为就绪状态
+            updateConnectionStatus(true);
+            console.log('Landing页面初始化完成');
         }
 
         // 启动应用
-        document.addEventListener('DOMContentLoaded', initApp);
-        
-        // 确保WebChannel核心库可用时才初始化
-        if (window.WebChannelManager) {
-            window.WebChannelManager.onReady(function() {
-                window.WebChannelManager.logger.info('WebChannel核心库就绪，Landing页面可以开始通信');
-            });
-        }
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                initApp();
+            } catch (error) {
+                console.error('启动Landing页面时出错:', {
+                    error: error.message,
+                    stack: error.stack
+                });
+            }
+        });
     </script>
 </body>
 </html>

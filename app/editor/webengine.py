@@ -5,7 +5,6 @@ from PySide6.QtWidgets import QStackedWidget
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEnginePage
 from PySide6.QtCore import QUrl, QTimer, Signal, QObject, QMetaObject, Qt, QThread
-from PySide6.QtWebChannel import QWebChannel
 
 from utils import logger
 from db import db_manager
@@ -14,8 +13,8 @@ from app.editor.js_scripts import JSScriptManager
 # 定义页面类型枚举
 class PageType:
     MARKDOWN = "markdown"
-    #EXCALIDRAW = "excalidraw"
-   #LANDING = "landing"
+    EXCALIDRAW = "excalidraw"
+    LANDING = "landing"
     
     @classmethod
     def all_types(cls) -> List[str]:
@@ -32,12 +31,11 @@ class PageConfig:
         self.cache_enabled = cache_enabled
         self.performance_mode = performance_mode
 
-# 页面-通道绑定类，用于管理页面和通道的一对一关系
+# 页面-通道绑定类，用于管理页面和后端接口的一对一关系
 class PageChannelBinding:
-    def __init__(self, page_type: str, view: QWebEngineView, channel: QWebChannel):
+    def __init__(self, page_type: str, view: QWebEngineView):
         self.page_type = page_type
         self.view = view
-        self.channel = channel
         self.is_ready = False
         self.backend_interface = None
     
@@ -53,42 +51,8 @@ class CustomWebEnginePage(QWebEnginePage):
         super().__init__(parent)
         self.backend_interface = None
         self.page_type = None
-        self.channel_ready = False
-    
-    def initialize_web_channel(self, backend_interface):
-        """初始化WebChannel"""
-        if backend_interface:
-            self.backend_interface = backend_interface
-            # 确保在主线程中初始化WebChannel
-            if QThread.currentThread() != self.thread():
-                QMetaObject.invokeMethod(
-                    self, 
-                    "_initialize_web_channel_on_main_thread",
-                    Qt.QueuedConnection,
-                    args=(backend_interface,)
-                )
-            else:
-                self._initialize_web_channel_on_main_thread(backend_interface)
-    
-    def _initialize_web_channel_on_main_thread(self, backend_interface):
-        """在主线程中初始化WebChannel"""
-        try:
-            channel = QWebChannel(self)
-            # 注册为 'backendInterface'，与前端JavaScript保持一致
-            channel.registerObject("backendInterface", backend_interface)
-            self.setWebChannel(channel)
-            logger.debug(f"WebChannel initialized for page {self.page_type} with backendInterface")
-        except Exception as e:
-            logger.error(f"Failed to initialize WebChannel on main thread: {e}")
-    
-    def cleanup(self):
-        """清理资源"""
-        if self.backend_interface:
-            self.backend_interface.cleanup()
-        self.backend_interface = None
-        self.channel_ready = False
 
-# 高性能多页面管理器 
+# 更新WebPageManager类中的create_page方法
 class WebPageManager(QStackedWidget):
     """高性能单进程多页面管理器，基于QStackedWidget实现页面切换"""
     
@@ -97,8 +61,7 @@ class WebPageManager(QStackedWidget):
     page_loaded = Signal(str, bool) # page_type, success
     page_switched = Signal(str, str) # from_page_type, to_page_type
     page_removed = Signal(str)      # page_type
-    channel_ready = Signal(str)     # page_type - 通道就绪信号
-    
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.backend_interfaces: Dict[str, QObject] = {}  # 页面类型 -> 后端接口
@@ -112,7 +75,7 @@ class WebPageManager(QStackedWidget):
         
     def create_page(self, page_type: str, backend_interface=None, config: Optional[PageConfig] = None) -> Optional[QWebEngineView]:
         """
-        创建新页面并初始化WebChannel
+        创建新页面
         
         Args:
             page_type: 页面类型
@@ -154,27 +117,6 @@ class WebPageManager(QStackedWidget):
                 self.preloaded_pages[page_type] = view
                 self.page_configs[page_type] = config
                 
-                # 创建通道和绑定关系
-                channel = QWebChannel(self)
-                binding = PageChannelBinding(page_type, view, channel)
-                self.page_bindings[page_type] = binding
-                
-                # 设置后端接口
-                if backend_interface:
-                    self.backend_interfaces[page_type] = backend_interface
-                    binding.set_backend_interface(backend_interface)
-                    # 设置通信管理器的页面引用
-                    backend_interface.set_page(page)
-                    
-                    # 初始化WebChannel
-                    def init_webchannel_after_load():
-                        if page_type in self.page_bindings:
-                            page.initialize_web_channel(backend_interface)
-                            logger.debug(f"页面 {page_type} WebChannel初始化完成")
-                    
-                    # 连接加载完成信号，确保WebChannel在页面加载后初始化
-                    view.loadFinished.connect(lambda success: init_webchannel_after_load() if success else None)
-                
                 # 添加到QStackedWidget中
                 self.addWidget(view)
                 
@@ -189,7 +131,7 @@ class WebPageManager(QStackedWidget):
                 return None
 
     def set_backend_interface(self, page_type: str, backend_interface) -> bool:
-        """为页面设置后端接口并初始化WebChannel"""
+        """为页面设置后端接口"""
         with self._lock:
             if page_type not in self.preloaded_pages:
                 logger.warning(f"Page {page_type} not found")
@@ -205,12 +147,6 @@ class WebPageManager(QStackedWidget):
                 # 设置通信管理器的页面引用
                 backend_interface.set_page(page)
                 
-                # 更新绑定关系
-                if page_type in self.page_bindings:
-                    self.page_bindings[page_type].set_backend_interface(backend_interface)
-                
-                # 初始化WebChannel
-                page.initialize_web_channel(backend_interface)
                 logger.debug(f"页面 {page_type} 后端接口设置完成")
                 return True
             
@@ -220,9 +156,9 @@ class WebPageManager(QStackedWidget):
         """获取页面的后端接口"""
         with self._lock:
             return self.backend_interfaces.get(page_type)
-
+    
     def remove_page(self, page_type: str) -> bool:
-        """移除页面并清理WebChannel资源"""
+        """移除页面并清理资源"""
         with self._lock:
             if page_type not in self.preloaded_pages:
                 logger.warning(f"页面 {page_type} 不存在")
@@ -231,12 +167,12 @@ class WebPageManager(QStackedWidget):
             try:
                 logger.info(f"开始移除页面: {page_type}")
                 
-                # 清理页面和WebChannel
+                # 清理页面
                 view = self.preloaded_pages[page_type]
                 page = view.page()
                 if isinstance(page, CustomWebEnginePage):
-                    page.cleanup()
-                    logger.debug(f"页面 {page_type} WebChannel清理完成")
+                    pass
+                logger.debug(f"页面 {page_type} 清理完成")
                 
                 # 从QStackedWidget中移除
                 self.removeWidget(view)
@@ -248,8 +184,6 @@ class WebPageManager(QStackedWidget):
                     del self.backend_interfaces[page_type]
                 if page_type in self.page_configs:
                     del self.page_configs[page_type]
-                if page_type in self.page_bindings:
-                    del self.page_bindings[page_type]
                 
                 # 更新当前页面类型
                 if self.current_page_type == page_type:
@@ -314,11 +248,6 @@ class WebPageManager(QStackedWidget):
                     if isinstance(page, CustomWebEnginePage):
                         # 设置通信管理器的页面引用
                         backend_interface.set_page(page)
-                        # 初始化WebChannel
-                        page.initialize_web_channel(backend_interface)
-                        # 更新绑定关系
-                        if page_type in self.page_bindings:
-                            self.page_bindings[page_type].set_backend_interface(backend_interface)
                 return preloaded_view
             
             # 创建新页面
@@ -506,19 +435,3 @@ class WebPageManager(QStackedWidget):
             except Exception as e:
                 logger.error(f"Failed to load URL {url} for page {page_type}: {e}")
                 return False
-    
-    def is_channel_ready(self, page_type: str) -> bool:
-        """检查指定页面类型的通道是否就绪"""
-        with self._lock:
-            if page_type in self.page_bindings:
-                return self.page_bindings[page_type].is_ready
-            return False
-    
-    def set_channel_ready(self, page_type: str, ready: bool):
-        """设置通道就绪状态"""
-        with self._lock:
-            if page_type in self.page_bindings:
-                self.page_bindings[page_type].set_ready(ready)
-                if ready:
-                    self.channel_ready.emit(page_type)
-                    logger.debug(f"Channel for page {page_type} is now ready")
