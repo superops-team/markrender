@@ -10,42 +10,9 @@
             currentItemId = window.getCurrentItemId();
         }
         
-        
-        // 获取Cherry编辑器内容
-        if (window.editorState && window.editorState.editor && typeof window.editorState.editor.getValue === 'function') {
-            const content = window.editorState.editor.getValue();
-            return JSON.stringify({ success: true, content: content || '', item_id: currentItemId });
-        } 
-        // 获取Excalidraw内容
-        else if (typeof window.getExcalidrawData === 'function') {
-            const content = window.getExcalidrawData();
-            console.log('获取到Excalidraw内容，长度:', content ? content.length : 0);
-            return JSON.stringify({ success: true, content: content || '[]', item_id: currentItemId });
-        }
-        // 检查Excalidraw的其他可能状态
-        else if (typeof window.excalidrawAppRef !== 'undefined' && window.excalidrawAppRef) {
-            try {
-                const elements = window.excalidrawAppRef.getSceneElements();
-                const content = JSON.stringify(elements);
-                console.log('通过excalidrawAppRef获取到Excalidraw内容，长度:', content ? content.length : 0);
-                return JSON.stringify({ success: true, content: content || '[]', item_id: currentItemId });
-            } catch (ex) {
-                console.warn('通过excalidrawAppRef获取Excalidraw内容失败:', ex);
-                // 返回错误信息
-                return JSON.stringify({ success: false, error: '获取Excalidraw内容失败: ' + ex.message });
-            }
-        }
-        // 其他情况 - 返回空内容而不是错误
-        else {
-            console.warn('未找到支持的编辑器实例，返回空内容');
-            // 添加更多调试信息
-            console.log('当前window对象状态:', {
-                hasEditorState: !!window.editorState,
-                hasExcalidrawAppRef: typeof window.excalidrawAppRef !== 'undefined',
-                hasGetExcalidrawData: typeof window.getExcalidrawData === 'function'
-            });
-            return JSON.stringify({ success: true, content: '', item_id: currentItemId });
-        }
+        // 默认返回空内容
+        console.warn('使用了通用的编辑器内容获取方法，返回空内容');
+        return JSON.stringify({ success: true, content: '', item_id: currentItemId });
     } catch (error) {
         console.error('获取编辑器内容失败:', error);
         return JSON.stringify({ success: false, error: error.message });

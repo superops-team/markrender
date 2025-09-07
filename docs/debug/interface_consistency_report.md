@@ -7,7 +7,6 @@ Successfully unified all QWebChannel interfaces to use `itemId` consistently ins
 
 ### 1. Backend Interface Updates
 - **BackendInterface.py**: Uses `item_id` as request_id parameter consistently
-- **RequestModel**: Uses `item_id` as request_id field
 - **send_message**: Uses `item_id` parameter instead of generating random IDs
 
 ### 2. Frontend Interface Updates
@@ -41,7 +40,6 @@ Successfully unified all QWebChannel interfaces to use `itemId` consistently ins
 ### 3. Test Cases Created
 
 #### Python Tests (`test/test_interface_consistency.py`)
-- ✅ Tests RequestModel uses item_id as request_id
 - ✅ Tests send_message uses item_id parameter
 - ✅ Tests dispatch_request handles item_id properly
 - ✅ Tests message structure consistency

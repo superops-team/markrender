@@ -46,6 +46,28 @@ if (typeof window !== 'undefined') {
     }
   };
   
+  window.resetExcalidraw = () => {
+    try {
+      console.log('重置Excalidraw状态');
+      
+      // 重置当前项目ID
+      window.currentItemId = null;
+      if (window.editorState) {
+        window.editorState.currentItemId = null;
+      }
+      
+      // 清空场景
+      if (window.excalidrawAppRef && typeof window.excalidrawAppRef.updateScene === 'function') {
+        window.excalidrawAppRef.updateScene({ elements: [] });
+        console.log('Excalidraw场景已清空');
+      }
+      
+      console.log('Excalidraw状态重置完成');
+    } catch (error) {
+      console.error('重置Excalidraw状态失败:', error);
+    }
+  };
+  
   // 确保函数始终存在，即使在初始化之前被调用
   if (typeof window.getExcalidrawData !== 'function') {
     window.getExcalidrawData = () => {

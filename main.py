@@ -181,9 +181,9 @@ class MainWindow(QMainWindow):
             logger.info(f"页面类型: {page_type}")
             # 根据页面类型路由到不同的处理逻辑
             if page_type == "markdown":
-                self._handle_markdown_page(quickpick_item)
+                self._handle_page(quickpick_item)
             elif page_type == "excalidraw":
-                self._handle_board_page(quickpick_item)
+                self._handle_page(quickpick_item)
             elif page_type == "landing":
                 self._handle_landing_page(quickpick_item)
             # 更新状态栏
@@ -194,13 +194,13 @@ class MainWindow(QMainWindow):
         except Exception as e:
             logger.error(f"更新编辑区和预览区失败: {e}", exc_info=True)
     
-    def _handle_markdown_page(self, quickpick_item):
-        """处理Markdown页面"""
-        logger.debug(f"处理Markdown页面: {quickpick_item.get('title')}")
+    def _handle_page(self, quickpick_item):
+        """处理页面"""
+        logger.debug(f"处理页面: {quickpick_item.get('title')}")
         
         try:
             # 使用Markdown页面类型
-            page_type = "markdown"
+            page_type = quickpick_item.get('page_type')
             page_manager = self.editor.page_manager
             # 获取或创建markdown页面
             markdown_view = page_manager.get_or_create_page(
@@ -241,114 +241,6 @@ class MainWindow(QMainWindow):
         
         logger.debug(f"页面处理完成")
     
-    def _handle_board_page(self, quickpick_item):
-        """处理Board画板页面 - 修复版本，为每个board项目创建独立的页面实例"""
-        logger.debug(f"处理Board页面: {quickpick_item.get('title')}")
-        
-        try:
-            # 使用EXCALIDRAW页面类型
-            page_type = "excalidraw"
-            page_manager = self.editor.page_manager
-            logger.info(f"创建独立Board页面实例: {page_type}")     
-            
-            # 获取或创建独立的通信管理器
-            board_backend_interface = page_manager.get_backend_interface(page_type)
-            if not board_backend_interface:
-                # 如果不存在，则创建新的通信管理器
-                board_backend_interface = BackendInterface(page_type)
-            
-            board_view = page_manager.get_or_create_page(
-                page_type=page_type,  # 使用EXCALIDRAW确保正确的页面类型和消息路由
-                backend_interface=board_backend_interface  # 使用独立的通信管理器
-            )
-            
-            # 确保 BackendInterface 和页面对象正确关联
-            if board_view:
-                board_backend_interface.set_page(board_view.page())
-                # 切换到Excalidraw页面
-                page_manager.switch_to_page(page_type)
-            
-            if board_view:
-                # 重要：确保页面完全加载后再发送boardId消息
-                # 使用QTimer延迟发送，确保前端页面已经准备好接收消息
-                from PySide6.QtCore import QTimer
-                
-                def send_board_id():
-                    try:
-                        board_id = quickpick_item.get('id', '')
-                        logger.debug(f"发送setBoardId消息到页面 {page_type}: {board_id}")
-                        # 确保消息发送到正确的页面实例
-                        board_backend_interface = page_manager.get_backend_interface(page_type)
-                        if board_backend_interface:
-                            # 发送初始化数据到前端
-                            board_backend_interface.send_message('setBoardId', {
-                                'boardId': board_id,
-                                'pageType': page_type,  # 同时发送页面类型，便于前端调试
-                                'title': quickpick_item.get('title', '')
-                            })
-                            
-                            # 获取内容 - 总是从数据库获取最新内容，确保数据一致性
-                            content = ''
-                            if board_id:
-                                try:
-                                    item_detail = self.markrender_manager.get_detail(board_id)
-                                    if item_detail and item_detail.get('content'):
-                                        content = item_detail.get('content')
-                                        logger.info(f"从数据库获取到最新Excalidraw内容，长度: {len(content)}")
-                                    else:
-                                        logger.info(f"数据库中未找到Excalidraw内容，使用空内容初始化")
-                                except Exception as e:
-                                    logger.error(f"从数据库获取Excalidraw内容失败: {e}")
-                            
-                            # 如果有存储的画板数据，加载它
-                            if content:
-                                logger.debug(f"发送loadExcalidrawData消息，内容长度: {len(content)}")
-                                board_backend_interface.send_message('loadExcalidrawData', {
-                                    'boardId': board_id,
-                                    'drawingData': content
-                                })
-                            else:
-                                logger.debug(f"Board项目无内容，重置页面: {board_id}")
-                                # 如果content为空，重置页面
-                                board_backend_interface.send_message('setValue', {
-                                    'content': '[]'
-                                })
-                        else:
-                            logger.error(f"无法获取页面 {page_type} 的后端接口")
-                            
-                    except Exception as e:
-                        logger.error(f"发送Board初始化消息失败: {e}", exc_info=True)
-                
-                # 延迟300ms发送，确保前端页面准备就绪
-                QTimer.singleShot(300, send_board_id)
-                
-                # 更新编辑器状态
-                item_id = quickpick_item.get('id', '')
-                content = ''
-                
-                # 总是从数据库获取最新内容
-                if item_id:
-                    try:
-                        item_detail = self.markrender_manager.get_detail(item_id)
-                        if item_detail and item_detail.get('content'):
-                            content = item_detail.get('content')
-                            logger.info(f"从数据库获取到最新Excalidraw内容用于编辑器状态，长度: {len(content)}")
-                    except Exception as e:
-                        logger.error(f"从数据库获取Excalidraw内容失败: {e}")
-                
-                self.editor.set_item_id(item_id)
-                self.editor.set_page_type(page_type)
-                self.editor.item.set_text(content)
-                
-            else:
-                logger.error(f"创建Board页面失败: {page_type}")
-                
-        except Exception as e:
-            logger.error(f"Board页面处理失败: {e}", exc_info=True)
-            # 回退到Markdown处理
-            self._handle_markdown_page(quickpick_item)
-        
-        logger.debug(f"Board页面处理完成")
     
     def _handle_landing_page(self, quickpick_item):
         """处理Landing欢迎页面"""

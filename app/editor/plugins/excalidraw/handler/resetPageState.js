@@ -1,12 +1,6 @@
 (function() {
     try {
-        console.log('开始重置页面状态');
-        
-        // 重置Markdown编辑器状态
-        if (window.editorState) {
-            window.editorState.currentItemId = null;
-            console.log('Markdown编辑器状态已重置');
-        }
+        console.log('开始重置Excalidraw页面状态');
         
         // 重置Excalidraw状态
         if (typeof window.resetExcalidraw === 'function') {
@@ -43,10 +37,10 @@
             console.warn('重置Excalidraw特定状态时出错:', e);
         }
         
-        console.log('页面状态重置完成');
-        return JSON.stringify({ success: true, message: '页面状态重置完成' });
+        console.log('Excalidraw页面状态重置完成');
+        return JSON.stringify({ success: true, message: 'Excalidraw页面状态重置完成' });
     } catch (error) {
-        console.error('重置页面状态失败:', error);
+        console.error('重置Excalidraw页面状态失败:', error);
         return JSON.stringify({ success: false, error: error.message });
     }
 })();

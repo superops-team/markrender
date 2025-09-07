@@ -5,21 +5,6 @@ from utils import logger
 from db.markrender_manager import MarkRenderManager
 from app.editor.js_scripts import JSScriptManager
 
-# 纯Python实现的RequestModel类
-class RequestModel:
-    def __init__(self, action: str, data: dict = None, request_id: str = None):
-        self.action = action
-        self.data = data or {}
-        self.request_id = request_id
-        
-    @classmethod
-    def from_dict(cls, data: dict):
-        return cls(
-            action=data.get('action'),
-            data=data.get('data'),
-            request_id=data.get('requestId')
-        )
-
 
 class BackendInterface(QObject):
     
@@ -159,33 +144,39 @@ class BackendInterface(QObject):
     def _construct_js_code(self, action: str, data: dict, item_id: str = None):
         """根据action构造相应的JavaScript代码"""
         try:
-            # 使用JSScriptManager获取预定义的脚本
+            # 将action映射到对应的JS文件名
+            script_mapping = {
+                "setValue": "setValue",
+                "getContent": "getContent",
+                "getCurrentItemId": "getCurrentItemId",
+                "setCurrentItemId": "setCurrentItemId",
+                "reset": "reset",
+                "registerEditorEvents": "registerEditorEvents",
+                "setupContentChangeListener": "setupContentChangeListener",
+                "textChanged": "textChanged",
+                "resetPageState": "resetPageState"
+            }
+            
+            script_name = script_mapping.get(action, "handle_backend_message")
+            
+            # 对于setValue和setCurrentItemId，需要传递额外的数据
             if action == "setValue":
                 content = data.get("content", "")
                 item_id_param = data.get("item_id", item_id or "")
-                # 转义内容中的特殊字符
-                return JSScriptManager.get_script("set_editor_content", content=content, item_id=item_id_param)
-            elif action == "getContent":
-                return JSScriptManager.get_script("get_editor_content")
-            elif action == "getCurrentItemId":
-                return JSScriptManager.get_script("get_current_item_id")
+                return JSScriptManager.get_script(script_name, page_type=self.page_type, content=content, item_id=item_id_param)
             elif action == "setCurrentItemId":
                 item_id_param = data.get("item_id", "")
-                return JSScriptManager.get_script("set_current_item_id", item_id=item_id_param)
-            elif action == "reset":
-                return JSScriptManager.get_script("reset_editor_content")
-            elif action == "registerEditorEvents":
-                return JSScriptManager.get_script("register_editor_events")
-            elif action == "setupContentChangeListener":
-                return JSScriptManager.get_script("setup_content_change_listener")
-            elif action == "textChanged":
-                return JSScriptManager.get_script("text_changed")
-            else:
+                return JSScriptManager.get_script(script_name, page_type=self.page_type, item_id=item_id_param)
+            elif action == "handle_backend_message":
                 # 对于其他action，构造通用的消息处理代码
-                return JSScriptManager.get_script("handle_backend_message", 
+                return JSScriptManager.get_script(script_name, 
+                                                page_type=self.page_type,
                                                 action=action, 
                                                 data=data, 
                                                 request_id=item_id or "")
+            else:
+                # 对于其他action，直接传递page_type
+                return JSScriptManager.get_script(script_name, page_type=self.page_type)
         except Exception as e:
             logger.error(f"[{self.page_type}] 构造JavaScript代码时出错: {str(e)}", exc_info=True)
             return None

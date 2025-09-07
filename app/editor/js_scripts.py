@@ -15,10 +15,13 @@ class JSScriptManager:
     _template_env = None
     
     @classmethod
-    def _get_template_env(cls):
+    def _get_template_env(cls, template_dir: str = None):
         """获取模板环境"""
-        if cls._template_env is None:
+        if template_dir is None:
             template_dir = os.path.join(os.path.dirname(__file__), 'js_templates')
+        
+        if cls._template_env is None or getattr(cls, '_template_dir', None) != template_dir:
+            cls._template_dir = template_dir
             cls._template_env = Environment(
                 loader=FileSystemLoader(template_dir),
                 trim_blocks=True,
@@ -27,7 +30,7 @@ class JSScriptManager:
         return cls._template_env
     
     @classmethod
-    def get_script(cls, script_name: str, **kwargs) -> Optional[str]:
+    def get_script(cls, script_name: str, page_type: str = None, **kwargs) -> Optional[str]:
         """获取JS脚本，使用Jinja2模板引擎渲染"""
         try:
             # 确保script_name以.js结尾
@@ -49,8 +52,20 @@ class JSScriptManager:
                 else:
                     processed_kwargs[key] = value
             
-            # 获取模板环境
-            env = cls._get_template_env()
+            # 首先尝试从plugins目录加载特定页面类型的脚本
+            if page_type:
+                plugin_script_path = os.path.join(os.path.dirname(__file__), 'plugins', page_type, 'handler', script_name)
+                if os.path.exists(plugin_script_path):
+                    # 为特定插件创建独立的模板环境
+                    plugin_template_dir = os.path.join(os.path.dirname(__file__), 'plugins', page_type, 'handler')
+                    env = cls._get_template_env(plugin_template_dir)
+                    template = env.get_template(script_name)
+                    script_content = template.render(**processed_kwargs)
+                    return script_content
+            
+            # 如果没有特定页面类型的脚本，则使用通用模板
+            template_dir = os.path.join(os.path.dirname(__file__), 'js_templates')
+            env = cls._get_template_env(template_dir)
             
             # 渲染模板
             template = env.get_template(script_name)

@@ -65,16 +65,6 @@ new QWebChannel(qt.webChannelTransport, function(channel) {
   - 参数: `message` (str) - 错误信息
   - 示例: `window.bridge.channel.reportError(message)`
 
-## 数据模型
-
-### RequestModel
-请求数据验证模型:
-```python
-class RequestModel(BaseModel):
-    item_id: str
-    method: str
-    params: dict = Field(default_factory=dict)
-```
 
 ### 标准响应格式
 ```json
