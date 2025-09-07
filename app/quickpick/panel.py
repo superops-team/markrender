@@ -244,32 +244,18 @@ class QuickPickPanel(QWidget):
     
     def _save_with_callback(self):
         """使用回调方式保存，确保获取到内容后再切换页面"""
-        def save_callback(success):
-            try:
-                # 检查保存是否成功
-                if not success:
-                    logger.error("保存当前文件失败，取消页面切换")
-                    # 弹窗报错
-                    QMessageBox.warning(self, "保存失败", "无法保存当前文件，请稍后再试。")
-                    # 清除待切换状态
-                    self.switch_pending = None
-                    return
-                
-                # 保存成功，执行页面切换
-                logger.info("保存成功，执行页面切换")
-                self._execute_switch()
-                
-            except Exception as e:
-                logger.error(f"保存回调处理失败: {e}")
-                # 弹窗报错
-                QMessageBox.warning(self, "切换失败", f"页面切换过程中发生错误: {str(e)}")
-                # 清除待切换状态
-                self.switch_pending = None
-        
-        # 执行保存操作，传入回调函数
-        logger.info("开始执行保存操作")
-        # 直接调用编辑器的保存方法，它已经使用同步方式获取内容
-        self.parent.editor.save_current_item(callback=save_callback)
+        success = self.parent.editor.save_current_item()
+        if not success:
+            logger.error("保存当前文件失败，取消页面切换")
+            # 弹窗报错
+            QMessageBox.warning(self, "保存失败", "无法保存当前文件，请稍后再试。")
+            # 清除待切换状态
+            self.switch_pending = None
+            return
+        # 保存成功，执行页面切换
+        logger.info("保存成功，执行页面切换")
+        self._execute_switch()
+
     
     def _save_with_retry(self, callback, retry_count=3):
         """带重试机制的保存方法"""

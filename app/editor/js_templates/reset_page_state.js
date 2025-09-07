@@ -2,10 +2,10 @@
     try {
         console.log('开始重置页面状态');
         
-        // 重置编辑器状态
+        // 重置Markdown编辑器状态
         if (window.editorState) {
             window.editorState.currentItemId = null;
-            console.log('编辑器状态已重置');
+            console.log('Markdown编辑器状态已重置');
         }
         
         // 重置Excalidraw状态

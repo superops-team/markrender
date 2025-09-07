@@ -76,9 +76,8 @@ class MainWindow(QMainWindow):
         self.quickpick_panel = QuickPickPanel(self.markrender_manager, self)
         self.sidebar_manager = SidebarManager(parent=self)
         # 初始化  编辑器
-        self.editor = MarkRenderEditor(self, '', '')
-        self.sidebar = SidebarManager(self)
-
+        self.editor = MarkRenderEditor(parent=self)
+        self.sidebar = SidebarManager(parent=self)
 
         # 创建自定义标题栏
         title_bar = QWidget()
@@ -169,49 +168,17 @@ class MainWindow(QMainWindow):
             logger.info(f"开始更新编辑器页面: {quickpick_item.get('title', 'Unknown')}")
             # 没有修改或没有当前项，直接切换
             self._continue_update_editor_and_previewer(quickpick_item)
-            
         except Exception as e:
             logger.error(f"更新编辑区和预览区失败: {e}", exc_info=True)
     
     def _continue_update_editor_and_previewer(self, quickpick_item):
         """继续执行更新编辑区和预览区内容的逻辑"""
-        try:
-            from app.editor.webengine import PageType
-            
+        try:            
             logger.info(f"继续更新编辑器页面: {quickpick_item.get('title', 'Unknown')}")
-            
             self.current_item = quickpick_item
-            
             # 获取页面类型，默认为markdown
-            page_type_str = quickpick_item.get('page_type', '')
-            try:
-                # 根据页面类型字符串直接处理，而不是尝试创建PageType实例
-                if page_type_str == "markdown":
-                    page_type = "markdown"
-                elif page_type_str == "excalidraw":
-                    page_type = "excalidraw"
-                elif page_type_str == "landing":
-                    page_type = "landing"
-                else:
-                    page_type = "markdown"
-            except Exception as e:
-                logger.warning(f"页面类型解析失败: {page_type_str}，使用默认markdown类型，错误: {e}")
-                page_type = "markdown"
-            
+            page_type = quickpick_item.get('page_type', 'markdown')
             logger.info(f"页面类型: {page_type}")
-            
-            # 从数据库获取最新的内容
-            item_id = quickpick_item.get('id')
-            if item_id:
-                try:
-                    latest_item = self.markrender_manager.get_detail(item_id)
-                    if latest_item and 'content' in latest_item:
-                        # 使用数据库中的最新内容
-                        quickpick_item['content'] = latest_item['content']
-                        logger.info(f"从数据库获取到最新内容，长度: {len(latest_item['content'])}")
-                except Exception as e:
-                    logger.error(f"从数据库获取最新内容失败: {e}")
-            
             # 根据页面类型路由到不同的处理逻辑
             if page_type == "markdown":
                 self._handle_markdown_page(quickpick_item)
@@ -219,20 +186,11 @@ class MainWindow(QMainWindow):
                 self._handle_board_page(quickpick_item)
             elif page_type == "landing":
                 self._handle_landing_page(quickpick_item)
-            else:
-                logger.warning(f"页面类型 {page_type} 尚未实现，使用markdown处理")
-                self._handle_markdown_page(quickpick_item)
-            
             # 更新状态栏
-            content = quickpick_item.get('content', '')
-            if content == '':
-                content = self.markrender_manager.get_detail(quickpick_item.get('id', ''))['content']
-            
+            content = self.markrender_manager.get_detail(quickpick_item.get('id', ''))['content']
             self.status_bar.update_file_size(len(content))
             self.status_bar.update_word_count(len(content))
-            
             logger.info(f"页面更新完成: {quickpick_item.get('title', 'Unknown')}")
-            
         except Exception as e:
             logger.error(f"更新编辑区和预览区失败: {e}", exc_info=True)
     
@@ -244,7 +202,6 @@ class MainWindow(QMainWindow):
             # 使用Markdown页面类型
             page_type = "markdown"
             page_manager = self.editor.page_manager
-            
             # 获取或创建markdown页面
             markdown_view = page_manager.get_or_create_page(
                 page_type=page_type,
@@ -254,33 +211,21 @@ class MainWindow(QMainWindow):
             # 确保 BackendInterface 和页面对象正确关联
             if markdown_view:
                 self.editor.backend_interface.set_page(markdown_view.page())
-                # 切换到Markdown页面
+                # 切换到Markdown页面， Switch后需要重新设置页面内容，否则页面会被reset后显示空
                 page_manager.switch_to_page(page_type)
-                
                 # 获取内容 - 对于不同的item，必须从对应的item获取内容
                 item_id = quickpick_item.get('id')
-                content = ''
-                
-                # 总是从数据库获取最新内容，确保数据一致性
-                if item_id:
-                    try:
-                        item_detail = self.markrender_manager.get_detail(item_id)
-                        if item_detail and item_detail.get('content'):
-                            content = item_detail.get('content')
-                            logger.info(f"从数据库获取到最新内容，长度: {len(content)}")
-                        else:
-                            logger.info(f"数据库中未找到内容，使用空内容初始化")
-                    except Exception as e:
-                        logger.error(f"从数据库获取内容失败: {e}")
-                else:
-                    # 如果没有item_id，使用quickpick_item中的内容
-                    content = quickpick_item.get('content', '')
-                
+                try:
+                    item_detail = self.markrender_manager.get_detail(item_id)
+                    if item_detail and item_detail.get('content'):
+                        content = item_detail.get('content')
+                        logger.info(f"从数据库获取到最新内容，长度: {len(content)}")
+                    else:
+                        logger.info(f"数据库中未找到内容，使用空内容初始化")
+                except Exception as e:
+                    logger.error(f"从数据库获取内容失败: {e}")
                 # 更新Markdown编辑器内容（但不重新创建页面）
-                self.editor.set_item_id(item_id or '')
-                self.editor.set_page_type(page_type)
-                self.editor.set_text_content(content)
-                
+                self.editor.set_current_item(item_id, page_type, content)                
                 # 确保Markdown编辑器可见
                 self.editor.show()
                 
@@ -459,7 +404,7 @@ class MainWindow(QMainWindow):
         if self.current_item:
             self.quickpick_panel.select_quickpick_item(self.current_item)
     
-    def _on_editor_close_ready(self):
+    def on_editor_close_ready(self):
         """当编辑器准备好关闭时的处理"""
         logger.info("接收到编辑器关闭准备信号，开始关闭主窗口")
         # 由主窗口统一控制关闭流程，确保原子性
@@ -469,39 +414,29 @@ class MainWindow(QMainWindow):
         """在窗口关闭前保存未保存的笔记并清理线程"""
         try:
             # 快速检查编辑器状态
-            if (hasattr(self, 'editor') and self.editor and
-                not getattr(self.editor, '_close_ready', False)):
-                
+            if self.editor:
                 logger.debug("主窗口关闭: 检查编辑器状态")
-                
-                # 传递一个临时事件给编辑器
-                from PySide6.QtCore import QEvent
-                temp_event = QEvent(QEvent.Type.Close)
-                
-                # 调用编辑器的关闭事件处理
-                self.editor.closeEvent(temp_event)
-                
-                # 如果编辑器需要等待保存，则等待完成
-                if not temp_event.isAccepted():
-                    logger.debug("编辑器正在保存，主窗口等待...")
-                    event.ignore()
-                    return
-                    
+                # 直接调用编辑器的保存方法，不再通过事件传递
+                if not self.editor._close_ready:
+                    logger.debug("执行编辑器保存操作")
+                    self.editor._perform_save_on_close()  
+                    # 标记编辑器已准备好关闭
+                    self.editor._close_ready = True
             logger.debug("主窗口正常关闭")
             # 所有准备工作完成，接受关闭事件
             event.accept()
             
         except Exception as e:
-            logger.error(f"主窗口关闭时出错: {e}")
+            import traceback
+            logger.error(f"主窗口关闭时出错: {e} {traceback.format_exc()}")
             # 出错时也接受关闭事件，避免无法退出
             event.accept()
-        except Exception as e:
-            logger.error(f"退出前保存笔记失败: {str(e)}")
-            # 即使出错也要允许关闭，避免应用卡死
             
         # 调用父类的关闭事件处理
         super().closeEvent(event)
 
+    # 移除on_editor_close_ready方法，不再需要这个回调
+    
     # 实现窗口拖动功能
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:

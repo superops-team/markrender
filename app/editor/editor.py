@@ -2,8 +2,7 @@ import json  # 添加json导入
 import time
 
 from PySide6.QtWidgets import QWidget, QVBoxLayout
-from PySide6.QtWebEngineCore import QWebEnginePage
-from PySide6.QtCore import QObject, Signal, Property, QTimer, Slot
+from PySide6.QtCore import QObject, Signal, Property, QTimer
 from app.preference import AppStyle
 from app.editor.backend_interface import BackendInterface
 from app.editor.webengine import WebPageManager  # 导入页面管理器
@@ -17,12 +16,11 @@ from app.editor.export_manager import ExportManager
 class MarkRenderItem(QObject):
     text_changed = Signal(str)
 
-    def __init__(self, item_id, page_type, parent=None):
+    def __init__(self, item_id, page_type, text=""):
         super().__init__()
         self.item_id = item_id
         self.page_type = page_type
-        self._text = ""
-        self.parent = parent
+        self._text = text
 
     def get_text(self):
         return self._text
@@ -40,39 +38,28 @@ class MarkRenderItem(QObject):
 
 
 class MarkRenderEditor(QWidget):
-    def __init__(self, parent=None, item_id="", page_type=""):
+    def __init__(self, parent=None):
         super().__init__(parent)
         # 初始化页面管理器
         self.page_manager = WebPageManager()
-        self.page_type = page_type
         self.page_loaded = False
+        self._close_ready = False
         
         # 初始化页面管理器
         self.page_manager = WebPageManager()
-        self.page_type = page_type
-        self.page_loaded = False
+        self.page_type = 'landing' # 首次初始化默认加载landing
         
         # 初始化文档
-        self.item = MarkRenderItem(item_id, page_type, self)
-        # 注册文档到通信管理器
-        if item_id:
-            self.backend_interface.item_map[item_id] = self.item
-            self.item_id = item_id
-            
-        # 初始化其他组件
-        self.markrender_manager = MarkRenderManager()
-        self.last_saved_text = None
-        
+        self.item = MarkRenderItem(item_id="", page_type="")
         # 建立信号连接
         self.item.text_changed.connect(self.on_item_text_changed)
+
+        # 初始化其他组件
+        self.markrender_manager = MarkRenderManager()
         
         # 设置UI
         self.setup_ui()
         
-        # 自动保存相关初始化
-        self.item_modified = False
-        self.init_auto_save()
-    
     def get_page_type(self):
         return self.page_type
 
@@ -89,12 +76,12 @@ class MarkRenderEditor(QWidget):
         # 预加载常用页面类型
         logger.info("开始预加载常用页面类型...")
         
-        # 预加载页面
+        # 预加载页面，后续插件化动态加载
         self.page_manager.preload_page_type("markdown")
-        self.page_manager.preload_page_type("landing", self.backend_interface) # 首页默认打开页
         self.page_manager.preload_page_type("excalidraw")
-        
-        # 
+        self.page_manager.preload_page_type("landing", self.backend_interface) # 首页默认打开页
+ 
+        # 创建预览页面
         self.preview = self.page_manager.get_or_create_page(
             page_type="landing",
             backend_interface=self.backend_interface
@@ -108,13 +95,10 @@ class MarkRenderEditor(QWidget):
         self.backend_interface.set_page(self.preview.page())  # 直接设置页面对象
         
         # 加载HTML文件
-        success = self.page_manager.load_page_content("markdown")
+        success = self.page_manager.load_page_content(self.page_type)
         if not success:
-            logger.error("加载HTML文件失败")
-            
-        # 将页面管理器添加到布局（QStackedWidget会管理页面显示）
+            logger.error(f"加载HTML文件失败: {self.page_type}")
         layout.addWidget(self.page_manager)
-        
         # 设置样式
         self.setStyleSheet(AppStyle().get_editor_parent() + AppStyle().get_editor_preview())
         
@@ -131,59 +115,31 @@ class MarkRenderEditor(QWidget):
         
         # 设置页面功能特性
         self._setup_page_features()
-        
-
-    @property
-    def item_id(self):
-        return self.item.item_id
-
-    @item_id.setter
-    def item_id(self, value):
-        if value != self.item.item_id:
-            if self.item.item_id:
-                del self.backend_interface.item_map[self.item.item_id]
-            if value:
-                self.item.item_id = value
-                self.backend_interface.item_map[value] = self.item
 
     def on_item_text_changed(self, text):
         """转发文档变更到前端"""
         logger.debug(f"文档变更: {text}")
+        # 通知前端文档变更
+        self.set_text_content(text)
 
     def init_auto_save(self):
         """初始化自动保存功能"""
+        # TODO: 传递到前端让前端周期性自动保存
         self.general_settings = SettingsManager().get_settings_dict('general') or {}
         self.auto_save_enabled = self.general_settings.get('auto_save', True)
         self.auto_save_interval = self.general_settings.get('auto_save_interval', 30) * 1000
-        
-        if self.auto_save_enabled:
-            self.auto_save_timer = QTimer(self)
-            self.auto_save_timer.timeout.connect(self.save_current_item)
-            self.auto_save_timer.start(self.auto_save_interval)
-
 
     def _setup_page_features(self):
         """设置页面功能特性"""
-        try:
-            # 通过channel注册web端事件
-            self.backend_interface.send_message("registerEditorEvents", {}, item_id=self.item.item_id)
-            # 通过channel设置内容变化监听
-            self.backend_interface.send_message("setupContentChangeListener", {
-                "callback": "contentChanged"
-            }, item_id=self.item.item_id)
-            logger.debug("页面功能特性设置完成")
-        except Exception as e:
-            logger.error(f"设置页面功能特性失败: {e}")
+        # TODO 初始化页面在服务器端的配置
     
     def _reset_frontend_state(self):
         """重置前端页面状态，确保数据隔离"""
         try:
             logger.info("重置前端页面状态")
-            
             # 使用JSScriptManager获取重置脚本
             from app.editor.js_scripts import JSScriptManager
             reset_script = JSScriptManager.get_script("reset_page_state")
-            
             if reset_script:
                 # 异步执行重置脚本
                 if hasattr(self, 'preview') and self.preview:
@@ -191,7 +147,6 @@ class MarkRenderEditor(QWidget):
                     logger.info("前端状态重置脚本已执行")
             else:
                 logger.error("获取前端状态重置脚本失败")
-            
         except Exception as e:
             logger.error(f"重置前端状态失败: {e}")
 
@@ -204,161 +159,90 @@ class MarkRenderEditor(QWidget):
             self.page_type = to_page_type
             if hasattr(self, 'backend_interface') and self.backend_interface:
                 self.backend_interface.set_page_type(to_page_type)
-                
             # 重置前端页面状态，确保数据隔离
             self._reset_frontend_state()
-                
-            # 在页面切换后，确保内容正确设置
-            # 注意：这里不应该直接设置内容，而应该在main.py中根据即将打开的页面从数据库加载内容
-            from PySide6.QtCore import QTimer
-            QTimer.singleShot(200, lambda: self.set_text_content(""))
         except Exception as e:
             logger.error(f"页面切换失败: {e}")
+    
+    def set_current_item(self, item_id, page_type, content):
+        """设置当前编辑的文档项"""
+        self.item.item_id = item_id
+        self.item.page_type = page_type
+        self.item.set_text(content)
 
-    def save_markrender_content(self, data):
-        """线程安全的保存方法"""
-        try:
-            data = json.loads(data) if isinstance(data, str) else data
-            content = data.get('content', '')
-            if not self.item.item_id:
-                return {"error": "无文件ID"}
-            
-            # 数据库操作通常是线程安全的
-            success = self.markrender_manager.save_item(
-                id=self.item.item_id,
-                content=content,
-            )
-            
-            return {
-                "success": success,
-                "item_id": self.item.item_id,
-                "content_length": len(content)
-            }
-            
-        except Exception as e:
-            logger.error(f"保存失败: {str(e)}")
-            return {"error": str(e)}
-
-    def save_current_item(self, callback=None):
-        """保存当前文档内容 - 增强版，确保获取到最新内容"""
-        logger.info("快捷键触发保存动作")
-        
+    def save_current_item(self):
+        """保存当前文档内容 - 增强版，确保获取到最新内容"""        
         try:
             # 检查页面是否已加载
             if not self.page_loaded:
                 logger.warning("页面未加载完成，跳过保存")
-                if callback:
-                    callback(True)
-                return
+                return False
             
             # 使用同步方法获取当前编辑内容，确保获取到最新内容
             logger.info("发送getContent消息获取编辑器内容（同步方式）")
             result = self.backend_interface.send_message_sync('getContent', {}, item_id=self.item.item_id, timeout=15000)
-            
             if result is None:
                 logger.error("获取编辑器内容失败（同步方式）")
-                if callback:
-                    callback(True)  # 获取内容失败时也允许继续操作
-                return
-            
+                return False
             # 解析JavaScript返回的数据
             parsed_data = self._parse_js_response(result)
-            
-            if parsed_data.get('success', False):
-                content = parsed_data.get("content", "")
-                frontend_item_id = parsed_data.get("item_id", "")
-                
-                # 验证item_id一致性
-                if frontend_item_id and self.item.item_id and frontend_item_id != self.item.item_id:
-                    logger.warning(f"保存时发现item_id不一致: 前端={frontend_item_id}, 后端={self.item.item_id}")
-                    # 使用前端返回的item_id
-                    self.item.item_id = frontend_item_id
-                
-                # 无论content是否为空，都尝试保存到数据库
-                # 确保我们有有效的item_id
-                if not self.ensure_item_id():
-                    logger.error("无法确保有效的item_id，跳过保存")
-                    if callback:
-                        callback(True)  # 无法确保ID时视为保存成功
-                    return
-                item_id = self.item.item_id
-                
-                success = self.markrender_manager.save_item(
-                    id=item_id, 
-                    content=content
-                )
-                
-                if success:
-                    self.last_saved_text = content
-                    self.item_modified = False
-                    logger.info(f"手动保存成功: {item_id}，内容长度: {len(content)}")
-                    # 更新item中的文本内容，但只在保存成功时更新
-                    if hasattr(self.item, 'set_text'):
-                        self.item.set_text(content)
-                    
-                    # 通知父窗口重新加载快速选择面板中的数据
-                    if hasattr(self.parent, 'update_quickpick_list'):
-                        self.parent.update_quickpick_list()
-                    
-                    if callback:
-                        callback(True)
-                else:
-                    logger.error("保存到数据库失败")
-                    if callback:
-                        callback(False)
-            else:
+            if not parsed_data.get('success', False):
                 # 只有当success为False时才认为获取内容失败
                 error_msg = parsed_data.get('error', '未知错误') if parsed_data else '获取内容失败'
                 logger.error(f"获取编辑器内容失败: {error_msg}")
-                # 在切换时，即使获取内容失败也返回True，避免阻塞用户操作
-                if callback:
-                    callback(True)
+                return False
+            content = parsed_data.get("content", "")
+            frontend_item_id = parsed_data.get("item_id", "")
+            # 验证item_id一致性
+            if frontend_item_id and self.item.item_id and frontend_item_id != self.item.item_id:
+                logger.warning(f"保存时发现item_id不一致: 前端={frontend_item_id}, 后端={self.item.item_id}")
+                # 使用前端返回的item_id
+                self.item.item_id = frontend_item_id
+            # 无论content是否为空，都尝试保存到数据库
+            item_id = self.item.item_id
+            if not item_id:
+                logger.error(f"无法确保有效的item_id，跳过保存, page_type: {self.page_type}")
+                return False
+            success = self.markrender_manager.save_item(
+                id=item_id, 
+                content=content
+            )
             
+            if success:
+                logger.info(f"手动保存成功: {item_id}，内容长度: {len(content)}")
+                # 通知父窗口重新加载快速选择面板中的数据
+                if hasattr(self.parent, 'update_quickpick_list'):
+                    self.parent.update_quickpick_list()
+                return True
+            else:
+                logger.error("保存到数据库失败")
+                return False
         except Exception as e:
             logger.error(f"保存文档失败: {str(e)}，但允许继续切换")
-            if callback:
-                callback(True)  # 避免阻塞用户操作
+            return False
 
     def save_item(self):
         """保存当前文档内容 - 兼容旧接口"""
-        # 使用同步方式保存，保持向后兼容
-        logger.info("快捷键触发保存动作(兼容接口)")
-        
-        # 使用一个标志来跟踪保存是否成功
         save_result = None  # 改为None以区分未开始和失败
-        
         try:
             # 检查页面是否已加载
             if not self.page_loaded:
-                logger.warning("页面未加载完成，跳过保存")
+                logger.warning(f"页面未加载完成，跳过保存, page_type: {self.page_type}")
                 return True
-            
             # 获取当前编辑内容
             def handle_save_content(data):
                 nonlocal save_result
                 try:
                     # 解析JavaScript返回的数据
                     parsed_data = self._parse_js_response(data) if data is not None else {'success': False, 'error': '无响应数据'}
-                    
                     if parsed_data.get('success', False):
                         content = parsed_data.get("content", "")
-                        
-                        # 无论content是否为空，都尝试保存到数据库
-                        # 确保我们有有效的item_id
-                        if not self.ensure_item_id():
-                            logger.error("无法确保有效的item_id，跳过保存")
-                            save_result = True  # 无法确保ID时视为保存成功
-                            return
-                        item_id = self.item.item_id
-                        
+                        item_id = self.item.item_id          
                         success = self.markrender_manager.save_item(
                             id=item_id, 
                             content=content
                         )
-                        
                         if success:
-                            self.last_saved_text = content
-                            self.item_modified = False
                             logger.info(f"手动保存成功: {item_id}，内容长度: {len(content)}")
                             save_result = True
                         else:
@@ -372,14 +256,7 @@ class MarkRenderEditor(QWidget):
                         save_result = True
                 except Exception as e:
                     logger.error(f"处理保存内容时出错: {e}")
-                    save_result = True  # 避免阻塞切换
-            
-            # 确保我们有有效的item_id
-            if not self.ensure_item_id():
-                logger.error("无法确保有效的item_id，跳过保存")
-                return True  # 无法确保ID时视为保存成功
-            item_id = self.item.item_id
-            
+                    save_result = True  # 避免阻塞切换            
             # 使用增强版获取内容方法
             self.get_content_with_retry(handle_save_content)
             
@@ -423,32 +300,6 @@ class MarkRenderEditor(QWidget):
             logger.debug(f"已通知前端当前文件ID: {item_id}")
         else:
             logger.warning("backend_interface未初始化，无法通知前端当前文件ID变更")
-    
-    def ensure_item_id(self):
-        """确保编辑器有有效的item_id，如果没有则创建一个新的"""
-        if not self.item.item_id:
-            logger.info("编辑器缺少item_id，正在创建新的记录")
-            try:
-                # 创建一个新记录以获取ID
-                new_id = self.markrender_manager.save_item(
-                    title="未命名文档",
-                    content=self.item.get_text(),
-                    page_type=self.page_type
-                )
-                if new_id:
-                    self.set_item_id(str(new_id))
-                    logger.info(f"已为文档创建新的item_id: {self.item.item_id}")
-                    return True
-                else:
-                    logger.error("无法创建新的item_id")
-                    return False
-            except Exception as e:
-                logger.error(f"创建新的item_id时出错: {e}")
-                return False
-        return True
-
-    def set_page_type(self, page_type):
-        self.item.page_type = page_type
 
     def get_content(self, callback):
         """获取markdown内容"""
@@ -536,6 +387,11 @@ class MarkRenderEditor(QWidget):
             return {'success': response is not None, 'content': response if response is not None else ''}
     
     def set_text_content(self, text_content):
+        if self.item.page_type == 'landing':
+            return False
+        if not self.item.item_id:
+            logger.error("item_id未初始化，无法设置内容")
+            return False
         # 直接通过backend_interface设置内容，不再检查WebChannel状态
         if not self.backend_interface or not self.backend_interface.page:
             logger.error("backend_interface未初始化或页面未加载，无法设置内容")
@@ -555,10 +411,9 @@ class MarkRenderEditor(QWidget):
         }, item_id=self.item.item_id)
         
         if success:
-            self.last_saved_text = text_content
-            logger.debug("内容已成功设置到前端")
+            logger.debug(f"内容已成功设置到前端，item_id: {self.item.item_id}")
         else:
-            logger.error("设置内容失败")
+            logger.error(f"设置内容失败，item_id: {self.item.item_id}")
         
         return success
 
@@ -587,21 +442,32 @@ class MarkRenderEditor(QWidget):
         # 布局管理器会自动处理子部件的大小
 
     def closeEvent(self, event):
-        # 1. 停止自动保存定时器
-        if hasattr(self, 'auto_save_timer'):
-            self.auto_save_timer.stop()
-            logger.debug("Auto-save timer stopped")
-
-        # 2. 快速检查是否真的需要保存
+        # 1. 快速检查是否真的需要保存
         need_save = self._check_if_save_needed()
         
         if need_save:
             logger.info(f"检测到需要保存文档: {self.item.item_id}")
-            self._perform_save_and_close(event)
-        else:
-            logger.debug("无需保存，直接关闭")
-            self._cleanup_and_close()
+            # 执行保存，但不阻止事件传播
+            self._perform_save_on_close()
+        
+        # 无论是否需要保存，都接受事件，让主窗口决定关闭流程
+        event.accept()
     
+    def _perform_save_on_close(self):
+        """在关闭时执行保存操作，不涉及事件处理"""
+        try:
+            # 退出前同步拉取数据并保存
+            result = self.backend_interface.send_message_sync("getContent", {}, item_id=self.item.item_id, timeout=10000)
+            if result and result.get('success', False): 
+                content = result.get('content', '') if result else ''
+                if self.item.item_id == result.get('item_id', ''):
+                    self.markrender_manager.save_item(id=self.item.item_id, content=content)
+                    logger.debug(f"文档已保存: {self.item.item_id}")
+            self._close_ready = True
+        except Exception as e:
+            logger.error(f"发送getContent消息时出错: {e}")
+            self._close_ready = True
+
     def _check_if_save_needed(self):
         """快速检查是否需要保存"""
         # 基本条件检查
@@ -609,78 +475,8 @@ class MarkRenderEditor(QWidget):
             return False
         if not (hasattr(self, 'item') and self.item and self.item.item_id):
             return False
-            
         return True
-    
-    def _perform_save_and_close(self, event):
-        """执行保存并关闭流程"""
-        # 设置较短的超时定时器（1.5秒后强制关闭）
-        if not hasattr(self, '_close_timeout_timer'):
-            self._close_timeout_timer = QTimer()
-            self._close_timeout_timer.setSingleShot(True)
-            self._close_timeout_timer.timeout.connect(self._force_close)
-        
-        self._close_timeout_timer.start(500)  # 500ms超时，减少延迟
-        
-        def save_content(response):
-            # 停止超时定时器
-            if hasattr(self, '_close_timeout_timer'):
-                self._close_timeout_timer.stop()
-                
-            # 快速处理保存响应
-            try:
-                content = response.get('content', '') if response else ''
-                if content and self.item.item_id:
-                    self.markrender_manager.save_item(id=self.item.item_id, content=content)
-                    logger.debug(f"文档已保存: {self.item.item_id}")
-            except Exception as e:
-                logger.error(f"保存文档时出错: {e}")
-            
-            # 保存完成后立即关闭
-            self._cleanup_and_close()
-        
-        # 尝试快速获取内容并保存
-        try:
-            success = self.backend_interface.send_message("getContent", {}, callback=save_content, item_id=self.item.item_id)
-            if not success:
-                logger.warning("发送getContent消息失败，1.5秒后强制关闭")
-                self._cleanup_and_close()
-                return
-        except Exception as e:
-            logger.error(f"发送getContent消息时出错: {e}")
-            # 发送失败，停止超时定时器并直接关闭
-            if hasattr(self, '_close_timeout_timer'):
-                self._close_timeout_timer.stop()
-            self._cleanup_and_close()
-    
-    def _force_close(self):
-        """强制关闭 - 超时时调用"""
-        logger.warning("关闭超时（1.5秒），强制清理资源并关闭")
-        self._cleanup_and_close()
-    
-    def _cleanup_and_close(self):
-        """清理资源并通知关闭"""
-        try:
-            self._cleanup_resources()
-        except Exception as e:
-            logger.error(f"清理资源时出错: {e}")
-        
-        # 标记编辑器已经准备好关闭
-        self._close_ready = True
-        
-        # 通知父窗口编辑器已经准备好关闭，但不直接关闭父窗口
-        # 让主窗口控制整个关闭流程，避免组件分离
-        if self.parent and hasattr(self.parent, '_on_editor_close_ready'):
-            self.parent._on_editor_close_ready()
-        elif self.parent:
-            # 如果父窗口没有_on_editor_close_ready方法，则标记为准备关闭
-            # 但不触发关闭，由父窗口自己控制关闭时机
-            logger.info("编辑器已准备关闭，等待主窗口统一关闭")
-        else:
-            # 如果没有父窗口，直接退出应用
-            from PySide6.QtWidgets import QApplication
-            QTimer.singleShot(0, QApplication.quit)
-        
+
     def _cleanup_resources(self):
         # 释放Web通信资源
         if hasattr(self, 'backend_interface'):

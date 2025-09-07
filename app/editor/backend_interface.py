@@ -1,11 +1,8 @@
 import json
-import threading
 
-from PySide6.QtCore import QObject, Slot, QRunnable, QThreadPool, Signal, QEventLoop, QTimer
-from PySide6.QtWebEngineCore import QWebEnginePage
+from PySide6.QtCore import QObject, QEventLoop, QTimer
 from utils import logger
 from db.markrender_manager import MarkRenderManager
-# Add the import statement at the top with other imports
 from app.editor.js_scripts import JSScriptManager
 
 # 纯Python实现的RequestModel类
@@ -25,19 +22,12 @@ class RequestModel:
 
 
 class BackendInterface(QObject):
-    # 信号定义
-    js_error_occurred = Signal(str)
-    async_response_ready = Signal(str, bool, dict)  # 添加异步响应信号
     
     def __init__(self, page_type: str, parent=None):
         super().__init__(parent)
         self.page_type = page_type
         self.markdown_manager = MarkRenderManager()
-        self.item_map = {}
-        self.handlers = {}
-        self.web_callbacks = {}
         self.page = None  # 添加page属性，初始为None
-        # 移除ready属性，不再需要WebChannel就绪状态
     
     def set_page(self, page):
         """设置页面对象"""
@@ -46,28 +36,8 @@ class BackendInterface(QObject):
     def set_page_type(self, page_type):
         """设置页面类型"""
         self.page_type = page_type
-        
-    def attach_to_page_manager(self, page_manager):
-        """附加到页面管理器并获取页面对象"""
-        success = page_manager.set_backend_interface(self.page_type, self)
-        if success:
-            logger.debug(f"通信管理器 {self.page_type} 成功附加到页面管理器")
-        else:
-            logger.warning(f"通信管理器 {self.page_type} 附加到页面管理器失败")
-        return success
-    
-    # 移除handle_web_response方法，不再需要处理前端响应
-    
-    # 移除frontend_ready方法，不再需要前端就绪回调
-        
-    # 添加处理器注册方法
-    def register_handler(self, action: str, handler: callable, is_async: bool = False):
-        """注册Python处理器到通信管理器"""
-        self.handlers[action] = (handler, is_async)
 
-    # 移除dispatch_request方法，不再需要处理前端请求
-
-    def send_message_sync(self, action: str, data: dict = None, item_id: str = None, timeout: int = 15000):
+    def send_message_sync(self, action: str, data: dict = None, item_id: str = None, timeout: int = 15000) -> dict:
         """
         同步发送消息到前端页面，使用QEventLoop阻塞主线程直到获取到数据
         """
@@ -249,29 +219,8 @@ class BackendInterface(QObject):
     def _log_js_result(self, result, action):
         """仅记录JavaScript执行结果"""
         logger.debug(f"[{self.page_type}] JavaScript执行完成，action: {action}, result: {result}")
-
-    def _on_message_sent(self, request_id, result):
-        # 简化处理，不再需要复杂的回调机制
-        logger.debug(f"[{self.page_type}] JavaScript执行完成")
-    
-    def _generate_request_id(self):
-        """已废弃：不再生成随机请求ID，使用item id代替"""
-        import uuid
-        logger.warning("_generate_request_id方法已废弃，请使用item id作为request标识")
-        return str(uuid.uuid4())
-    
-    def _send_web_response(self, callback_id, result):
-        # 不再需要发送响应到前端
-        pass
-
-    def _send_web_error(self, callback_id, error_msg):
-        # 不再需要发送错误到前端
-        pass
-    
-    def _dispatch_async_request(self, request: RequestModel, handler: callable):
-        # 不再需要异步请求分发
-        pass
     
     def cleanup(self):
         # 简化清理过程
-        self.web_callbacks.clear()
+        self.page = None
+        logger.info(f"[{self.page_type}] 已清理所有资源")
