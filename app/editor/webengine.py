@@ -51,6 +51,35 @@ class CustomWebEnginePage(QWebEnginePage):
         super().__init__(parent)
         self.backend_interface = None
         self.page_type = None
+    
+    def javaScriptConsoleMessage(self, level, message, line_number, source_id):
+        """处理JavaScript控制台消息"""
+        # 调用父类的方法以确保默认行为
+        super().javaScriptConsoleMessage(level, message, line_number, source_id)
+        
+        # 将前端控制台日志统一转发到服务器端日志系统
+        log_level = "DEBUG"
+        if level == QWebEnginePage.JavaScriptConsoleMessageLevel.InfoMessageLevel:
+            log_level = "INFO"
+        elif level == QWebEnginePage.JavaScriptConsoleMessageLevel.WarningMessageLevel:
+            log_level = "WARNING"
+        elif level == QWebEnginePage.JavaScriptConsoleMessageLevel.ErrorMessageLevel:
+            log_level = "ERROR"
+        
+        # 添加页面类型前缀以便区分不同页面的日志
+        page_info = f"[{self.page_type or 'Unknown'}]" if self.page_type else "[UnknownPage]"
+        source_info = f"{source_id}:{line_number}" if source_id else "Unknown Source"
+        
+        # 根据日志级别使用不同的logger方法
+        log_message = f"{page_info} JS Console ({source_info}): {message}"
+        if log_level == "ERROR":
+            logger.error(log_message)
+        elif log_level == "WARNING":
+            logger.warning(log_message)
+        elif log_level == "INFO":
+            logger.info(log_message)
+        else:
+            logger.debug(log_message)
 
 # 更新WebPageManager类中的create_page方法
 class WebPageManager(QStackedWidget):

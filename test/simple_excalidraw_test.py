@@ -208,7 +208,7 @@ class CustomWebEnginePage(QWebEnginePage):
         
         # 格式化日志消息
         log_msg = f"🌐 JS {log_level}: {message} (at line {line_number} in {source_id})"
-        print(log_msg)
+        logger.info(log_msg)
 
 def main():
     """主函数"""
