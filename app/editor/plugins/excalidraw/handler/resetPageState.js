@@ -2,21 +2,35 @@
     try {
         console.log('开始重置Excalidraw页面状态');
         
-        // 重置Excalidraw状态
-        if (typeof window.resetExcalidraw === 'function') {
+        // 重置Excalidraw状态 - 使用新的接口
+        if (typeof window.reset === 'function') {
+            window.reset();
+            console.log('通过新接口重置Excalidraw状态完成');
+        }
+        // 兼容旧的接口
+        else if (typeof window.resetExcalidraw === 'function') {
             window.resetExcalidraw();
-            console.log('Excalidraw状态已重置');
+            console.log('通过旧接口重置Excalidraw状态完成');
+        }
+        
+        // 重置项目ID - 使用新的接口
+        if (typeof window.setCurrentItemId === 'function') {
+            window.setCurrentItemId(null);
+            console.log('通过新接口重置当前项目ID');
+        } else if (typeof window.editorState !== 'undefined') {
+            window.editorState.currentItemId = null;
+            console.log('通过editorState重置当前项目ID');
         }
         
         // 重置其他可能的状态
         if (typeof window.currentItemId !== 'undefined') {
             window.currentItemId = null;
-            console.log('当前项目ID已重置');
+            console.log('重置window.currentItemId');
         }
         
         // 重置Excalidraw特定状态
         try {
-            // 清空Excalidraw场景
+            // 清空Excalidraw场景 - 使用新的接口
             if (typeof window.updateScene === 'function') {
                 window.updateScene({ elements: [] });
             } else if (window.excalidrawAppRef && typeof window.excalidrawAppRef.updateScene === 'function') {

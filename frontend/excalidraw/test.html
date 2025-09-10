@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Excalidraw Test</title>
+    <style>
+      body, html {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      }
+      #excalidraw-container {
+        width: 100%;
+        height: 100%;
+        position: relative;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="excalidraw-container"></div>
+    
+    <script type="module">
+      import React from "react";
+      import { Excalidraw } from "@excalidraw/excalidraw";
+      import { createRoot } from "react-dom/client";
+      
+      let excalidrawAPI = null;
+      
+      // 获取 Excalidraw 内容
+      function getContent() {
+        console.log("getContent called");
+        if (!excalidrawAPI) {
+          console.warn("Excalidraw 尚未初始化");
+          return null;
+        }
+        
+        const elements = excalidrawAPI.getSceneElements();
+        const appState = excalidrawAPI.getAppState();
+        
+        return {
+          elements,
+          appState
+        };
+      }
+      
+      // 设置 Excalidraw 画布内容
+      function setValue(content) {
+        console.log("setValue called", content);
+        if (!excalidrawAPI) {
+          console.warn("Excalidraw 尚未初始化");
+          return;
+        }
+        
+        if (content && content.elements) {
+          excalidrawAPI.updateScene({
+            elements: content.elements,
+            appState: content.appState || {},
+            commitToHistory: true
+          });
+        }
+      }
+      
+      // 重置 Excalidraw 画布
+      function reset() {
+        console.log("reset called");
+        if (!excalidrawAPI) {
+          console.warn("Excalidraw 尚未初始化");
+          return;
+        }
+        
+        excalidrawAPI.resetScene();
+      }
+      
+      // 在 window 对象上暴露所需的方法
+      window.getContent = getContent;
+      window.setValue = setValue;
+      window.reset = reset;
+      
+      console.log("Functions exposed to window object");
+      console.log("getContent function available:", typeof window.getContent === 'function');
+      console.log("setValue function available:", typeof window.setValue === 'function');
+      console.log("reset function available:", typeof window.reset === 'function');
+      
+      // 初始化 Excalidraw
+      function initializeExcalidraw() {
+        console.log("Initializing Excalidraw...");
+        const container = document.getElementById("excalidraw-container");
+        console.log("Container element:", container);
+        
+        if (!container) {
+          console.error("Container element not found");
+          return;
+        }
+        
+        // 创建根实例
+        const root = createRoot(container);
+        console.log("Root created");
+        
+        // 渲染 Excalidraw 组件
+        try {
+          const excalidrawElement = React.createElement(Excalidraw, {
+            onChange: (elements, state) => {
+              console.log("Excalidraw elements changed", elements.length);
+            },
+            onMount: (api) => {
+              console.log("Excalidraw mounted, API received:", typeof api);
+              // 获取 Excalidraw API
+              excalidrawAPI = api;
+              console.log("Excalidraw API stored:", typeof excalidrawAPI);
+              
+              console.log("Excalidraw 初始化完成");
+              console.log("getContent function available:", typeof window.getContent === 'function');
+              console.log("setValue function available:", typeof window.setValue === 'function');
+              console.log("reset function available:", typeof window.reset === 'function');
+              
+              // 测试 API 是否可用
+              if (excalidrawAPI) {
+                console.log("Testing API...");
+                try {
+                  const elements = excalidrawAPI.getSceneElements();
+                  console.log("API test successful, elements count:", elements.length);
+                } catch (e) {
+                  console.error("API test failed:", e);
+                }
+              }
+            }
+          });
+          
+          root.render(excalidrawElement);
+          console.log("Excalidraw rendered");
+        } catch (error) {
+          console.error("Error rendering Excalidraw:", error);
+        }
+      }
+      
+      // 页面加载完成后初始化 Excalidraw
+      document.addEventListener("DOMContentLoaded", () => {
+        console.log("DOM content loaded, initializing Excalidraw...");
+        // 延迟初始化以确保所有资源都已加载
+        setTimeout(() => {
+          initializeExcalidraw();
+        }, 100);
+      });
+      
+      // 也尝试在window.onload中初始化
+      window.addEventListener("load", () => {
+        console.log("Window loaded, initializing Excalidraw...");
+        setTimeout(() => {
+          initializeExcalidraw();
+        }, 100);
+      });
+    </script>
+  </body>
+</html>

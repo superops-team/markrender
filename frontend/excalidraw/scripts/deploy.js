@@ -1,131 +1,95 @@
-import { resolve, join } from 'path';
-import { copyFileSync, readdirSync, statSync, existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'fs';
+const fs = require('fs-extra');
+const path = require('path');
+const { execSync } = require('child_process');
 
 // 源目录和目标目录
-const sourceDir = resolve('./dist');
-const targetDir = resolve('../../app/editor/plugins/excalidraw');
-const templateFile = resolve('./scripts/excalidraw-template.html');
-const excalidrawNodeModulesDir = resolve('./node_modules/@excalidraw/excalidraw/dist/excalidraw-assets');
+const srcDir = path.resolve(__dirname, '../dist');
+const destDir = path.resolve(__dirname, '../../app/editor/plugins/excalidraw');
 
-// 确保目标目录存在
-if (!existsSync(targetDir)) {
-  mkdirSync(targetDir, { recursive: true });
-}
-
-// 复制文件的函数
-function copyFiles(src, dest) {
-  if (!existsSync(src)) {
-    console.error(`Source directory ${src} does not exist`);
-    return;
-  }
-
-  const files = readdirSync(src);
-  
-  for (const file of files) {
-    const srcPath = join(src, file);
-    const destPath = join(dest, file);
-    const stat = statSync(srcPath);
-    
-    if (stat.isDirectory()) {
-      // 如果是目录，递归复制
-      if (!existsSync(destPath)) {
-        mkdirSync(destPath, { recursive: true });
-      }
-      copyFiles(srcPath, destPath);
-    } else {
-      // 特殊处理 index.html 文件，使用模板
-      if (file === 'index.html') {
-        handleIndexHtml(srcPath, destPath);
-      } else {
-        // 如果是其他文件，直接复制
-        console.log(`Copying ${srcPath} to ${destPath}`);
-        copyFileSync(srcPath, destPath);
-      }
-    }
-  }
-}
-
-// 特殊处理 index.html 文件
-function handleIndexHtml(srcPath, destPath) {
-  if (!existsSync(srcPath)) {
-    console.error(`Source index.html ${srcPath} not found`);
-    return;
-  }
-  if (!existsSync(templateFile)) {
-    console.error(`Template file ${templateFile} not found`);
-    return;
-  }
-
-  // 读取构建生成的 index.html
-  const srcContent = readFileSync(srcPath, 'utf8');
-  
-  // 查找构建生成的脚本和样式标签
-  const scriptTags = srcContent.match(/<script[^>]*src="[^"]*"[^>]*><\/script>/g) || [];
-  const linkTags = srcContent.match(/<link[^>]*href="[^"]*"[^>]*>/g) || [];
-  
-  // 读取模板文件
-  let templateContent = readFileSync(templateFile, 'utf8');
-  
-  // 替换模板中的占位符
-  templateContent = templateContent.replace('<!-- EXCALIDRAW_CSS_PLACEHOLDER -->', linkTags.join('\n    '));
-  templateContent = templateContent.replace('<!-- EXCALIDRAW_JS_PLACEHOLDER -->', scriptTags.join('\n    '));
-  
-  // 写入目标文件
-  console.log(`Generating ${destPath} from template`);
-  writeFileSync(destPath, templateContent, 'utf8');
-}
-
-// 创建Excalidraw所需的资源目录结构并复制 node_modules 资产
-function createExcalidrawAssetsStructure() {
-  const assetsDir = join(targetDir, 'assets');
-  const excalidrawAssetsDir = join(assetsDir, 'excalidraw-assets');
-
-  // 确保excalidraw-assets目录存在
-  if (!existsSync(excalidrawAssetsDir)) {
-    console.log('Creating excalidraw-assets directory...');
-    mkdirSync(excalidrawAssetsDir, { recursive: true });
-  }
-
-  // 复制 node_modules/@excalidraw/excalidraw/dist/excalidraw-assets 下的所有文件
-  if (existsSync(excalidrawNodeModulesDir)) {
-    console.log(`Copying Excalidraw assets from ${excalidrawNodeModulesDir} to ${excalidrawAssetsDir}...`);
-    copyFiles(excalidrawNodeModulesDir, excalidrawAssetsDir);
-  } else {
-    console.warn(`Excalidraw assets directory ${excalidrawNodeModulesDir} not found. Ensure @excalidraw/excalidraw is installed.`);
-  }
-
-  // 复制 Vite 构建生成的 assets（包括 vendor.js 等）到 excalidraw-assets
-  const viteAssetsDir = join(sourceDir, 'assets');
-  if (existsSync(viteAssetsDir)) {
-    const viteFiles = readdirSync(viteAssetsDir).filter(file => file.endsWith('.js') || file.endsWith('.css'));
-    for (const file of viteFiles) {
-      const srcPath = join(viteAssetsDir, file);
-      const destPath = join(excalidrawAssetsDir, file);
-      console.log(`Copying Vite asset ${srcPath} to ${destPath}`);
-      copyFileSync(srcPath, destPath);
-    }
-  } else {
-    console.warn(`Vite assets directory ${viteAssetsDir} not found.`);
-  }
-}
-
-// 清理重复的资源目录
-function cleanupDuplicateAssets() {
-  const duplicateAssetsDir = join(targetDir, 'assets', 'excalidraw-assets', 'excalidraw-assets');
-  if (existsSync(duplicateAssetsDir)) {
-    console.log('Removing duplicate assets directory...');
-    rmSync(duplicateAssetsDir, { recursive: true, force: true });
-  }
-}
-
-// 执行部署操作
+// 先运行构建命令
+console.log('开始构建 Excalidraw 项目...');
 try {
-  console.log('Deploying Excalidraw build to plugin directory...');
-  copyFiles(sourceDir, targetDir);
-  createExcalidrawAssetsStructure();
-  cleanupDuplicateAssets();
-  console.log('Deployment completed successfully!');
+  execSync('npm run build', { stdio: 'inherit' });
+  console.log('构建完成！');
 } catch (error) {
-  console.error('Deployment failed:', error);
+  console.error('构建失败:', error);
   process.exit(1);
 }
+
+// 确保目标目录存在
+fs.ensureDirSync(destDir);
+
+// 复制文件
+fs.copySync(srcDir, destDir, { overwrite: true});
+
+// 更新 index.html 中的资源路径
+const indexPath = path.join(destDir, 'index.html');
+if (fs.existsSync(indexPath)) {
+  let indexContent = fs.readFileSync(indexPath, 'utf-8');
+  
+  // 替换资源路径以适应插件目录结构
+  indexContent = indexContent.replace(/\/assets\//g, './assets/');
+  indexContent = indexContent.replace(/\/vite\.svg/g, './vite.svg');
+  
+  // 更新 window.EXCALIDRAW_ASSET_PATH
+  indexContent = indexContent.replace(/window\.EXCALIDRAW_ASSET_PATH = "\/assets\/";/g, 'window.EXCALIDRAW_ASSET_PATH = "./assets/";');
+  
+  // 更新 CSS 链接
+  const assetFiles = fs.readdirSync(path.join(destDir, 'assets'));
+  const indexCssFiles = assetFiles.filter(file => file.startsWith('index.') && file.endsWith('.css'));
+  
+  if (indexCssFiles.length > 0) {
+    const indexCssFile = indexCssFiles[0];
+    // 更新现有的CSS链接
+    indexContent = indexContent.replace(
+      /<link rel="stylesheet" href="\.\/assets\/index\.[^"]+\.css"[^>]*>/,
+      `<link rel="stylesheet" href="./assets/${indexCssFile}">`
+    );
+  }
+  
+  // 更新 JavaScript 文件引用
+  const mainJsFiles = assetFiles.filter(file => file.startsWith('main.') && file.endsWith('.js') && !file.includes('test'));
+  
+  if (mainJsFiles.length > 0) {
+    // 选择最大的 main.js 文件作为入口（通常是主应用文件）
+    const mainJsFile = mainJsFiles.reduce((largest, current) => {
+      const largestSize = fs.statSync(path.join(destDir, 'assets', largest)).size;
+      const currentSize = fs.statSync(path.join(destDir, 'assets', current)).size;
+      return currentSize > largestSize ? current : largest;
+    });
+    
+    console.log(`选择的主JavaScript文件: ${mainJsFile}`);
+    
+    // 更新 script 标签
+    indexContent = indexContent.replace(
+      /<script type="module" crossorigin src="\.\/assets\/main\.[^"]+\.js"><\/script>/,
+      `<script type="module" crossorigin src="./assets/${mainJsFile}"></script>`
+    );
+    
+    // 更新 modulepreload 链接（如果存在）
+    indexContent = indexContent.replace(
+      /<link rel="modulepreload" crossorigin href="\.\/assets\/main\.[^"]+\.js">/g,
+      `<link rel="modulepreload" crossorigin href="./assets/${mainJsFile}">`
+    );
+  }
+  
+  // 特殊处理：确保引用正确的主文件
+  // 检查是否存在 main.js 文件（可能是复制过程中重命名的）
+  if (assetFiles.includes('main.js')) {
+    indexContent = indexContent.replace(
+      /<script type="module" crossorigin src="\.\/assets\/main\.[^"]+\.js"><\/script>/,
+      `<script type="module" crossorigin src="./assets/main.js"></script>`
+    );
+    
+    indexContent = indexContent.replace(
+      /<link rel="modulepreload" crossorigin href="\.\/assets\/main\.[^"]+\.js">/g,
+      `<link rel="modulepreload" crossorigin href="./assets/main.js">`
+    );
+    console.log('使用重命名后的 main.js 文件');
+  }
+  
+  fs.writeFileSync(indexPath, indexContent, 'utf-8');
+  console.log('已更新 index.html 中的资源路径');
+}
+
+console.log('Excalidraw 部署完成！');

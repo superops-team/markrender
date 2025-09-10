@@ -1,9 +1,11 @@
 import json
+from typing import Union, Dict, Any
 
 from PySide6.QtCore import QObject, QEventLoop, QTimer
 from utils import logger
 from db.markrender_manager import MarkRenderManager
 from app.editor.js_scripts import JSScriptManager
+from app.editor.excalidraw_utils import ExcalidrawDataHandler
 
 
 class BackendInterface(QObject):
@@ -163,6 +165,13 @@ class BackendInterface(QObject):
             if action == "setValue":
                 content = data.get("content", "")
                 item_id_param = data.get("item_id", item_id or "")
+                
+                # 确保content是字符串类型，如果是字典则转换为JSON字符串
+                if isinstance(content, dict):
+                    content = json.dumps(content, ensure_ascii=False)
+                elif not isinstance(content, str):
+                    content = str(content)
+                    
                 return JSScriptManager.get_script(script_name, page_type=self.page_type, content=content, item_id=item_id_param)
             elif action == "setCurrentItemId":
                 item_id_param = data.get("item_id", "")

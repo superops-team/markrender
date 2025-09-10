@@ -215,6 +215,7 @@ class MainWindow(QMainWindow):
                 page_manager.switch_to_page(page_type)
                 # 获取内容 - 对于不同的item，必须从对应的item获取内容
                 item_id = quickpick_item.get('id')
+                content = ''
                 try:
                     item_detail = self.markrender_manager.get_detail(item_id)
                     if item_detail and item_detail.get('content'):

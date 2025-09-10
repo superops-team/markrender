@@ -1,24 +1,37 @@
 {
-  "name": "excalidraw-board",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "name": "excalidraw-project",
+  "version": "1.0.0",
+  "description": "Excalidraw integration for MarkRender",
+  "main": "index.js",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy": "node scripts/deploy.js",
-    "build-and-deploy": "npm run build && npm run deploy"
+    "deploy": "node scripts/deploy.js"
   },
   "dependencies": {
-    "@excalidraw/excalidraw": "0.17.5",
+    "@excalidraw/excalidraw": "^0.17.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "@types/react": "^18.2.15",
-    "@types/react-dom": "^18.2.7",
-    "@vitejs/plugin-react": "^4.0.3",
-    "vite": "^4.4.5"
-  }
+    "@vitejs/plugin-react": "^4.0.0",
+    "fs-extra": "^11.0.0",
+    "terser": "^5.44.0",
+    "vite": "^4.0.0"
+  },
+  "keywords": [
+    "excalidraw",
+    "markrender"
+  ],
+  "author": "MarkRender Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/markrender.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/markrender/issues"
+  },
+  "homepage": "https://github.com/your-org/markrender#readme"
 }

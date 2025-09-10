@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="./vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Excalidraw</title>
+    
+    <!-- Excalidraw CSS -->
+    <link rel="stylesheet" href="./assets/index.css">
+    
+    <style>
+      body, html {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      }
+      #excalidraw-container {
+        width: 100%;
+        height: 100%;
+        position: relative;
+      }
+    </style>
+    
+    <script>
+      // 确保 Excalidraw 使用本地资源而不是 CDN
+      // 注意：路径末尾必须包含斜杠
+      window.EXCALIDRAW_ASSET_PATH = "./assets/";
+      window.EXCALIDRAW_EXPORT_SOURCE = "";
+    </script>
+  </head>
+  <body>
+    <div id="excalidraw-container"></div>
+    
+    <script type="module" src="./assets/index.js"></script>
+  </body>
+</html>

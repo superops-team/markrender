@@ -94,7 +94,17 @@ class MarkRenderManager:
         session = self.Session()
         changed = False
         try:
-            content_md5 = calculate_md5(content)
+            import json
+            
+            # 确保content是字符串类型
+            if isinstance(content, dict):
+                content_str = json.dumps(content, ensure_ascii=False)
+            elif not isinstance(content, str):
+                content_str = str(content)
+            else:
+                content_str = content
+                
+            content_md5 = calculate_md5(content_str)
             now = time_utils.now()  # 获取当前北京时间
             if id:
                 # 更新现有记录
@@ -104,8 +114,8 @@ class MarkRenderManager:
                         history.content_md5 = content_md5
                     if title and title != history.title:
                         history.title = title
-                    if content and content != history.content:
-                        history.content = content
+                    if content_str and content_str != history.content:
+                        history.content = content_str
                         changed = True
                     if file_path and file_path != history.file_path:
                         history.file_path = file_path
@@ -139,7 +149,7 @@ class MarkRenderManager:
                 changed = True
                 new_history = MarkRenderData(
                     title=title,
-                    content=content,
+                    content=content_str,
                     tags=tags,
                     render_style=render_style,
                     content_md5=content_md5,
@@ -164,8 +174,8 @@ class MarkRenderManager:
             raise e
         finally:
             session.close()
-            if id and content and changed:
-                self.sync_write_localdisk(id, content)
+            if id and content_str and changed:
+                self.sync_write_localdisk(id, content_str, page_type, page_engine)
         return id
 
 
@@ -177,13 +187,23 @@ class MarkRenderManager:
             content: 内容
         """
         try:
+            import json
+            
+            # 确保content是字符串类型
+            if isinstance(content, dict):
+                content_str = json.dumps(content, ensure_ascii=False)
+            elif not isinstance(content, str):
+                content_str = str(content)
+            else:
+                content_str = content
+                
             suffix = 'markrender'
             if page_type == 'markdown':
                 suffix = 'md'
             if page_engine == 'excalidraw':
                 suffix = 'excalidraw'
             with open(f'{get_user_data_dir()}/output/{id}.{suffix}', 'w') as f:
-                f.write(content)
+                f.write(content_str)
         except Exception as e:
             logger.error(f"Error writing to local disk: {e}")
 
@@ -247,12 +267,30 @@ class MarkRenderManager:
         try:
             # 计算内容MD5
             import hashlib
-            change_content_md5 = hashlib.md5(new_content.encode()).hexdigest()
+            import json
+            
+            # 确保new_content是字符串类型
+            if isinstance(new_content, dict):
+                content_str = json.dumps(new_content, ensure_ascii=False)
+            elif not isinstance(new_content, str):
+                content_str = str(new_content)
+            else:
+                content_str = new_content
+                
+            change_content_md5 = hashlib.md5(content_str.encode()).hexdigest()
+            
+            # 确保old_content也是字符串类型
+            if isinstance(old_content, dict):
+                old_content_str = json.dumps(old_content, ensure_ascii=False)
+            elif not isinstance(old_content, str):
+                old_content_str = str(old_content)
+            else:
+                old_content_str = old_content
             
             new_change = MarkRenderChangeHistory(
                 file_id=file_id,
-                old_content=old_content,
-                new_content=new_content,
+                old_content=old_content_str,
+                new_content=content_str,
                 change_type=change_type,
                 change_reason=change_reason,
                 change_by=change_by,
