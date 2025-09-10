@@ -6,6 +6,11 @@ function App() {
 
   // 初始化时就定义window函数，避免未定义错误
   useEffect(() => {
+    // 初始化Excalidraw状态
+    if (typeof window.excalidrawState === 'undefined') {
+      window.excalidrawState = {};
+    }
+
     // 预定义所有函数，避免未定义错误
     window.setValue = (sceneData) => {
       console.log("setValue called with:", sceneData);
@@ -46,28 +51,32 @@ function App() {
           };
         }
         
+        // 添加当前itemId到返回数据中
+        const itemId = window.excalidrawState.currentItemId || '';
+        
         return {
           elements,
           appState,
-          files
+          files,
+          itemId
         };
       } else {
         console.warn("Excalidraw API not ready");
-        return { elements: [], appState: {}, files: {} };
+        return { elements: [], appState: {}, files: {}, itemId: '' };
       }
     };
 
     // itemId 相关函数
     window.getCurrentItemId = () => {
       console.log("getCurrentItemId called");
-      // 这里应该从某个地方获取当前的 itemId
-      // 暂时返回一个默认值
-      return "default-item-id";
+      // 从excalidrawState获取当前的 itemId
+      return window.excalidrawState.currentItemId || '';
     };
 
     window.setCurrentItemId = (itemId) => {
       console.log("setCurrentItemId called with:", itemId);
-      // 这里应该设置当前的 itemId
+      // 设置当前的 itemId 到 excalidrawState
+      window.excalidrawState.currentItemId = itemId || '';
     };
 
     console.log("Excalidraw functions initialized on window");
