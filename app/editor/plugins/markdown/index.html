@@ -177,14 +177,16 @@
                             'bold', 'italic', 'strikethrough', '|',
                             'color', 'header', '|',
                             'quote', 'list', '|',
-                            { insert: ['image', 'link', 'code', 'table'] }
+                            { insert: ['image', 'link', 'code', 'table', 'formula', 'line-table', 'bar-table'] },
+                            'graph'
                         ],
-                        toolbarRight: ['undo', 'redo'],
-                        bubble: ['bold', 'italic', 'link'],
+                        toolbarRight: ['undo', 'redo', 'togglePreview', 'codeTheme'],
+                        bubble:  ['bold', 'italic', 'underline', 'strikethrough', 'sub', 'sup', 'quote', '|', 'size', 'color'],
                         float: []
                     },
-                    defaultModel: 'editOnly',
-                    writingStyle: 'typewriter'
+                    defaultModel: 'edit&preview',
+                    preview: { style: { height: 'auto', width: '100%' } },
+                    header: { anchorStyle: 'none' }
                 });
                 
                 console.log('✅ Cherry编辑器初始化成功');
