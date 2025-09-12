@@ -111,12 +111,27 @@ function App() {
     console.log("Excalidraw changed");
   };
 
+  // 配置Excalidraw组件的属性
+  const excalidrawProps = {
+    excalidrawAPI: handleExcalidrawMount,
+    onChange: handleExcalidrawChange,
+    // 配置自定义字体
+    UIOptions: {
+      canvasActions: {
+        changeViewBackgroundColor: true,
+      },
+    },
+    // 初始化时设置字体
+    initialData: {
+      appState: {
+        currentItemFontFamily: 4, // 4 表示自定义字体
+      }
+    }
+  };
+
   return (
     <div style={{ height: '100vh' }}>
-      <Excalidraw 
-        excalidrawAPI={handleExcalidrawMount}
-        onChange={handleExcalidrawChange}
-      />
+      <Excalidraw {...excalidrawProps} />
     </div>
   );
 }
