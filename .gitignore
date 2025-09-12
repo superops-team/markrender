@@ -50,7 +50,6 @@ __pycache__/
 .Python
 build/
 develop-eggs/
-dist/
 downloads/
 eggs/
 .eggs/
@@ -212,3 +211,4 @@ pyrightconfig.json
 config.db
 # End of https://www.toptal.com/developers/gitignore/api/macos,python
 .vscode
+dist
