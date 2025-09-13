@@ -21,8 +21,6 @@ from db.settings_manager import SettingsManager
 from app.preference import AppStyle
 from app.preference.style_utils import (
     create_dialog_style,
-    create_button_style,
-    primary_button,
     secondary_button,
 )
 from app.preference.style_constants import (
@@ -31,11 +29,7 @@ from app.preference.style_constants import (
     NEUTRAL_200,
     NEUTRAL_500,
     NEUTRAL_700,
-    SPACING_MD,
-    SPACING_LG,
-    SPACING_XL,
     RADIUS_SM,
-    FONT_SIZE_LG,
     FONT_SIZE_MD,
     FONT_SIZE_SM,
 )

@@ -21,7 +21,7 @@ def verify_imports():
         print("✅ channel模块导入成功")
         
         # 验证PageType枚举
-        page_types = [PageType.MARKDOWN, PageType.EXCALIDRAW, PageType.LANDING, PageType.MOCK_TEST]
+        page_types = [PageType.MARKDOWN, PageType.EXCALIDRAW]
         for pt in page_types:
             assert hasattr(pt, 'html_file'), f"PageType.{pt.name}缺少html_file属性"
             assert hasattr(pt, 'display_name'), f"PageType.{pt.name}缺少display_name属性"
@@ -47,7 +47,6 @@ def verify_html_files():
     required_files = [
         'index.html',      # Markdown编辑器
         'board.html',      # 画板页面  
-        'landing.html',    # 欢迎页面
         'mock_test.html'   # 已存在的测试页面
     ]
     

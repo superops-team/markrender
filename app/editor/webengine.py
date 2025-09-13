@@ -14,11 +14,10 @@ from app.editor.js_scripts import JSScriptManager
 class PageType:
     MARKDOWN = "markdown"
     EXCALIDRAW = "excalidraw"
-    LANDING = "landing"
     
     @classmethod
     def all_types(cls) -> List[str]:
-        return [cls.MARKDOWN, cls.EXCALIDRAW, cls.LANDING]
+        return [cls.MARKDOWN, cls.EXCALIDRAW]
 
 # 页面配置类
 class PageConfig:

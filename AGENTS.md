@@ -1,12 +1,5 @@
 # MarkRender开发原则与指南
 
-## WebChannel通信原则
-
-### 1. 直接QWebChannel优先
-- **原则**: 优先使用直接QWebChannel实现，避免中间层
-- **理由**: 减少依赖，提高稳定性，便于调试
-- **实现**: 每个页面独立实现QWebChannel初始化
-
 ### 2. 状态管理规范
 - **全局状态命名**: 使用`window.[page]State`格式
   - Markdown: `window.editorState`
@@ -39,147 +32,63 @@
 - **用户提示**: 重要错误应有用户可见提示
 
 ## 前端开发指南
+- excalidraw 的前端部分在 frontend/excalidraw路径下开发,开发完成后通过 deploy.sh 部署到 app/editor/plugins/excalidraw/ 路径下
 
-### JavaScript最佳实践
-
-#### 1. 初始化流程
-```javascript
-// 标准初始化模板
-function initWebChannel() {
-    if (typeof QWebChannel === 'undefined') {
-        console.error('QWebChannel未定义');
-        return false;
-    }
-    
-    new QWebChannel(window.qt.webChannelTransport, function(channel) {
-        const backend = channel.objects.backendInterface;
-        if (backend && typeof backend.handle_web_response === 'function') {
-            // 初始化成功
-            window.appState.backend = backend;
-            // 延迟通知确保就绪
-            setTimeout(() => {
-                if (backend.frontend_ready) {
-                    backend.frontend_ready();
-                }
-            }, 50);
-        }
-    });
-}
-```
-
-#### 2. 消息处理
-```javascript
-// 标准消息处理函数
-function handleBackendMessage(action, data, requestId) {
-    try {
-        switch(action) {
-            case 'action_name':
-                // 处理逻辑
-                if (window.appState.backend) {
-                    window.appState.backend.handle_web_response(JSON.stringify({
-                        requestId: requestId,
-                        result: { success: true }
-                    }));
-                }
-                break;
-        }
-    } catch (error) {
-        console.error('处理消息失败:', error);
-    }
-}
-```
-
-#### 3. 状态验证
-```javascript
-// 状态验证模板
-function validateState() {
-    return window.appState && 
-           window.appState.backend && 
-           typeof window.appState.backend.handle_web_response === 'function';
-}
-```
-
-#### 4. 禁用Promise处理webchannel消息
-
-- **原则**: 不使用Promise处理webchannel消息
-- **理由**: 避免阻塞UI线程，影响响应性能
-- **实现**: 直接使用回调函数处理消息
 
 ### 5. 接口命名统一
 
-- **参数命名**: 统一使用 `item_id` 作为标识符
-- **方法命名**: 统一使用 `setCurrentItemId` 代替 `setBoardId`
-- **状态管理**: 统一使用 `itemId` 代替 `boardId`
-- **消息格式**: 统一使用 `item_id` 作为参数名
+- **参数命名**: 服务器端统一使用 `item_id` 作为标识符
+- **状态管理**: 前端统一使用 `itemId` 标记全局唯一性
+- **消息格式**: 交互协议统一包含 `item_id` 作为参数之一表示要修改的内容关联的 id
 
 #### 统一接口示例
 ```javascript
 // 标准消息格式
 {
-  requestId: "item-id-123",  // 使用item_id作为request_id
-  action: "setCurrentItemId",
+  requestId: "123",  // 使用item_id作为request_id
+  action: "setItemId",
   data: { item_id: "item-id-123" }
 }
 
 // 标准状态管理
 window.appState = {
-  itemId: "item-id-123",  // 统一使用itemId
+  itemId: "123",  // 统一使用itemId
   backend: backendInterface
 };
 ```
 
 ### React集成指南
 
-#### 1. WebChannel类设计
-- **单一职责**: 每个类只负责通信
-- **状态隔离**: 不直接操作React状态
-- **错误边界**: 提供错误处理机制
-- **不用Promise**: 直接使用回调函数处理消息
 
-#### 2. 组件集成
-```javascript
-// React组件集成示例
-useEffect(() => {
-    const initChannel = async () => {
-        const success = await window.excalidrawChannel.init();
-        if (success) {
-            setIsReady(true);
-        }
-    };
-    initChannel();
-}, []);
-```
 
 #### 3. 全局API暴露
 ```javascript
 // 标准API暴露
-window.loadExcalidrawData = (content) => {
+window.getContent = () => {
     // 实现逻辑
 };
 
-window.getExcalidrawData = () => {
+window.setItemId = (itemId) => {
     // 实现逻辑
-    return JSON.stringify(elements);
 };
+
+window.getItemId = () => {
+    // 实现逻辑
+}
+
+window.setContent = (content) => {
+    // 实现逻辑
+}
+
+window.reset = () => {
+    // 实现逻辑
+}
 ```
 
 ## Python后端指南
 
 ### 1. 接口定义
-```python
-from PySide6.QtCore import QObject, Slot
 
-class BackendInterface(QObject):
-    @Slot(str)
-    def handle_web_response(self, response_json):
-        """处理前端响应"""
-        pass
-    
-    @Slot()
-    def frontend_ready(self):
-        """前端就绪回调"""
-        pass
-```
 
 ### 2. 错误处理
 - **异常捕获**: 所有槽函数都应有异常处理
@@ -211,8 +120,6 @@ class BackendInterface(QObject):
 ## 部署检查清单
 
 ### 1. 文件验证
-- [ ] 所有index.html已移除webchannel-core.js引用
-- [ ] QWebChannel.js正确加载
 - [ ] 资源路径正确
 
 ### 2. 功能验证
@@ -221,7 +128,7 @@ class BackendInterface(QObject):
 - [ ] 错误处理有效
 
 ### 3. 性能验证
-- [ ] 初始化时间<2秒
+- [ ] 初始化时间<1秒
 - [ ] 消息延迟<100ms
 - [ ] 内存使用正常
 
@@ -229,28 +136,18 @@ class BackendInterface(QObject):
 
 ### 常见问题
 
-#### QWebChannel未定义
-```bash
-# 检查文件路径
-ls -la app/editor/plugins/*/index.html | grep qwebchannel
-```
 
-#### 后端接口未找到
+#### 未开启虚拟环境就执行代码
 ```bash
-# 检查Python端注册
-python -c "from app.editor.backend_interface import BackendInterface; print('OK')"
+# 虚拟环境
+source .venv/bin/activate
 ```
 
 #### 通信失败
-1. 检查浏览器控制台
-2. 验证Qt WebChannel设置
-3. 确认Slot装饰器使用正确
+1. 检查浏览器报错和 python 报错日志
 
 ### 调试步骤
-1. **检查加载顺序**: 确保QWebChannel.js最先加载
-2. **验证接口**: 确认backendInterface正确注册
-3. **测试消息**: 使用简单消息测试通信
-4. **检查错误**: 查看浏览器和Python日志
+1. **检查错误**: 查看浏览器和Python日志
 
 ## 版本兼容性
 
@@ -258,11 +155,6 @@ python -c "from app.editor.backend_interface import BackendInterface; print('OK'
 - Qt 6.2+
 - PySide6 6.2+
 
-### 浏览器兼容性
-- Chrome 80+
-- Firefox 75+
-- Safari 13+
-- Edge 80+
 
 ## 性能优化建议
 

@@ -41,13 +41,14 @@ class MarkRenderManager:
             return False
 
     def load_items(self, limit=20, page_type=''):
-        """加载所有历史记录"""
+        """加载所有历史记录，按更新时间降序排列"""
         session = self.Session()
         try:
             query = session.query(MarkRenderData)
             if page_type:
                 query = query.filter_by(page_type=page_type)
-            histories = query.order_by(MarkRenderData.created_at.desc()).limit(limit).all()
+            # 按更新时间降序排列，获取最新的记录
+            histories = query.order_by(MarkRenderData.updated_at.desc()).limit(limit).all()
             return [
                 {
                     'title': h.title,

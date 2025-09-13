@@ -41,20 +41,9 @@ def test_page_reuse():
     print(f"创建Excalidraw页面2: {excalidraw_page2 is not None}")
     print(f"Excalidraw页面是否复用: {excalidraw_page1 is excalidraw_page2}")
     
-    # 创建Landing页面
-    landing_page1 = page_manager.get_or_create_page(PageType.LANDING)
-    print(f"创建Landing页面1: {landing_page1 is not None}")
-    
-    # 再次创建Landing页面（应该复用）
-    landing_page2 = page_manager.get_or_create_page(PageType.LANDING)
-    print(f"创建Landing页面2: {landing_page2 is not None}")
-    print(f"Landing页面是否复用: {landing_page1 is landing_page2}")
-    
     # 验证不同类型页面不互相干扰
     print("\n2. 验证不同类型页面隔离:")
     print(f"Markdown页面 != Excalidraw页面: {markdown_page1 is not excalidraw_page1}")
-    print(f"Markdown页面 != Landing页面: {markdown_page1 is not landing_page1}")
-    print(f"Excalidraw页面 != Landing页面: {excalidraw_page1 is not landing_page1}")
     
     # 测试页面数量
     print("\n3. 测试页面数量:")
@@ -63,7 +52,7 @@ def test_page_reuse():
     
     # 测试获取所有页面类型
     all_page_types = page_manager.get_all_page_types()
-    print(f"所有页面类型: {[pt.value for pt in all_page_types]}")
+    print(f"所有页面类型: {[pt for pt in all_page_types]}")
     
     print("\n页面复用功能测试完成")
 

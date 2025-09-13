@@ -47,7 +47,7 @@ class MarkRenderEditor(QWidget):
         
         # 初始化页面管理器
         self.page_manager = WebPageManager()
-        self.page_type = 'landing' # 首次初始化默认加载landing
+        self.page_type = 'markdown' # 首次初始化默认加载markdown
         
         # 初始化文档
         self.item = MarkRenderItem(item_id="", page_type="")
@@ -79,11 +79,10 @@ class MarkRenderEditor(QWidget):
         # 预加载页面，后续插件化动态加载
         self.page_manager.preload_page_type("markdown")
         self.page_manager.preload_page_type("excalidraw")
-        self.page_manager.preload_page_type("landing", self.backend_interface) # 首页默认打开页
  
-        # 创建预览页面
+        # 创建预览页面，默认创建markdown页面
         self.preview = self.page_manager.get_or_create_page(
-            page_type="landing",
+            page_type="markdown",
             backend_interface=self.backend_interface
         )
         
@@ -95,9 +94,9 @@ class MarkRenderEditor(QWidget):
         self.backend_interface.set_page(self.preview.page())  # 直接设置页面对象
         
         # 加载HTML文件
-        success = self.page_manager.load_page_content(self.page_type)
+        success = self.page_manager.load_page_content("markdown")
         if not success:
-            logger.error(f"加载HTML文件失败: {self.page_type}")
+            logger.error(f"加载HTML文件失败: markdown")
         layout.addWidget(self.page_manager)
         # 设置样式
         self.setStyleSheet(AppStyle().get_editor_parent() + AppStyle().get_editor_preview())
@@ -115,6 +114,13 @@ class MarkRenderEditor(QWidget):
         
         # 设置页面功能特性
         self._setup_page_features()
+        
+        # 如果有待设置的初始内容，则设置它
+        if hasattr(self, 'initial_content') and self.initial_content is not None:
+            logger.info(f"设置初始内容，长度: {len(self.initial_content)}")
+            self.set_text_content(self.initial_content)
+            # 清除初始内容，避免重复设置
+            delattr(self, 'initial_content')
 
     def on_item_text_changed(self, text):
         """转发文档变更到前端"""
@@ -387,20 +393,19 @@ class MarkRenderEditor(QWidget):
             return {'success': response is not None, 'content': response if response is not None else ''}
     
     def set_text_content(self, text_content):
-        if self.item.page_type == 'landing':
-            return False
+        # 检查item_id是否已初始化
         if not self.item.item_id:
             logger.error("item_id未初始化，无法设置内容")
             return False
-        # 直接通过backend_interface设置内容，不再检查WebChannel状态
+        # 检查backend_interface是否已初始化
         if not self.backend_interface or not self.backend_interface.page:
             logger.error("backend_interface未初始化或页面未加载，无法设置内容")
             return False
     
         # 检查页面是否已加载
         if not self.page_loaded:
-            # 页面未加载，延迟发送
-            logger.warning("页面未加载，延迟设置内容")
+            # 页面未加载，存储初始内容，等待页面加载完成后再设置
+            logger.warning("页面未加载，存储初始内容等待后续设置")
             self.initial_content = text_content
             return False
     

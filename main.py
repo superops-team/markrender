@@ -153,14 +153,33 @@ class MainWindow(QMainWindow):
         self.setStatusBar(self.status_bar)
         self.status_bar.setStyleSheet(AppStyle().get_status_bar())
         
-        # 显示默认的Landing欢迎页面
+        # 移除默认的Landing欢迎页面显示
+        # 改为加载最后更新的项目
         from PySide6.QtCore import QTimer
         # 延迟显示，确保所有组件初始化完成
-        QTimer.singleShot(100, self.show_landing_page)
+        QTimer.singleShot(100, self.load_last_updated_item)
 
     def update_theme(self, theme):
         """切换主题"""
         self.editor.update_theme(theme)
+
+    def load_last_updated_item(self):
+        """加载最后更新的项目"""
+        try:
+            # 从数据库加载项目，按更新时间排序
+            items = self.markrender_manager.load_items(limit=1)
+            if items:
+                # 获取最后更新的项目
+                last_updated_item = items[0]
+                logger.info(f"加载最后更新的项目: {last_updated_item.get('title', 'Unknown')}")
+                # 更新编辑器和预览器
+                self.update_editor_and_previewer(last_updated_item)
+                # 在quickpick面板中选中该项目
+                self.quickpick_panel.select_quickpick_item(last_updated_item)
+            else:
+                logger.info("没有找到任何项目，保持空状态")
+        except Exception as e:
+            logger.error(f"加载最后更新的项目失败: {e}", exc_info=True)
 
     def update_editor_and_previewer(self, quickpick_item):
         """更新编辑区和预览区内容，支持多页面类型路由"""
@@ -184,8 +203,6 @@ class MainWindow(QMainWindow):
                 self._handle_page(quickpick_item)
             elif page_type == "excalidraw":
                 self._handle_page(quickpick_item)
-            elif page_type == "landing":
-                self._handle_landing_page(quickpick_item)
             # 更新状态栏
             content = self.markrender_manager.get_detail(quickpick_item.get('id', ''))['content']
             self.status_bar.update_file_size(len(content))
@@ -243,54 +260,6 @@ class MainWindow(QMainWindow):
         logger.debug(f"页面处理完成")
     
     
-    def _handle_landing_page(self, quickpick_item):
-        """处理Landing欢迎页面"""
-        logger.debug(f"处理Landing页面: {quickpick_item.get('title')}")
-        
-        try:
-            # 使用多页面管理器创建或获取Landing页面
-            page_manager = self.editor.page_manager
-            
-            # 获取或创建Landing页面
-            landing_view = page_manager.get_or_create_page(
-                page_type="landing",
-                backend_interface=self.editor.backend_interface
-            )
-            
-            # 确保 BackendInterface 和页面对象正确关联
-            if landing_view:
-                self.editor.backend_interface.set_page(landing_view.page())
-                # 切换到Landing页面
-                page_manager.switch_to_page("landing")
-            
-            if landing_view:
-                # 发送欢迎消息
-                self.editor.backend_interface.send_message('showWelcomeMessage', {
-                    'message': '欢迎使用MarkRender!'
-                })
-            else:
-                logger.error(f"创建Landing页面失败: landing")
-                
-        except Exception as e:
-            logger.error(f"Landing页面处理失败: {e}", exc_info=True)
-        
-        logger.debug(f"Landing页面处理完成")
-    
-    def show_landing_page(self):
-        """显示默认的Landing欢迎页面"""
-        logger.info("显示默认Landing页面")
-        
-        landing_item = {
-            'id': 'landing_default',
-            'title': '欢迎使用MarkRender',
-            'content': '',
-            'page_type': 'landing',
-            'created_at': '',
-            'updated_at': ''
-        }
-        
-        self._handle_landing_page(landing_item)
-
     def update_quickpick_list(self):
         """更新快速选择列表"""
         self.quickpick_panel.load_quickpick_items()

@@ -228,7 +228,7 @@ class MultiPageTestWindow(QMainWindow):
         
         try:
             # 测试枚举值
-            types = [PageType.MARKDOWN, PageType.EXCALIDRAW, PageType.LANDING, PageType.MOCK_TEST]
+            types = [PageType.MARKDOWN, PageType.EXCALIDRAW]
             
             for page_type in types:
                 # 测试HTML文件映射
@@ -326,7 +326,6 @@ class MultiPageTestWindow(QMainWindow):
             self.test_page_config,
             lambda: self.test_create_page(PageType.MARKDOWN),
             lambda: self.test_create_page(PageType.EXCALIDRAW),
-            lambda: self.test_create_page(PageType.LANDING),
         ]
         
         for i, test in enumerate(tests, 1):

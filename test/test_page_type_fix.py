@@ -15,12 +15,12 @@ def test_page_type_consistency():
     print("测试页面类型一致性...")
     
     # 检查数据库中的页面类型值
-    expected_page_types = ["markdown", "excalidraw", "landing"]
+    expected_page_types = ["markdown", "excalidraw"]
     print(f"期望的页面类型: {expected_page_types}")
     
     # 检查代码中的页面类型值
     from app.editor.webengine import PageType
-    code_page_types = [PageType.MARKDOWN, PageType.EXCALIDRAW, PageType.LANDING]
+    code_page_types = [PageType.MARKDOWN, PageType.EXCALIDRAW]
     print(f"代码中的页面类型: {code_page_types}")
     
     # 检查是否一致
