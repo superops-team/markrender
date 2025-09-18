@@ -41,14 +41,32 @@ class MarkRenderManager:
             return False
 
     def load_items(self, limit=20, page_type=''):
-        """加载所有历史记录，按更新时间降序排列"""
+        """加载所有历史记录，按设置中的排序条件排列"""
+        from db.settings_manager import SettingsManager
+        
+        # 获取搜索排序设置，默认按更新时间排序
+        settings_manager = SettingsManager()
+        sort_setting = settings_manager.get_setting('general', 'search_sort', 'updated_time')
+        
         session = self.Session()
         try:
             query = session.query(MarkRenderData)
             if page_type:
                 query = query.filter_by(page_type=page_type)
-            # 按更新时间降序排列，获取最新的记录
-            histories = query.order_by(MarkRenderData.updated_at.desc()).limit(limit).all()
+            
+            # 根据设置中的排序条件进行排序
+            if sort_setting == 'created_time':
+                # 按创建时间降序排列
+                query = query.order_by(MarkRenderData.created_at.desc())
+            elif sort_setting == 'name':
+                # 按名称升序排列
+                query = query.order_by(MarkRenderData.title.asc())
+            else:
+                # 默认按更新时间降序排列
+                query = query.order_by(MarkRenderData.updated_at.desc())
+            
+            # 应用限制
+            histories = query.limit(limit).all()
             return [
                 {
                     'title': h.title,

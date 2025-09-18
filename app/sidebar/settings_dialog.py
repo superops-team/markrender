@@ -64,6 +64,8 @@ class SettingsDialog(QDialog):
         self.theme_edit: Optional[QLineEdit] = None
         self.import_size: Optional[QSpinBox] = None
         self.pdf_import_group: Optional[QButtonGroup] = None
+        # 搜索设置控件引用
+        self.search_sort_group: Optional[QButtonGroup] = None
         
         self.init_ui()
 
@@ -131,6 +133,38 @@ class SettingsDialog(QDialog):
         auto_save_layout.addLayout(interval_container)
         auto_save_group.setLayout(auto_save_layout)
         layout.addWidget(auto_save_group)
+        
+        # 搜索设置组（亲密性原则）
+        search_group = self._create_group_box("搜索设置")
+        search_layout = QVBoxLayout()
+        search_layout.setSpacing(SPACING_MD)
+        
+        search_label = QLabel("搜索结果排序条件：")
+        search_label.setStyleSheet(self._get_label_style())
+        search_layout.addWidget(search_label)
+        
+        # 搜索排序选项（单选按钮组）
+        self.search_sort_group = QButtonGroup()
+        sort_options = [
+            ("按创建时间", "created_time"),
+            ("按更新时间", "updated_time"),
+            ("按名称排序", "name")
+        ]
+        
+        # 获取当前设置的排序条件，默认为按名称排序
+        current_sort = self.general_settings.get('search_sort', 'name')
+        
+        for text, value in sort_options:
+            radio = QRadioButton(text)
+            radio.setStyleSheet(self._get_radio_style())
+            radio.setProperty("value", value)
+            if value == current_sort:
+                radio.setChecked(True)
+            self.search_sort_group.addButton(radio)
+            search_layout.addWidget(radio)
+        
+        search_group.setLayout(search_layout)
+        layout.addWidget(search_group)
         
         layout.addStretch()
         general_tab.setLayout(layout)
@@ -321,16 +355,23 @@ class SettingsDialog(QDialog):
                 self.auto_save_checkbox, self.auto_save_interval,
                 self.font_size_spin, self.font_family_edit,
                 self.dark_mode_checkbox, self.theme_edit,
-                self.import_size, self.pdf_import_group
+                self.import_size, self.pdf_import_group,
+                self.search_sort_group
             ]):
                 raise ValueError("控件未正确初始化")
                 
             # 保存通用设置 - 添加类型断言
             assert self.auto_save_checkbox is not None
             assert self.auto_save_interval is not None
+            # 获取选中的搜索排序选项
+            assert self.search_sort_group is not None
+            checked_button = self.search_sort_group.checkedButton()
+            search_sort_value = checked_button.property("value") if checked_button else "name"
+            
             general_settings = {
                 'auto_save': self.auto_save_checkbox.isChecked(),
-                'auto_save_interval': self.auto_save_interval.value()
+                'auto_save_interval': self.auto_save_interval.value(),
+                'search_sort': search_sort_value  # 保存搜索排序设置
             }
             settings_manager.create_settings('general', general_settings)
             
