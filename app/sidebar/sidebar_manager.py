@@ -98,21 +98,36 @@ class SidebarManager(QWidget):
         button.setFixedSize(36, 36)  # 调整按钮尺寸为36x36px符合规范
         button.setStyleSheet(self.app_style.get_sidebar_button_style())
         button.setCheckable(True)
-        button.toggled.connect(lambda checked: toggle_slot(checked, icon_name))
+        # 使用lambda包装，确保只传递checked参数给toggle_slot
+        button.toggled.connect(lambda checked: self.on_button_toggled(button, checked, icon_name, toggle_slot))
+
+    def on_button_toggled(self, button, checked, icon_name, toggle_slot):
+        """统一处理按钮切换事件"""
+        if checked:
+            # 取消其他按钮的选中状态
+            if button != self.file_browse_btn:
+                self.file_browse_btn.setChecked(False)
+            if button != self.import_btn:
+                self.import_btn.setChecked(False)
+            if button != self.settings_btn:
+                self.settings_btn.setChecked(False)
+            
+            # 更新图标为选中状态
+            button.setIcon(QIcon(get_icon_path(icon_name, selected=True)))
+        else:
+            # 更新图标为非选中状态
+            button.setIcon(QIcon(get_icon_path(icon_name, selected=False)))
+        
+        # 调用具体的处理函数
+        toggle_slot(checked, icon_name)
 
     def on_file_browse_toggled(self, checked, icon_name="home"):
         """处理首页按钮切换"""
         if checked:
-            # 取消其他按钮的选中状态
-            self.import_btn.setChecked(False)
-            self.settings_btn.setChecked(False)
             if hasattr(self.parent, 'quickpick_panel'):
                 self.parent.quickpick_panel.load_quickpick_items()
 
     def on_import_toggled(self, checked, icon_name="plus-square"):
         """处理导入按钮切换"""
         if checked:
-            # 取消其他按钮的选中状态
-            self.file_browse_btn.setChecked(False)
-            self.settings_btn.setChecked(False)
             self.handle_import()
