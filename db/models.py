@@ -1,5 +1,6 @@
-from sqlalchemy import Column, DateTime, Integer, String, Text
+from sqlalchemy import Column, DateTime, Integer, String, Text, ForeignKey
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from .base import Base
 from enum import Enum
 
@@ -35,13 +36,16 @@ class MarkRenderData(Base):
     page_engine = Column(String)  # 页面核心处理引擎，如cherry-markdown、excalidraw等
 
     status = Column(String)  # 渲染状态
+    
+    # 添加与历史记录的关系
+    change_histories = relationship("MarkRenderChangeHistory", back_populates="markrender_data")
 
 
 class MarkRenderChangeHistory(Base):
     __tablename__ = "markrender_change_history"
 
     id = Column(Integer, primary_key=True)
-    file_id = Column(Integer, nullable=True)  # 文件id
+    file_id = Column(Integer, ForeignKey('markrender_data.id'), nullable=True)  # 文件id，外键关联
     old_content = Column(Text, nullable=True)  # 旧内容
     new_content = Column(Text, nullable=True)  # 新内容
     change_type = Column(String, nullable=True)  # 变更类型
@@ -56,6 +60,10 @@ class MarkRenderChangeHistory(Base):
     change_page_engine = Column(String, nullable=True)  # 变更页面引擎
     change_page_settings = Column(Text, nullable=True)  # 变更页面定制化配置，JSON格式
     change_page_id = Column(Integer, nullable=True)  # 变更页面id
+    
+    # 添加与主数据的关系
+    markrender_data = relationship("MarkRenderData", back_populates="change_histories")
+
 
 class Settings(Base):
     __tablename__ = "settings"

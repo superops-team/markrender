@@ -5,6 +5,7 @@ from db.db_manager import SingletonEngine, get_user_data_dir
 from utils.hash_utils import calculate_md5
 from utils.logger_utils import logger  # 添加 logger 导入
 from utils import time_utils
+import json
 
 
 class MarkRenderManager:
@@ -69,24 +70,24 @@ class MarkRenderManager:
             histories = query.limit(limit).all()
             return [
                 {
-                    'title': h.title,
-                    'id': h.id,
-                    'tags': h.tags,
-                    'file_path': h.file_path,
-                    'theme_id': h.theme_id,
-                    'page_type': h.page_type,
-                    'converter': h.converter,
-                    'converter_start': h.converter_start,
-                    'converter_end': h.converter_end,
-                    'status': h.status,
-                    'content': h.content,
-                    'render_style': h.render_style,
-                    'updated_at': h.updated_at,
-                    'content_md5': h.content_md5,
-                    'created_at': h.created_at,
-                    'page_settings': h.page_settings,
-                    'page_engine': h.page_engine,
-                    'file_size': len(h.content),
+                    'title': getattr(h, 'title', ''),
+                    'id': getattr(h, 'id', 0),
+                    'tags': getattr(h, 'tags', ''),
+                    'file_path': getattr(h, 'file_path', ''),
+                    'theme_id': getattr(h, 'theme_id', 0),
+                    'page_type': getattr(h, 'page_type', ''),
+                    'converter': getattr(h, 'converter', ''),
+                    'converter_start': getattr(h, 'converter_start', None),
+                    'converter_end': getattr(h, 'converter_end', None),
+                    'status': getattr(h, 'status', ''),
+                    'content': getattr(h, 'content', ''),
+                    'render_style': getattr(h, 'render_style', ''),
+                    'updated_at': getattr(h, 'updated_at', None),
+                    'content_md5': getattr(h, 'content_md5', ''),
+                    'created_at': getattr(h, 'created_at', None),
+                    'page_settings': getattr(h, 'page_settings', ''),
+                    'page_engine': getattr(h, 'page_engine', ''),
+                    'file_size': len(getattr(h, 'content', '') or ''),
                 } for h in histories]
         except Exception as e:
             raise e
@@ -112,6 +113,7 @@ class MarkRenderManager:
         ):
         session = self.Session()
         changed = False
+        content_str = ''  # 初始化 content_str
         try:
             import json
             
@@ -129,38 +131,55 @@ class MarkRenderManager:
                 # 更新现有记录
                 history = session.query(MarkRenderData).filter_by(id=id).first()
                 if history:
-                    if content_md5 and content_md5 != history.content_md5:
-                        history.content_md5 = content_md5
-                    if title and title != history.title:
-                        history.title = title
-                    if content_str and content_str != history.content:
-                        history.content = content_str
+                    # 保存旧内容用于历史记录
+                    old_content = getattr(history, 'content', '')
+                    old_theme_id = getattr(history, 'theme_id', 0)
+                    old_page_type = getattr(history, 'page_type', '')
+                    old_page_engine = getattr(history, 'page_engine', '')
+                    old_page_settings = getattr(history, 'page_settings', '')
+                    old_file_path = getattr(history, 'file_path', '')
+                    
+                    if content_md5 and content_md5 != (getattr(history, 'content_md5', '') or ''):
+                        setattr(history, 'content_md5', content_md5)
+                    if title and title != (getattr(history, 'title', '') or ''):
+                        setattr(history, 'title', title)
+                    if content_str and content_str != (getattr(history, 'content', '') or ''):
+                        setattr(history, 'content', content_str)
                         changed = True
-                    if file_path and file_path != history.file_path:
-                        history.file_path = file_path
-                    if theme_id and theme_id != history.theme_id:
-                        history.theme_id = theme_id
-                    if tags and tags != history.tags:
-                        history.tags = tags
-                    if page_type and page_type != history.page_type:
-                        history.page_type = page_type
-                    if render_style and render_style != history.render_style:
-                        history.render_style = render_style
-                    if page_settings and page_settings != history.page_settings:
-                        history.page_settings = page_settings
-                    if page_engine and page_engine != history.page_engine:
-                        history.page_engine = page_engine
-                    history.updated_at = now  # 使用北京时间更新
+                    if file_path and file_path != (getattr(history, 'file_path', '') or ''):
+                        setattr(history, 'file_path', file_path)
+                    if theme_id and theme_id != (getattr(history, 'theme_id', 0) or 0):
+                        setattr(history, 'theme_id', theme_id)
+                    if tags and tags != (getattr(history, 'tags', '') or ''):
+                        setattr(history, 'tags', tags)
+                    if page_type and page_type != (getattr(history, 'page_type', '') or ''):
+                        setattr(history, 'page_type', page_type)
+                    if render_style and render_style != (getattr(history, 'render_style', '') or ''):
+                        setattr(history, 'render_style', render_style)
+                    if page_settings and page_settings != (getattr(history, 'page_settings', '') or ''):
+                        setattr(history, 'page_settings', page_settings)
+                    if page_engine and page_engine != (getattr(history, 'page_engine', '') or ''):
+                        setattr(history, 'page_engine', page_engine)
+                    setattr(history, 'updated_at', now)  # 使用北京时间更新
                     if converter_start:
-                        history.converter_start = converter_start
+                        setattr(history, 'converter_start', converter_start)
                     if converter_end:
-                        history.converter_end = converter_end
+                        setattr(history, 'converter_end', converter_end)
                     if status:
-                        history.status = status
+                        setattr(history, 'status', status)
                     if converter:
-                        history.converter = converter
+                        setattr(history, 'converter', converter)
                     session.commit()
-                    return history.id
+                    
+                    # 如果内容有变化，记录历史变更
+                    if changed:
+                        self._save_change_history(
+                            session, id, old_content, content_str, 'content_update',
+                            'user_edit', 'user', '127.0.0.1', file_path or old_file_path or '',
+                            theme_id or old_theme_id or 0, page_type or old_page_type or '',
+                            page_engine or old_page_engine or '', page_settings or old_page_settings or ''
+                        )
+                    return getattr(history, 'id', 0)
                 else:
                     raise ValueError(f"未找到 ID 为 {id} 的记录")
             else:
@@ -186,7 +205,14 @@ class MarkRenderManager:
                 )
                 session.add(new_history)
                 session.commit()
-                id = new_history.id
+                id = getattr(new_history, 'id', 0)
+                
+                # 记录创建历史
+                self._save_change_history(
+                    session, id, '', content_str, 'content_create',
+                    'user_create', 'user', '127.0.0.1', file_path or '',
+                    theme_id or 0, page_type or '', page_engine or '', page_settings or ''
+                )
         except Exception as e:
             session.rollback()
             logger.error(f"Error saving markdown: {e}")
@@ -197,6 +223,69 @@ class MarkRenderManager:
                 self.sync_write_localdisk(id, content_str, page_type, page_engine)
         return id
 
+    def _save_change_history(self, session, file_id, old_content, new_content, change_type, 
+                           change_reason, change_by, change_ip, change_file_path, 
+                           change_theme_id, change_page_type, change_page_engine, 
+                           change_page_settings):
+        """
+        保存变更历史记录
+        Args:
+            session: 数据库会话
+            file_id: 文件ID
+            old_content: 旧内容
+            new_content: 新内容
+            change_type: 变更类型
+            change_reason: 变更原因
+            change_by: 变更人
+            change_ip: 变更IP
+            change_file_path: 变更文件路径
+            change_theme_id: 变更主题ID
+            change_page_type: 变更页面类型
+            change_page_engine: 变更页面引擎
+            change_page_settings: 变更页面设置
+        """
+        try:
+            # 确保new_content是字符串类型
+            if isinstance(new_content, dict):
+                content_str = json.dumps(new_content, ensure_ascii=False)
+            elif not isinstance(new_content, str):
+                content_str = str(new_content)
+            else:
+                content_str = new_content
+                
+            change_content_md5 = calculate_md5(content_str)
+            
+            # 确保old_content也是字符串类型
+            if isinstance(old_content, dict):
+                old_content_str = json.dumps(old_content, ensure_ascii=False)
+            elif not isinstance(old_content, str):
+                old_content_str = str(old_content)
+            else:
+                old_content_str = old_content
+            
+            new_change = MarkRenderChangeHistory(
+                file_id=file_id,
+                old_content=old_content_str,
+                new_content=content_str,
+                change_type=change_type,
+                change_reason=change_reason,
+                change_by=change_by,
+                change_ip=change_ip,
+                change_content_md5=change_content_md5,
+                change_file_path=change_file_path,
+                change_theme_id=change_theme_id,
+                change_page_type=change_page_type,
+                change_page_engine=change_page_engine,
+                change_page_settings=change_page_settings,
+                change_page_id=file_id
+            )
+            session.add(new_change)
+            session.commit()
+            return new_change
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error saving change history: {e}")
+            raise e
 
     def sync_write_localdisk(self, id, content, page_type=None, page_engine=None):
         """
@@ -225,7 +314,6 @@ class MarkRenderManager:
                 f.write(content_str)
         except Exception as e:
             logger.error(f"Error writing to local disk: {e}")
-
 
     def search_item(self, keyword=None, page_type=None):
         session = self.Session()
@@ -336,7 +424,7 @@ class MarkRenderManager:
         session = self.Session()
         try:
             return session.query(MarkRenderChangeHistory).filter_by(
-                file_id=file_id).all()
+                file_id=file_id).order_by(MarkRenderChangeHistory.change_at.desc()).all()
         except Exception as e:
             logger.error(f"Error getting change history: {e}")
             raise e
@@ -349,23 +437,23 @@ class MarkRenderManager:
             record = session.query(MarkRenderData).filter_by(
                 id=id).first()
             return {
-                'title': record.title,
-                'content': record.content,
-                'tags': record.tags,
-                'file_path': record.file_path,
-                'theme_id': record.theme_id,
-                'converter': record.converter,
-                'converter_start': record.converter_start,
-                'converter_end': record.converter_end,
-                'status': record.status,
-                'render_style': record.render_style,
-                'updated_at': record.updated_at,
-                'content_md5': record.content_md5,
-                'created_at': record.created_at,
-                'page_type': record.page_type,
-                'page_settings': record.page_settings,
-                'page_engine': record.page_engine,
-                'id': record.id
+                'title': getattr(record, 'title', ''),
+                'content': getattr(record, 'content', ''),
+                'tags': getattr(record, 'tags', ''),
+                'file_path': getattr(record, 'file_path', ''),
+                'theme_id': getattr(record, 'theme_id', 0),
+                'converter': getattr(record, 'converter', ''),
+                'converter_start': getattr(record, 'converter_start', None),
+                'converter_end': getattr(record, 'converter_end', None),
+                'status': getattr(record, 'status', ''),
+                'render_style': getattr(record, 'render_style', ''),
+                'updated_at': getattr(record, 'updated_at', None),
+                'content_md5': getattr(record, 'content_md5', ''),
+                'created_at': getattr(record, 'created_at', None),
+                'page_type': getattr(record, 'page_type', ''),
+                'page_settings': getattr(record, 'page_settings', ''),
+                'page_engine': getattr(record, 'page_engine', ''),
+                'id': getattr(record, 'id', 0)
             }
         except Exception as e:
             logger.error(f"Error getting detail: {e}")
@@ -383,8 +471,18 @@ class MarkRenderManager:
             record = session.query(MarkRenderData).filter_by(
                 id=id).first()
             if record:
-                record.title = title
+                # 保存旧标题用于历史记录
+                old_title = getattr(record, 'title', '')
+                setattr(record, 'title', title)
                 session.commit()
+                
+                # 记录标题变更历史
+                self._save_change_history(
+                    session, id, old_title or '', title or '', 'title_update',
+                    'user_edit', 'user', '127.0.0.1', getattr(record, 'file_path', '') or '',
+                    getattr(record, 'theme_id', 0) or 0, getattr(record, 'page_type', '') or '', 
+                    getattr(record, 'page_engine', '') or '', getattr(record, 'page_settings', '') or ''
+                )
             else:
                 raise ValueError(f"未找到 ID 为 {id} 的记录")
         except Exception as e:
@@ -405,9 +503,19 @@ class MarkRenderManager:
             record = session.query(MarkRenderData).filter_by(
                 id=id).first()
             if record:
-                record.page_settings = page_settings
-                record.updated_at = time_utils.now()
+                # 保存旧设置用于历史记录
+                old_settings = getattr(record, 'page_settings', '')
+                setattr(record, 'page_settings', page_settings)
+                setattr(record, 'updated_at', time_utils.now())
                 session.commit()
+                
+                # 记录页面设置变更历史
+                self._save_change_history(
+                    session, id, old_settings or '', page_settings or '', 'page_settings_update',
+                    'user_edit', 'user', '127.0.0.1', getattr(record, 'file_path', '') or '',
+                    getattr(record, 'theme_id', 0) or 0, getattr(record, 'page_type', '') or '', 
+                    getattr(record, 'page_engine', '') or '', page_settings or ''
+                )
             else:
                 raise ValueError(f"未找到 ID 为 {id} 的记录")
         except Exception as e:
@@ -428,9 +536,19 @@ class MarkRenderManager:
             record = session.query(MarkRenderData).filter_by(
                 id=id).first()
             if record:
-                record.page_engine = page_engine
-                record.updated_at = time_utils.now()
+                # 保存旧引擎用于历史记录
+                old_engine = getattr(record, 'page_engine', '')
+                setattr(record, 'page_engine', page_engine)
+                setattr(record, 'updated_at', time_utils.now())
                 session.commit()
+                
+                # 记录页面引擎变更历史
+                self._save_change_history(
+                    session, id, old_engine or '', page_engine or '', 'page_engine_update',
+                    'user_edit', 'user', '127.0.0.1', getattr(record, 'file_path', '') or '',
+                    getattr(record, 'theme_id', 0) or 0, getattr(record, 'page_type', '') or '', 
+                    page_engine or '', getattr(record, 'page_settings', '') or ''
+                )
             else:
                 raise ValueError(f"未找到 ID 为 {id} 的记录")
         except Exception as e:
@@ -449,7 +567,7 @@ class MarkRenderManager:
             record = session.query(MarkRenderData).filter_by(
                 id=id).first()
             if record:
-                return record.page_settings
+                return getattr(record, 'page_settings', None)
             return None
         except Exception as e:
             logger.error(f"Error getting page settings: {e}")
@@ -466,7 +584,7 @@ class MarkRenderManager:
             record = session.query(MarkRenderData).filter_by(
                 id=id).first()
             if record:
-                return record.page_engine
+                return getattr(record, 'page_engine', None)
             return None
         except Exception as e:
             logger.error(f"Error getting page engine: {e}")
