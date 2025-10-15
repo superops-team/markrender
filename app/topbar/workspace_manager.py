@@ -17,8 +17,8 @@ class WorkspaceManager:
         """初始化工作区目录"""
         from platform import system
         if system() == 'Windows':
-            self.workspace_dir = os.path.join(
-                os.getenv('APPDATA'), 'markrender')
+            app_data_path = os.getenv('APPDATA') or os.path.expanduser('~')
+            self.workspace_dir = os.path.join(app_data_path, 'markrender')
         elif system() == 'Darwin':
             self.workspace_dir = os.path.join(os.path.expanduser(
                 '~'), 'Library', 'Application Support', 'markrender')

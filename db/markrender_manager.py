@@ -424,7 +424,7 @@ class MarkRenderManager:
         session = self.Session()
         try:
             return session.query(MarkRenderChangeHistory).filter_by(
-                file_id=file_id).order_by(MarkRenderChangeHistory.change_at.desc()).all()
+                file_id=file_id).order_by(MarkRenderChangeHistory.change_at.desc()).limit(20).all()
         except Exception as e:
             logger.error(f"Error getting change history: {e}")
             raise e

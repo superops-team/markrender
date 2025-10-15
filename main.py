@@ -3,9 +3,10 @@ import sys
 import os
 import traceback
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QFrame, QMessageBox)
 from PySide6.QtWidgets import QSplitter
+from PySide6.QtGui import QFont
 
 from app.editor import MarkRenderEditor
 from app.statusbar import StatusBar
@@ -22,7 +23,7 @@ from utils.logger_utils import logger
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowFlags(Qt.FramelessWindowHint)  # 设置无边框窗口
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint)  # 设置无边框窗口
         self.setWindowTitle("MarkRender")
         self.showMaximized()  # 恢复启动最大化
         self.setup_ui()
@@ -117,18 +118,26 @@ class MainWindow(QMainWindow):
         self.main_layout.addWidget(title_bar)
 
         # 修改为创建主分割器，使用 PySide6 原生的 QSplitter
-        main_splitter = QSplitter(Qt.Horizontal)
+        main_splitter = QSplitter(Qt.Orientation.Horizontal)
         main_splitter.setStyleSheet(AppStyle().get_main_splitter())
         # 创建右侧内容分割器，同样使用 QSplitter
-        right_splitter = QSplitter(Qt.Horizontal)
+        right_splitter = QSplitter(Qt.Orientation.Horizontal)
         # 设置分割器样式，统一边距和圆角
         right_splitter.setStyleSheet(AppStyle().get_right_splitter())
-        # 隐藏分割条并禁用拖拽功能
-        right_splitter.setHandleWidth(0)
+        # 恢复设置，隐藏分割条并禁用拖拽功能
+        right_splitter.setHandleWidth(1)  # 设置分割条宽度为1像素
+
+        # 创建历史记录面板
+        from app.history.history_panel import HistoryPanel
+        self.history_panel = HistoryPanel()
+        self.history_panel.set_history_manager(self.markrender_manager)
+        self.history_panel.hide()  # 默认隐藏
 
         right_splitter.addWidget(self.quickpick_panel)
         right_splitter.addWidget(self.editor)
-        initial_right_sizes = [int(self.width() * 0.2), int(self.width() * 0.8)]
+        right_splitter.addWidget(self.history_panel)
+        # 设置历史面板占比1/4的初始大小比例
+        initial_right_sizes = [int(self.width() * 0.2), int(self.width() * 0.55), int(self.width() * 0.25)]
         right_splitter.setSizes(initial_right_sizes)
 
         # 将侧边栏和右侧内容添加到主分割器，侧边栏放在左侧
@@ -148,6 +157,10 @@ class MainWindow(QMainWindow):
         self.quickpick_panel.quickpick_item_selected.connect(
             self.update_editor_and_previewer)
 
+        # 连接历史面板选择信号
+        self.history_panel.history_selected.connect(
+            self.on_history_selected)
+
         # 设置状态栏
         self.status_bar = StatusBar()
         self.setStatusBar(self.status_bar)
@@ -155,13 +168,14 @@ class MainWindow(QMainWindow):
         
         # 移除默认的Landing欢迎页面显示
         # 改为加载最后更新的项目
-        from PySide6.QtCore import QTimer
         # 延迟显示，确保所有组件初始化完成
         QTimer.singleShot(100, self.load_last_updated_item)
 
     def update_theme(self, theme):
         """切换主题"""
-        self.editor.update_theme(theme)
+        # 检查编辑器是否有update_theme方法
+        if hasattr(self.editor, 'update_theme'):
+            self.editor.update_theme(theme)
 
     def load_last_updated_item(self):
         """加载最后更新的项目"""
@@ -198,15 +212,26 @@ class MainWindow(QMainWindow):
             # 获取页面类型，默认为markdown
             page_type = quickpick_item.get('page_type', 'markdown')
             logger.info(f"页面类型: {page_type}")
+            
+            # 获取页面类型，默认为markdown
+            page_type = quickpick_item.get('page_type', 'markdown')
+            logger.info(f"页面类型: {page_type}")
             # 根据页面类型路由到不同的处理逻辑
             if page_type == "markdown":
                 self._handle_page(quickpick_item)
             elif page_type == "excalidraw":
                 self._handle_page(quickpick_item)
+            
+            # 在处理完页面后再加载历史记录，避免干扰编辑器显示
+            # 加载历史记录
+            item_id = quickpick_item.get('id')
+            if item_id and hasattr(self, 'history_panel'):
+                self.history_panel.load_history(item_id)
+            
             # 更新状态栏
             content = self.markrender_manager.get_detail(quickpick_item.get('id', ''))['content']
-            self.status_bar.update_file_size(len(content))
-            self.status_bar.update_word_count(len(content))
+            self.status_bar.update_file_size(len(content or ''))
+            self.status_bar.update_word_count(len(content or ''))
             logger.info(f"页面更新完成: {quickpick_item.get('title', 'Unknown')}")
         except Exception as e:
             logger.error(f"更新编辑区和预览区失败: {e}", exc_info=True)
@@ -217,7 +242,7 @@ class MainWindow(QMainWindow):
         
         try:
             # 使用Markdown页面类型
-            page_type = quickpick_item.get('page_type')
+            page_type = quickpick_item.get('page_type', 'markdown')
             page_manager = self.editor.page_manager
             # 获取或创建markdown页面
             markdown_view = page_manager.get_or_create_page(
@@ -236,7 +261,7 @@ class MainWindow(QMainWindow):
                 try:
                     item_detail = self.markrender_manager.get_detail(item_id)
                     if item_detail and item_detail.get('content'):
-                        content = item_detail.get('content')
+                        content = item_detail.get('content', '')
                         logger.info(f"从数据库获取到最新内容，长度: {len(content)}")
                     else:
                         logger.info(f"数据库中未找到内容，使用空内容初始化")
@@ -247,6 +272,10 @@ class MainWindow(QMainWindow):
                 # 确保Markdown编辑器可见
                 self.editor.show()
                 
+                # 确保内容被正确设置到编辑器中
+                # 在页面切换后延迟设置内容，确保页面已完全加载
+                QTimer.singleShot(100, lambda: self.editor.set_text_content(content))
+                
                 logger.debug(f"页面内容更新完成: {quickpick_item.get('title')}")
                 
             else:
@@ -254,11 +283,30 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, "页面创建失败", f"无法创建{page_type}页面，请稍后再试。")
                 
         except Exception as e:
+            page_type = quickpick_item.get('page_type', 'markdown')
             logger.error(f"页面处理失败: {e}", exc_info=True)
             QMessageBox.warning(self, "页面处理失败", f"处理{page_type}页面时发生错误: {str(e)}")
         
         logger.debug(f"页面处理完成")
     
+    def on_history_selected(self, history_record):
+        """当用户选择历史记录时的处理"""
+        try:
+            logger.info(f"选择了历史记录: {getattr(history_record, 'change_type', '')}")
+            # 这里可以实现恢复到指定历史版本的功能
+            # 暂时只是显示选中的历史记录信息
+            new_content = getattr(history_record, 'new_content', '')
+            if new_content and self.current_item:
+                # 更新编辑器内容为历史版本
+                self.editor.set_current_item(
+                    self.current_item.get('id', ''),
+                    self.current_item.get('page_type', 'markdown'),
+                    new_content
+                )
+                # 更新编辑器显示
+                self.editor.set_text_content(new_content)
+        except Exception as e:
+            logger.error(f"处理历史记录选择失败: {e}")
     
     def update_quickpick_list(self):
         """更新快速选择列表"""
@@ -301,13 +349,13 @@ class MainWindow(QMainWindow):
     
     # 实现窗口拖动功能
     def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.MouseButton.LeftButton:
             self.drag_start_position = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
             event.accept()
 
     def mouseMoveEvent(self, event):
         if hasattr(self, 'drag_start_position'):
-            if event.buttons() & Qt.LeftButton:
+            if event.buttons() & Qt.MouseButton.LeftButton:
                 self.move(event.globalPosition().toPoint() - self.drag_start_position)
                 event.accept()
 
@@ -334,9 +382,8 @@ if __name__ == "__main__":
     except Exception as e:
         error_msg = traceback.format_exc()
         logger.critical(f"致命错误: {e} {error_msg}")
-        from PySide6.QtWidgets import QMessageBox
         msg_box = QMessageBox()
-        msg_box.setIcon(QMessageBox.Critical)
+        msg_box.setIcon(QMessageBox.Icon.Critical)
         msg_box.setText(f"应用遇到致命错误: {str(e)}")
         msg_box.setDetailedText(error_msg)
         msg_box.setWindowTitle("错误")

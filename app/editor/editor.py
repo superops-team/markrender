@@ -473,6 +473,17 @@ class MarkRenderEditor(QWidget):
             logger.error(f"发送getContent消息时出错: {e}")
             self._close_ready = True
 
+    def update_theme(self, theme=None):
+        """更新编辑器主题"""
+        try:
+            logger.info(f"更新编辑器主题: {theme}")
+            # 这里可以实现主题更新逻辑
+            # 例如，向前端发送主题更新消息
+            if hasattr(self, 'backend_interface') and self.backend_interface:
+                self.backend_interface.send_message('updateTheme', {'theme': theme})
+        except Exception as e:
+            logger.error(f"更新主题失败: {e}")
+
     def _check_if_save_needed(self):
         """快速检查是否需要保存"""
         # 基本条件检查

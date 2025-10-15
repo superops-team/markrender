@@ -420,19 +420,19 @@ QListWidget::item {{
     padding: {SPACING_MD}px;
     margin-bottom: {SPACING_XS}px;
     background-color: {NEUTRAL_0};
-    border-bottom: 1px solid {NEUTRAL_200};
     min-height: 48px;
+    margin-left: {SPACING_MD}px;
+    margin-right: {SPACING_MD}px;
 }}
 QListWidget::item:last {{
-    border-bottom: none;
     margin-bottom: 0px;
 }}
 QListWidget::item:hover {{
-    background-color: {PRIMARY_50};
+    background-color: transparent;
     border-color: {PRIMARY_100};
 }}
 QListWidget::item:selected {{
-    background-color: {PRIMARY_100};
+    background-color: transparent;
     border-color: {PRIMARY_200};
     color: {PRIMARY_700};
 }}

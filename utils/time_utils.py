@@ -37,11 +37,17 @@ def format_datetime(
 
 def get_readable_time(modified_time: datetime):
     if isinstance(modified_time, datetime):
-        # 确保 now 和 modified_time 时区一致
+        # 创建东八区（北京时间）时区
+        beijing_tz = timezone(timedelta(hours=8))
+        
+        # 如果 modified_time 没有时区信息，假设它是UTC时间，转换为东八区
         if modified_time.tzinfo is None:
-            now = datetime.now()
-        else:
-            now = datetime.now(timezone.utc)
+            # 假设无时区的时间是UTC时间，转换为东八区
+            utc_time = modified_time.replace(tzinfo=timezone.utc)
+            modified_time = utc_time.astimezone(beijing_tz)
+        
+        # 获取当前东八区时间
+        now = datetime.now(beijing_tz)
         delta = now - modified_time
         if delta < timedelta(seconds=60):
             return f'{delta.seconds}秒前'
