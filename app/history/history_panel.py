@@ -37,26 +37,31 @@ class HistoryPanel(QWidget):
         
     def setup_ui(self):
         main_layout = QVBoxLayout(self)
-        # 统一Editor区域的边距，确保高度对齐
-        main_layout.setContentsMargins(5, 5, 5, 5)
-        main_layout.setSpacing(8)  # 设置组件间距
+        # 应用Robin Williams设计原则：
+        # 1. 亲密性：相关元素组织在一起
+        # 2. 对齐：确保元素有清晰的对齐方式
+        # 3. 重复：在整个设计中重复视觉元素
+        # 4. 对比：使用对比吸引注意力
+        main_layout.setContentsMargins(8, 8, 8, 8)  # 统一边距
+        main_layout.setSpacing(12)  # 增加间距以增强亲密性原则
         
-        # 添加标题标签
+        # 添加标题标签（应用对比原则：标题使用更大字体和粗体）
         self.title_label = QLabel("编辑历史")
         self.title_label.setStyleSheet(f"""
             color: {NEUTRAL_700};
-            font-size: {FONT_SIZE_MD}px;
-            font-weight: bold;
+            font-size: {FONT_SIZE_MD + 1}px;  # 稍大字体
+            font-weight: 600;  # 半粗体
             padding: {SPACING_SM}px 0;
         """)
+        # 应用对齐原则：标题左对齐
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         main_layout.addWidget(self.title_label)
         
-        # 历史记录列表
+        # 历史记录列表（应用亲密性原则：列表与标题紧密组织）
         self.history_list = QListWidget()
         # 设置选择模式
         self.history_list.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        # 设置间距与quickpick保持一致
+        # 应用重复原则：使用与quickpick一致的间距
         self.history_list.setSpacing(SPACING_SM)
         # 禁用水平滚动条
         self.history_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -107,7 +112,7 @@ class HistoryPanel(QWidget):
                 list_item = QListWidgetItem(self.history_list)
                 list_item.setData(Qt.ItemDataRole.UserRole, record)
                 # 使用固定高度值，确保所有行对齐一致
-                list_item.setSizeHint(QSize(0, 40))
+                list_item.setSizeHint(QSize(0, 48))
                 self.history_list.setItemWidget(list_item, item_widget)
                 
             logger.info(f"加载了 {len(history_records)} 条历史记录")
