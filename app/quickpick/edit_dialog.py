@@ -415,28 +415,48 @@ class EditItemDialog(QDialog):
         form_layout.setSpacing(16)
         form_layout.setLabelAlignment(Qt.AlignTop)
 
-        # 文件类型显示
+        # 文件类型编辑
         page_type = self.markdown_data.get('page_type', 'markdown')
         if not page_type:
             page_type = 'markdown'
-        page_type_label = self._make_page_type_widget(page_type)  # 使用专门的橙色样式
-        page_type_layout = QHBoxLayout()
-        page_type_layout.addWidget(page_type_label)
-        page_type_layout.addStretch()  # 添加弹性空间
-        form_layout.addRow(self._make_label("文件类型："), page_type_layout)
+        self.page_type_edit = QLineEdit(page_type)
+        self.page_type_edit.setMinimumHeight(44)
+        self.page_type_edit.setStyleSheet(self.app_style.get_line_edit())
+        form_layout.addRow(self._make_label("文件类型："), self.page_type_edit)
+
+        # 图标类型编辑
+        icon_type = self.markdown_data.get('icon_type', '')
+        self.icon_type_edit = QLineEdit(icon_type)
+        self.icon_type_edit.setMinimumHeight(44)
+        self.icon_type_edit.setStyleSheet(self.app_style.get_line_edit())
+        form_layout.addRow(self._make_label("图标类型："), self.icon_type_edit)
+
+        # 图标路径编辑
+        icon_path = self.markdown_data.get('icon_path', '')
+        self.icon_path_edit = QLineEdit(icon_path)
+        self.icon_path_edit.setMinimumHeight(44)
+        self.icon_path_edit.setStyleSheet(self.app_style.get_line_edit())
+        form_layout.addRow(self._make_label("图标路径："), self.icon_path_edit)
+
+        # 显示名称编辑
+        display_name = self.markdown_data.get('display_name', '')
+        self.display_name_edit = QLineEdit(display_name)
+        self.display_name_edit.setMinimumHeight(44)
+        self.display_name_edit.setStyleSheet(self.app_style.get_line_edit())
+        form_layout.addRow(self._make_label("显示名称："), self.display_name_edit)
 
         # 创建时间
         create_time = self.markdown_data.get('created_at', '')
-        if create_time:
+        if create_time and not isinstance(create_time, str):
             create_time = create_time.strftime('%Y-%m-%d %H:%M:%S')
-        create_time_label = self._make_info_label(create_time)
+        create_time_label = self._make_info_label(str(create_time))
         form_layout.addRow(self._make_label("创建时间："), create_time_label)
 
         # 更新时间
         update_time = self.markdown_data.get('updated_at', '')
-        if update_time:
+        if update_time and not isinstance(update_time, str):
             update_time = update_time.strftime('%Y-%m-%d %H:%M:%S')
-        update_time_label = self._make_info_label(update_time)
+        update_time_label = self._make_info_label(str(update_time))
         form_layout.addRow(self._make_label("更新时间："), update_time_label)
 
         # 文件大小
@@ -465,5 +485,17 @@ class EditItemDialog(QDialog):
 
     def get_new_tags(self):
         return ','.join(self.tags)
+
+    def get_new_page_type(self):
+        return self.page_type_edit.text()
+
+    def get_new_icon_type(self):
+        return self.icon_type_edit.text() or None
+
+    def get_new_display_name(self):
+        return self.display_name_edit.text() or None
+
+    def get_new_icon_path(self):
+        return self.icon_path_edit.text() or None
 
 

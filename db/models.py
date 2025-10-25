@@ -29,13 +29,27 @@ class MarkRenderData(Base):
     file_path = Column(String, nullable=True)  # 文件路径
     theme_id = Column(Integer)  # 主题id
     converter = Column(String)  # 渲染器
-    page_type = Column(String, nullable=True)  # 页面类型,默认为markdown_editor，可以指定为excalidraw_editor
+    page_type = Column(String, nullable=True)  # 页面内容类型，如markdown、excalidraw等，仅表示内容格式
     converter_start = Column(DateTime(timezone=True), server_default=func.now())  # 转换开始时间
     converter_end = Column(DateTime(timezone=True), server_default=func.now())  # 转换结束时间
     page_settings = Column(Text)  # 页面定制化配置，JSON格式
     page_engine = Column(String)  # 页面核心处理引擎，如cherry-markdown、excalidraw等
 
     status = Column(String)  # 渲染状态
+    
+    # 树形结构字段
+    parent_id = Column(Integer, ForeignKey('markrender_data.id'), nullable=True)  # 父节点ID
+    order = Column(Integer, default=0)  # 同级排序
+    level = Column(Integer, default=0)  # 层级深度
+    is_folder = Column(Integer, default=0)  # 是否为文件夹，0表示文件，1表示文件夹
+    
+    # 图标和显示相关字段
+    icon_type = Column(String, nullable=True)  # 图标类型，用于区分显示图标
+    icon_path = Column(String, nullable=True)  # 图标路径，支持自定义图标
+    display_name = Column(String, nullable=True)  # 显示名称，可与title不同
+    
+    # 自引用关系
+    children = relationship("MarkRenderData", backref="parent", remote_side=[id])
     
     # 添加与历史记录的关系
     change_histories = relationship("MarkRenderChangeHistory", back_populates="markrender_data")

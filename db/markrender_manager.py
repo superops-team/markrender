@@ -88,6 +88,14 @@ class MarkRenderManager:
                     'page_settings': getattr(h, 'page_settings', ''),
                     'page_engine': getattr(h, 'page_engine', ''),
                     'file_size': len(getattr(h, 'content', '') or ''),
+                    # 树形结构字段
+                    'parent_id': getattr(h, 'parent_id', None),
+                    'order': getattr(h, 'order', 0),
+                    'level': getattr(h, 'level', 0),
+                    'is_folder': getattr(h, 'is_folder', 0),
+                    # 图标和显示字段
+                    'icon_type': getattr(h, 'icon_type', None),
+                    'display_name': getattr(h, 'display_name', None),
                 } for h in histories]
         except Exception as e:
             raise e
@@ -110,6 +118,15 @@ class MarkRenderManager:
             page_type=None,
             page_settings=None,
             page_engine=None,
+            # 树形结构参数
+            parent_id=None,
+            order=None,
+            level=None,
+            is_folder=None,
+            # 图标和显示参数
+            icon_type=None,
+            icon_path=None,
+            display_name=None,
         ):
         session = self.Session()
         changed = False
@@ -160,6 +177,22 @@ class MarkRenderManager:
                         setattr(history, 'page_settings', page_settings)
                     if page_engine and page_engine != (getattr(history, 'page_engine', '') or ''):
                         setattr(history, 'page_engine', page_engine)
+                    # 树形结构字段更新
+                    if parent_id is not None and parent_id != (getattr(history, 'parent_id', None) or None):
+                        setattr(history, 'parent_id', parent_id)
+                    if order is not None and order != (getattr(history, 'order', 0) or 0):
+                        setattr(history, 'order', order)
+                    if level is not None and level != (getattr(history, 'level', 0) or 0):
+                        setattr(history, 'level', level)
+                    if is_folder is not None and is_folder != (getattr(history, 'is_folder', 0) or 0):
+                        setattr(history, 'is_folder', is_folder)
+                    # 图标和显示字段更新
+                    if icon_type is not None and icon_type != (getattr(history, 'icon_type', None) or None):
+                        setattr(history, 'icon_type', icon_type)
+                    if icon_path is not None and icon_path != (getattr(history, 'icon_path', None) or None):
+                        setattr(history, 'icon_path', icon_path)
+                    if display_name is not None and display_name != (getattr(history, 'display_name', None) or None):
+                        setattr(history, 'display_name', display_name)
                     setattr(history, 'updated_at', now)  # 使用北京时间更新
                     if converter_start:
                         setattr(history, 'converter_start', converter_start)
@@ -202,6 +235,15 @@ class MarkRenderManager:
                     page_type=page_type,
                     page_settings=page_settings,
                     page_engine=page_engine,
+                    # 树形结构字段
+                    parent_id=parent_id,
+                    order=order if order is not None else 0,
+                    level=level if level is not None else 0,
+                    is_folder=is_folder if is_folder is not None else 0,
+                    # 图标和显示字段
+                    icon_type=icon_type,
+                    icon_path=icon_path,
+                    display_name=display_name,
                 )
                 session.add(new_history)
                 session.commit()
@@ -453,7 +495,12 @@ class MarkRenderManager:
                 'page_type': getattr(record, 'page_type', ''),
                 'page_settings': getattr(record, 'page_settings', ''),
                 'page_engine': getattr(record, 'page_engine', ''),
-                'id': getattr(record, 'id', 0)
+                'id': getattr(record, 'id', 0),
+                # 树形结构字段
+                'parent_id': getattr(record, 'parent_id', None),
+                'order': getattr(record, 'order', 0),
+                'level': getattr(record, 'level', 0),
+                'is_folder': getattr(record, 'is_folder', 0),
             }
         except Exception as e:
             logger.error(f"Error getting detail: {e}")
@@ -588,6 +635,244 @@ class MarkRenderManager:
             return None
         except Exception as e:
             logger.error(f"Error getting page engine: {e}")
+            raise e
+        finally:
+            session.close()
+            
+    # 树形结构相关接口
+    
+    def create_folder(self, title, parent_id=None, icon_type=None, icon_path=None, display_name=None, page_type=None):
+        """创建文件夹"""
+        return self.save_item(
+            title=title,
+            content='',
+            is_folder=1,
+            parent_id=parent_id,
+            page_type=page_type if page_type is not None else 'folder',
+            icon_type=icon_type,
+            icon_path=icon_path,
+            display_name=display_name
+        )
+    
+    def create_file(self, title, content='', parent_id=None, page_type=None, page_engine=None, icon_type=None, icon_path=None, display_name=None):
+        """创建文件"""
+        return self.save_item(
+            title=title,
+            content=content,
+            is_folder=0,
+            parent_id=parent_id,
+            page_type=page_type,
+            page_engine=page_engine,
+            icon_type=icon_type,
+            icon_path=icon_path,
+            display_name=display_name
+        )
+    
+    def get_children(self, parent_id=None):
+        """获取指定节点的子节点"""
+        session = self.Session()
+        try:
+            query = session.query(MarkRenderData)
+            if parent_id is None:
+                # 获取根节点（parent_id为NULL的节点）
+                query = query.filter(MarkRenderData.parent_id.is_(None))
+            else:
+                # 获取指定父节点的子节点
+                query = query.filter_by(parent_id=parent_id)
+            
+            # 按照order字段排序
+            records = query.order_by(MarkRenderData.order).all()
+            
+            return [
+                {
+                    'title': getattr(r, 'title', ''),
+                    'id': getattr(r, 'id', 0),
+                    'tags': getattr(r, 'tags', ''),
+                    'file_path': getattr(r, 'file_path', ''),
+                    'theme_id': getattr(r, 'theme_id', 0),
+                    'page_type': getattr(r, 'page_type', ''),
+                    'converter': getattr(r, 'converter', ''),
+                    'converter_start': getattr(r, 'converter_start', None),
+                    'converter_end': getattr(r, 'converter_end', None),
+                    'status': getattr(r, 'status', ''),
+                    'content': getattr(r, 'content', ''),
+                    'render_style': getattr(r, 'render_style', ''),
+                    'updated_at': getattr(r, 'updated_at', None),
+                    'content_md5': getattr(r, 'content_md5', ''),
+                    'created_at': getattr(r, 'created_at', None),
+                    'page_settings': getattr(r, 'page_settings', ''),
+                    'page_engine': getattr(r, 'page_engine', ''),
+                    'file_size': len(getattr(r, 'content', '') or ''),
+                    # 树形结构字段
+                    'parent_id': getattr(r, 'parent_id', None),
+                    'order': getattr(r, 'order', 0),
+                    'level': getattr(r, 'level', 0),
+                    'is_folder': getattr(r, 'is_folder', 0),
+                    # 图标和显示字段
+                    'icon_type': getattr(r, 'icon_type', None),
+                    'icon_path': getattr(r, 'icon_path', None),
+                    'display_name': getattr(r, 'display_name', None),
+                } for r in records
+            ]
+        except Exception as e:
+            logger.error(f"Error getting children: {e}")
+            raise e
+        finally:
+            session.close()
+    
+    def move_item(self, item_id, new_parent_id=None):
+        """移动节点到新的父节点"""
+        session = self.Session()
+        try:
+            record = session.query(MarkRenderData).filter_by(id=item_id).first()
+            if record:
+                old_parent_id = getattr(record, 'parent_id', None)
+                setattr(record, 'parent_id', new_parent_id)
+                
+                # 更新层级深度
+                if new_parent_id is None:
+                    # 移动到根节点
+                    setattr(record, 'level', 0)
+                else:
+                    # 获取新父节点的层级深度
+                    parent_record = session.query(MarkRenderData).filter_by(id=new_parent_id).first()
+                    if parent_record:
+                        new_level = getattr(parent_record, 'level', 0) + 1
+                        setattr(record, 'level', new_level)
+                
+                session.commit()
+                return True
+            return False
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error moving item: {e}")
+            raise e
+        finally:
+            session.close()
+    
+    def update_order(self, item_id, new_order):
+        """更新节点的排序"""
+        session = self.Session()
+        try:
+            record = session.query(MarkRenderData).filter_by(id=item_id).first()
+            if record:
+                setattr(record, 'order', new_order)
+                session.commit()
+                return True
+            return False
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error updating order: {e}")
+            raise e
+        finally:
+            session.close()
+    
+    def get_full_tree(self, parent_id=None):
+        """获取完整的树形结构"""
+        try:
+            def build_tree(parent_id):
+                children = self.get_children(parent_id)
+                for child in children:
+                    child_id = child['id']
+                    # 递归获取子节点
+                    if child['is_folder']:
+                        child['children'] = build_tree(child_id)
+                    else:
+                        child['children'] = []
+                return children
+            
+            return build_tree(parent_id)
+        except Exception as e:
+            logger.error(f"Error getting full tree: {e}")
+            raise e
+    
+    def delete_node(self, item_id, recursive=False):
+        """删除节点
+        
+        Args:
+            item_id: 要删除的节点ID
+            recursive: 是否递归删除子节点
+        """
+        session = self.Session()
+        try:
+            record = session.query(MarkRenderData).filter_by(id=item_id).first()
+            if not record:
+                return False
+                
+            if recursive:
+                # 递归删除所有子节点
+                children = self.get_children(item_id)
+                for child in children:
+                    self.delete_node(child['id'], recursive=True)
+            
+            # 删除当前节点
+            session.delete(record)
+            session.commit()
+            return True
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error deleting node: {e}")
+            raise e
+        finally:
+            session.close()
+    
+    def get_node_path(self, item_id):
+        """获取节点的完整路径（从根节点到当前节点）"""
+        session = self.Session()
+        try:
+            path = []
+            current_id = item_id
+            
+            while current_id is not None:
+                record = session.query(MarkRenderData).filter_by(id=current_id).first()
+                if not record:
+                    break
+                    
+                path.append({
+                    'id': getattr(record, 'id', 0),
+                    'title': getattr(record, 'title', ''),
+                    'is_folder': getattr(record, 'is_folder', 0)
+                })
+                
+                current_id = getattr(record, 'parent_id', None)
+            
+            # 反转路径，使其从根节点开始
+            return list(reversed(path))
+        except Exception as e:
+            logger.error(f"Error getting node path: {e}")
+            raise e
+        finally:
+            session.close()
+    
+    def get_subtree(self, item_id):
+        """获取指定节点的子树结构"""
+        session = self.Session()
+        try:
+            record = session.query(MarkRenderData).filter_by(id=item_id).first()
+            if not record:
+                return None
+                
+            node = {
+                'title': getattr(record, 'title', ''),
+                'id': getattr(record, 'id', 0),
+                'parent_id': getattr(record, 'parent_id', None),
+                'order': getattr(record, 'order', 0),
+                'level': getattr(record, 'level', 0),
+                'is_folder': getattr(record, 'is_folder', 0),
+                'page_type': getattr(record, 'page_type', ''),
+                'created_at': getattr(record, 'created_at', None),
+                'updated_at': getattr(record, 'updated_at', None),
+            }
+            
+            # 如果是文件夹，递归获取子节点
+            if getattr(record, 'is_folder', 0) == 1:
+                node['children'] = self.get_full_tree(item_id)
+            else:
+                node['children'] = []
+                
+            return node
+        except Exception as e:
+            logger.error(f"Error getting subtree: {e}")
             raise e
         finally:
             session.close()
