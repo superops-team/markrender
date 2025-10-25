@@ -13,6 +13,8 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from app.preference import AppStyle
+# 导入图标选择器组件
+from .icon_selector import IconSelectorWidget
 
 class EditItemDialog(QDialog):
     """
@@ -30,7 +32,6 @@ class EditItemDialog(QDialog):
         self.setMinimumSize(640, 480)  # 稍微增大对话框尺寸
         
         # 设置窗口标志，尝试解决macOS上的圆角显示问题
-        from PySide6.QtCore import Qt
         self.setWindowFlags(Qt.Dialog | Qt.WindowCloseButtonHint)
         
         # 使用统一的样式生成器
@@ -424,19 +425,18 @@ class EditItemDialog(QDialog):
         self.page_type_edit.setStyleSheet(self.app_style.get_line_edit())
         form_layout.addRow(self._make_label("文件类型："), self.page_type_edit)
 
-        # 图标类型编辑
+        # 图标选择器 - 替换原有的图标类型和图标路径输入框
         icon_type = self.markdown_data.get('icon_type', '')
-        self.icon_type_edit = QLineEdit(icon_type)
-        self.icon_type_edit.setMinimumHeight(44)
-        self.icon_type_edit.setStyleSheet(self.app_style.get_line_edit())
-        form_layout.addRow(self._make_label("图标类型："), self.icon_type_edit)
-
-        # 图标路径编辑
         icon_path = self.markdown_data.get('icon_path', '')
-        self.icon_path_edit = QLineEdit(icon_path)
-        self.icon_path_edit.setMinimumHeight(44)
-        self.icon_path_edit.setStyleSheet(self.app_style.get_line_edit())
-        form_layout.addRow(self._make_label("图标路径："), self.icon_path_edit)
+        # 优先使用icon_path中的图标名称
+        current_icon = None
+        if icon_path and icon_path.startswith('icons/') and icon_path.endswith('.svg'):
+            current_icon = icon_path[6:-4]  # 移除 'icons/' 前缀和 '.svg' 后缀
+        elif icon_type:
+            current_icon = icon_type
+            
+        self.icon_selector = IconSelectorWidget(current_icon)
+        form_layout.addRow(self._make_label("图标："), self.icon_selector)
 
         # 显示名称编辑
         display_name = self.markdown_data.get('display_name', '')
@@ -490,12 +490,15 @@ class EditItemDialog(QDialog):
         return self.page_type_edit.text()
 
     def get_new_icon_type(self):
-        return self.icon_type_edit.text() or None
+        # 图标类型现在通过图标选择器设置，返回None表示使用图标路径
+        return None
 
     def get_new_display_name(self):
         return self.display_name_edit.text() or None
 
     def get_new_icon_path(self):
-        return self.icon_path_edit.text() or None
-
-
+        # 从图标选择器获取选中的图标，并构造图标路径
+        selected_icon = self.icon_selector.get_selected_icon()
+        if selected_icon:
+            return f"icons/{selected_icon}.svg"
+        return None
