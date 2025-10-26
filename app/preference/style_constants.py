@@ -12,37 +12,37 @@ from PySide6.QtGui import QColor
 # ============================================================================
 
 # 主色系 (Primary Colors) - 主要交互色彩
-PRIMARY_50 = '#E8F4FD'     # 最浅蓝色 - 用于背景高亮
-PRIMARY_100 = '#C3E2FB'    # 浅蓝色 - 用于悬停状态
-PRIMARY_200 = '#A1D2F8'    # 中浅蓝色 - 用于按钮悬停
-PRIMARY_300 = '#7EC0F5'    # 中蓝色 - 用于边框和次要交互
-PRIMARY_500 = '#2591FF'    # 主蓝色 - 主要交互色和品牌色
-PRIMARY_600 = '#1E7CE8'    # 深蓝色 - 按钮按压状态
-PRIMARY_700 = '#1A6BD1'    # 更深蓝色 - 强调状态
-PRIMARY_900 = '#0F3A5F'    # 最深蓝色 - 用于深色文本
+PRIMARY_50 = '#EFF6FF'     # 最浅蓝色 - 用于背景高亮 (更现代的浅蓝)
+PRIMARY_100 = '#DBEAFE'    # 浅蓝色 - 用于悬停状态
+PRIMARY_200 = '#BFDBFE'    # 中浅蓝色 - 用于按钮悬停
+PRIMARY_300 = '#93C5FD'    # 中蓝色 - 用于边框和次要交互
+PRIMARY_500 = '#3B82F6'    # 主蓝色 - 主要交互色和品牌色 (参考Tailwind/现代设计)
+PRIMARY_600 = '#2563EB'    # 深蓝色 - 按钮按压状态
+PRIMARY_700 = '#1D4ED8'    # 更深蓝色 - 强调状态
+PRIMARY_900 = '#1E3A8A'    # 最深蓝色 - 用于深色文本
 
 # 中性色系 (Neutral Colors) - 文本、背景、边框
 NEUTRAL_0 = '#FFFFFF'      # 纯白色 - 主要背景
-NEUTRAL_50 = '#FAFBFC'     # 背景白 - 卡片背景
-NEUTRAL_100 = '#F5F6F7'    # 浅灰背景 - 禁用状态背景
-NEUTRAL_200 = '#EBEEF2'    # 边框色 - 主要边框颜色
-NEUTRAL_300 = '#DDE1E6'    # 分割线 - 分隔符颜色
-NEUTRAL_400 = '#C1C7CD'    # 禁用文本 - 禁用状态文字
-NEUTRAL_500 = '#8D9499'    # 次要文本 - 辅助说明文字
-NEUTRAL_600 = '#697077'    # 辅助文本 - 次级文本
-NEUTRAL_700 = '#4D5358'    # 主要文本 - 正文文本
-NEUTRAL_900 = '#1C1E21'    # 标题文本 - 标题和重要文本
+NEUTRAL_50 = '#F9FAFB'     # 背景白 - 卡片背景
+NEUTRAL_100 = '#F3F4F6'    # 浅灰背景 - 禁用状态背景
+NEUTRAL_200 = '#E5E7EB'    # 边框色 - 主要边框颜色
+NEUTRAL_300 = '#D1D5DB'    # 分割线 - 分隔符颜色
+NEUTRAL_400 = '#9CA3AF'    # 禁用文本 - 禁用状态文字
+NEUTRAL_500 = '#6B7280'    # 次要文本 - 辅助说明文字
+NEUTRAL_600 = '#4B5563'    # 辅助文本 - 次级文本
+NEUTRAL_700 = '#374151'    # 主要文本 - 正文文本
+NEUTRAL_900 = '#111827'    # 标题文本 - 标题和重要文本
 
 # 语义化颜色 (Semantic Colors) - 状态指示
-SUCCESS_50 = '#F0F9F4'     # 成功背景色
+SUCCESS_50 = '#F0FDF4'     # 成功背景色
 SUCCESS_500 = '#22C55E'    # 成功主色
 SUCCESS_600 = '#16A34A'    # 成功深色 - 用于边框和悬停状态
 WARNING_50 = '#FFFBEB'     # 警告背景色
 WARNING_500 = '#F59E0B'    # 警告主色
 WARNING_600 = '#D97706'    # 警告深色 - 用于边框和悬停状态
-INFO_50 = '#F0F9FE'        # 信息背景色
-INFO_500 = '#06B6D4'       # 信息主色 - 青色系，用于用户标签
-INFO_600 = '#0891B2'       # 信息深色 - 用于边框和悬停状态
+INFO_50 = '#EFF6FF'        # 信息背景色
+INFO_500 = '#3B82F6'       # 信息主色 - 蓝色系，用于用户标签
+INFO_600 = '#2563EB'       # 信息深色 - 用于边框和悬停状态
 ERROR_50 = '#FEF2F2'       # 错误背景色
 ERROR_500 = '#EF4444'      # 错误主色
 
@@ -83,16 +83,16 @@ TODO_MIGRATE_COLORS = {
     'format_text': '#6c757d',       # 格式文字
     'splitter_handle': '#c0c0c0',   # 分割器手柄
     'central_border': '#F0F0F0',    # 中央边框
-    'tag_md': '#00ABB3',           # MD标签
-    'tag_pdf': '#91C8E4',          # PDF标签
-    'tag_png': '#ADB2D4',          # PNG标签
-    'tag_jpeg': '#0F828C',         # JPEG标签
-    'tag_csv': '#A3DC9A',          # CSV标签
-    'tag_doc': '#97B067',          # DOC标签
-    'tag_xls': '#437057',          # XLS标签
-    'tag_ppt': '#FFA673',          # PPT标签
-    'tag_epub': '#64E2B7',         # EPUB标签
-    'default_tag': '#808080',       # 默认标签
+    'tag_md': '#3B82F6',           # MD标签 (更新为现代蓝色)
+    'tag_pdf': '#EF4444',          # PDF标签 (更新为现代红色)
+    'tag_png': '#8B5CF6',          # PNG标签 (更新为现代紫色)
+    'tag_jpeg': '#8B5CF6',         # JPEG标签 (更新为现代紫色)
+    'tag_csv': '#22C55E',          # CSV标签 (更新为现代绿色)
+    'tag_doc': '#3B82F6',          # DOC标签 (更新为现代蓝色)
+    'tag_xls': '#22C55E',          # XLS标签 (更新为现代绿色)
+    'tag_ppt': '#F59E0B',          # PPT标签 (更新为现代橙色)
+    'tag_epub': '#A855F7',         # EPUB标签 (更新为现代紫色)
+    'default_tag': '#6B7280',       # 默认标签 (更新为现代灰色)
 }
 
 # ============================================================================
@@ -111,10 +111,11 @@ SPACING_3XL = 48    # 3rem - 巨大间距
 # 🔘 圆角系统 (Border Radius System)
 # ============================================================================
 
+RADIUS_XS = 2       # 超小圆角 - 微小元素
 RADIUS_SM = 4       # 小圆角 - 按钮、输入框
-RADIUS_MD = 8       # 中等圆角 - 卡片、面板
-RADIUS_LG = 12      # 大圆角 - 对话框
-RADIUS_XL = 16      # 特大圆角 - 特殊容器
+RADIUS_MD = 6       # 中等圆角 - 卡片、面板 (减小圆角使设计更现代)
+RADIUS_LG = 8       # 大圆角 - 对话框 (减小圆角使设计更现代)
+RADIUS_XL = 12      # 特大圆角 - 特殊容器
 RADIUS_PILL = 9999  # 胶囊形 - 标签、徽章
 
 # ============================================================================
@@ -124,10 +125,10 @@ RADIUS_PILL = 9999  # 胶囊形 - 标签、徽章
 # 字体大小 (Font Sizes)
 FONT_SIZE_XS = 11   # 超小字体 - 标签、注释
 FONT_SIZE_SM = 12   # 小字体 - 辅助文字
-FONT_SIZE_MD = 14   # 中等字体 - 正文
-FONT_SIZE_LG = 16   # 大字体 - 标题
-FONT_SIZE_XL = 18   # 特大字体 - 大标题
-FONT_SIZE_2XL = 24  # 超大字体 - 主标题
+FONT_SIZE_MD = 13   # 中等字体 - 正文 (减小字体大小使布局更紧凑)
+FONT_SIZE_LG = 14   # 大字体 - 标题 (减小字体大小使布局更紧凑)
+FONT_SIZE_XL = 16   # 特大字体 - 大标题
+FONT_SIZE_2XL = 20  # 超大字体 - 主标题 (减小字体大小使布局更紧凑)
 
 # 行高 (Line Heights)
 LINE_HEIGHT_TIGHT = 1.2    # 紧密行高 - 标题
@@ -150,77 +151,77 @@ SHADOW_LG = '0 10px 15px rgba(0, 0, 0, 0.1)'     # 大阴影 - 仅用于CSS
 SHADOW_XL = '0 20px 25px rgba(0, 0, 0, 0.15)'    # 特大阴影 - 仅用于CSS
 
 # ============================================================================
-# 🏷️ 文件类型标签颜色映射 (File Type Tag Colors)
+# 🏷️ 文件类型标签颜色映射 (File Type Tag Colors) - 更新为现代软件设计颜色
 # ============================================================================
 
 TAG_COLOR_MAP = {
-    'md': QColor(0, 171, 179),      # 青绿色 - Markdown
-    'pdf': QColor(145, 200, 228),   # 蓝色 - PDF
-    'png': QColor(173, 178, 212),   # 紫蓝色 - PNG图片
-    'jpeg': QColor(15, 130, 140),   # 深青色 - JPEG图片
-    'csv': QColor(163, 220, 154),   # 绿色 - CSV数据
-    'docx': QColor(151, 176, 103),  # 橄榄绿 - Word文档
-    'doc': QColor(151, 176, 103),   # 橄榄绿 - Word文档
-    'xls': QColor(67, 112, 87),     # 深绿色 - Excel
-    'xlsx': QColor(67, 112, 87),    # 深绿色 - Excel
-    'ppt': QColor(255, 166, 115),   # 橙色 - PowerPoint
-    'pptx': QColor(255, 166, 115),  # 橙色 - PowerPoint
-    'epub': QColor(100, 226, 183),  # 薄荷绿 - 电子书
+    'md': QColor(59, 130, 246),      # 蓝色 - Markdown (参考Notion/Apple)
+    'pdf': QColor(239, 68, 68),      # 红色 - PDF (参考Adobe Acrobat)
+    'png': QColor(139, 92, 246),     # 紫色 - PNG图片 (参考Figma)
+    'jpeg': QColor(139, 92, 246),    # 紫色 - JPEG图片 (参考Figma)
+    'csv': QColor(34, 197, 94),      # 绿色 - CSV数据 (参考Excel)
+    'docx': QColor(59, 130, 246),    # 蓝色 - Word文档 (参考Microsoft)
+    'doc': QColor(59, 130, 246),     # 蓝色 - Word文档 (参考Microsoft)
+    'xls': QColor(34, 197, 94),      # 绿色 - Excel (参考Microsoft)
+    'xlsx': QColor(34, 197, 94),     # 绿色 - Excel (参考Microsoft)
+    'ppt': QColor(245, 158, 11),     # 橙色 - PowerPoint (参考Microsoft)
+    'pptx': QColor(245, 158, 11),    # 橙色 - PowerPoint (参考Microsoft)
+    'epub': QColor(168, 85, 247),    # 紫色 - 电子书 (参考Apple Books)
 }
-DEFAULT_TAG_COLOR = QColor(128, 128, 128)  # 默认灰色
+DEFAULT_TAG_COLOR = QColor(107, 114, 128)  # 默认灰色 - 默认文件类型颜色
 
 # ============================================================================
 # 📐 布局系统 (Layout System)
 # ============================================================================
 
 # 组件尺寸 (Component Sizes)
-BUTTON_HEIGHT_SM = 28       # 小按钮高度
-BUTTON_HEIGHT_MD = 36       # 中等按钮高度
-BUTTON_HEIGHT_LG = 44       # 大按钮高度
+BUTTON_HEIGHT_SM = 24       # 小按钮高度 (减小高度使布局更紧凑)
+BUTTON_HEIGHT_MD = 32       # 中等按钮高度 (减小高度使布局更紧凑)
+BUTTON_HEIGHT_LG = 40       # 大按钮高度 (减小高度使布局更紧凑)
 
-INPUT_HEIGHT_SM = 28        # 小输入框高度
-INPUT_HEIGHT_MD = 36        # 中等输入框高度
-INPUT_HEIGHT_LG = 44        # 大输入框高度
+INPUT_HEIGHT_SM = 24        # 小输入框高度 (减小高度使布局更紧凑)
+INPUT_HEIGHT_MD = 32        # 中等输入框高度 (减小高度使布局更紧凑)
+INPUT_HEIGHT_LG = 40        # 大输入框高度 (减小高度使布局更紧凑)
 
-SIDEBAR_WIDTH = 59          # 侧边栏宽度 (数据驱动优化后)
-TITLEBAR_HEIGHT = 30        # 标题栏高度
-STATUSBAR_HEIGHT = 24       # 状态栏高度
+SIDEBAR_WIDTH = 56          # 侧边栏宽度 (数据驱动优化后，减小宽度使布局更紧凑)
+TITLEBAR_HEIGHT = 32        # 标题栏高度 (增加高度使布局更平衡)
+STATUSBAR_HEIGHT = 20       # 状态栏高度 (减小高度使布局更紧凑)
 
 # ============================================================================
 # 🎯 特殊配置 (Special Configurations)
 # ============================================================================
 
 # Sidebar 按钮精确配置 (数据驱动优化)
-SIDEBAR_BUTTON_SIZE = 36            # 按钮尺寸
-SIDEBAR_BUTTON_ICON_SIZE = 20       # 图标尺寸
-SIDEBAR_MARGIN_LEFT = 8             # 左边距 (非对称补偿)
-SIDEBAR_MARGIN_RIGHT = 9            # 右边距 (数据驱动优化)
-SIDEBAR_PADDING_NORMAL = 4          # 正常状态内边距
-SIDEBAR_PADDING_CHECKED = 2.5       # 选中状态内边距
+SIDEBAR_BUTTON_SIZE = 32            # 按钮尺寸 (减小尺寸使布局更紧凑)
+SIDEBAR_BUTTON_ICON_SIZE = 16       # 图标尺寸 (减小尺寸使布局更紧凑)
+SIDEBAR_MARGIN_LEFT = 6             # 左边距 (非对称补偿)
+SIDEBAR_MARGIN_RIGHT = 7            # 右边距 (数据驱动优化)
+SIDEBAR_PADDING_NORMAL = 3          # 正常状态内边距
+SIDEBAR_PADDING_CHECKED = 2         # 选中状态内边距
 
 # macOS 按钮配置
 MACOS_BUTTON_SIZE = 12              # macOS 按钮尺寸
 MACOS_BUTTON_RADIUS = 6             # macOS 按钮圆角
 
 # 编辑器配置
-EDITOR_BORDER_WIDTH = 2             # 编辑器边框宽度
+EDITOR_BORDER_WIDTH = 1             # 编辑器边框宽度 (减小边框宽度使布局更紧凑)
 EDITOR_PADDING = 0                  # 编辑器内边距
 
 # 进度条配置
-PROGRESS_BAR_HEIGHT = 8             # 进度条高度
-PROGRESS_BAR_RADIUS = 4             # 进度条圆角
+PROGRESS_BAR_HEIGHT = 6             # 进度条高度 (减小高度使布局更紧凑)
+PROGRESS_BAR_RADIUS = 3             # 进度条圆角
 
 # ============================================================================
 # 🔧 兼容性别名 (Legacy Compatibility)
 # ============================================================================
 
 # 保持向后兼容的QColor对象
-COLOR_SELECTED = QColor(37, 145, 255, 38)   # PRIMARY_500 with alpha
-COLOR_HOVER = QColor(37, 145, 255, 25)      # PRIMARY_500 with alpha
-COLOR_DEFAULT_TEXT = QColor(28, 30, 33)     # NEUTRAL_900
-COLOR_GRAY_TEXT = QColor(141, 148, 153)     # NEUTRAL_500
+COLOR_SELECTED = QColor(59, 130, 246, 38)   # PRIMARY_500 with alpha
+COLOR_HOVER = QColor(59, 130, 246, 25)      # PRIMARY_500 with alpha
+COLOR_DEFAULT_TEXT = QColor(17, 24, 39)     # NEUTRAL_900
+COLOR_GRAY_TEXT = QColor(107, 114, 128)     # NEUTRAL_500
 COLOR_WHITE = QColor(255, 255, 255)         # NEUTRAL_0
-COLOR_LIGHT_GRAY = QColor(235, 238, 242)    # NEUTRAL_200
+COLOR_LIGHT_GRAY = QColor(229, 231, 235)    # NEUTRAL_200
 COLOR_BACKGROUND_LIGHT = NEUTRAL_50
 COLOR_BACKGROUND_DARK = BACKGROUND_DARK
 PRIMARY_BUTTON_BACKGROUND = PRIMARY_500

@@ -95,6 +95,8 @@ class MarkRenderManager:
                     'is_folder': getattr(h, 'is_folder', 0),
                     # 图标和显示字段
                     'icon_type': getattr(h, 'icon_type', None),
+                    'icon_path': getattr(h, 'icon_path', None),
+                    'icon_color': getattr(h, 'icon_color', None),
                     'display_name': getattr(h, 'display_name', None),
                 } for h in histories]
         except Exception as e:
@@ -126,6 +128,7 @@ class MarkRenderManager:
             # 图标和显示参数
             icon_type=None,
             icon_path=None,
+            icon_color=None,
             display_name=None,
         ):
         session = self.Session()
@@ -191,6 +194,8 @@ class MarkRenderManager:
                         setattr(history, 'icon_type', icon_type)
                     if icon_path is not None and icon_path != (getattr(history, 'icon_path', None) or None):
                         setattr(history, 'icon_path', icon_path)
+                    if icon_color is not None and icon_color != (getattr(history, 'icon_color', None) or None):
+                        setattr(history, 'icon_color', icon_color)
                     if display_name is not None and display_name != (getattr(history, 'display_name', None) or None):
                         setattr(history, 'display_name', display_name)
                     setattr(history, 'updated_at', now)  # 使用北京时间更新
@@ -243,6 +248,7 @@ class MarkRenderManager:
                     # 图标和显示字段
                     icon_type=icon_type,
                     icon_path=icon_path,
+                    icon_color=icon_color,
                     display_name=display_name,
                 )
                 session.add(new_history)
@@ -501,6 +507,11 @@ class MarkRenderManager:
                 'order': getattr(record, 'order', 0),
                 'level': getattr(record, 'level', 0),
                 'is_folder': getattr(record, 'is_folder', 0),
+                # 图标和显示字段
+                'icon_type': getattr(record, 'icon_type', None),
+                'icon_path': getattr(record, 'icon_path', None),
+                'icon_color': getattr(record, 'icon_color', None),
+                'display_name': getattr(record, 'display_name', None),
             }
         except Exception as e:
             logger.error(f"Error getting detail: {e}")
@@ -641,7 +652,7 @@ class MarkRenderManager:
             
     # 树形结构相关接口
     
-    def create_folder(self, title, parent_id=None, icon_type=None, icon_path=None, display_name=None, page_type=None):
+    def create_folder(self, title, parent_id=None, icon_type=None, icon_path=None, icon_color=None, display_name=None, page_type=None):
         """创建文件夹"""
         return self.save_item(
             title=title,
@@ -651,20 +662,22 @@ class MarkRenderManager:
             page_type=page_type if page_type is not None else 'folder',
             icon_type=icon_type,
             icon_path=icon_path,
+            icon_color=icon_color,
             display_name=display_name
         )
     
-    def create_file(self, title, content='', parent_id=None, page_type=None, page_engine=None, icon_type=None, icon_path=None, display_name=None):
+    def create_file(self, title, content='', parent_id=None, page_type=None, page_engine=None, icon_type=None, icon_path=None, icon_color=None, display_name=None):
         """创建文件"""
         return self.save_item(
             title=title,
             content=content,
-            is_folder=0,
+            is_folder=0,  # 文件节点默认不是文件夹
             parent_id=parent_id,
             page_type=page_type,
             page_engine=page_engine,
             icon_type=icon_type,
             icon_path=icon_path,
+            icon_color=icon_color,
             display_name=display_name
         )
     
@@ -711,6 +724,7 @@ class MarkRenderManager:
                     # 图标和显示字段
                     'icon_type': getattr(r, 'icon_type', None),
                     'icon_path': getattr(r, 'icon_path', None),
+                    'icon_color': getattr(r, 'icon_color', None),
                     'display_name': getattr(r, 'display_name', None),
                 } for r in records
             ]
@@ -774,11 +788,8 @@ class MarkRenderManager:
                 children = self.get_children(parent_id)
                 for child in children:
                     child_id = child['id']
-                    # 递归获取子节点
-                    if child['is_folder']:
-                        child['children'] = build_tree(child_id)
-                    else:
-                        child['children'] = []
+                    # 递归获取子节点（所有节点都可能有子节点）
+                    child['children'] = build_tree(child_id)
                 return children
             
             return build_tree(parent_id)
@@ -864,12 +875,10 @@ class MarkRenderManager:
                 'updated_at': getattr(record, 'updated_at', None),
             }
             
-            # 如果是文件夹，递归获取子节点
-            if getattr(record, 'is_folder', 0) == 1:
-                node['children'] = self.get_full_tree(item_id)
-            else:
-                node['children'] = []
-                
+            # 获取子节点（所有节点都可能有子节点，不仅仅是is_folder为1的节点）
+            children = self.get_children(item_id)
+            node['children'] = children
+            
             return node
         except Exception as e:
             logger.error(f"Error getting subtree: {e}")

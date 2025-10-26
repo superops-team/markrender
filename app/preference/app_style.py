@@ -12,12 +12,12 @@ from .style_constants import *
 # ========== 向后兼容性设置 ==========
 
 # 以下是向后兼容的颜色别名，逐步迁移到 style_constants.py 中
-COLOR_SELECTED = QColor(37, 145, 255, 38)  # PRIMARY_500 with alpha
-COLOR_HOVER = QColor(37, 145, 255, 25)     # PRIMARY_500 with alpha
-COLOR_DEFAULT_TEXT = QColor(28, 30, 33)    # NEUTRAL_900
-COLOR_GRAY_TEXT = QColor(141, 148, 153)    # NEUTRAL_500
+COLOR_SELECTED = QColor(59, 130, 246, 38)  # PRIMARY_500 with alpha
+COLOR_HOVER = QColor(59, 130, 246, 25)     # PRIMARY_500 with alpha
+COLOR_DEFAULT_TEXT = QColor(17, 24, 39)    # NEUTRAL_900
+COLOR_GRAY_TEXT = QColor(107, 114, 128)    # NEUTRAL_500
 COLOR_WHITE = QColor(255, 255, 255)        # NEUTRAL_0
-COLOR_LIGHT_GRAY = QColor(235, 238, 242)   # NEUTRAL_200
+COLOR_LIGHT_GRAY = QColor(229, 231, 235)   # NEUTRAL_200
 COLOR_BACKGROUND_LIGHT = NEUTRAL_50
 COLOR_BACKGROUND_DARK = '#1f1f1f'
 PRIMARY_BUTTON_BACKGROUND = PRIMARY_500
@@ -30,23 +30,23 @@ LINE_COLOR = NEUTRAL_200
 
 # Tag 颜色映射表
 TAG_COLOR_MAP = {
-    'md': QColor(0, 171, 179),
-    'pdf': QColor(145, 200, 228),
-    'png': QColor(173, 178, 212),
-    'jpeg': QColor(15, 130, 140),
-    'csv': QColor(163, 220, 154),
-    'docx': QColor(151, 176, 103),
-    'doc': QColor(151, 176, 103),
-    'xls': QColor(67, 112, 87),
-    'xlsx': QColor(67, 112, 87),
-    'ppt': QColor(255, 166, 115),
-    'pptx': QColor(255, 166, 115),
-    'epub': QColor(100, 226, 183),
+    'md': QColor(59, 130, 246),      # 蓝色 - Markdown (参考Notion/Apple)
+    'pdf': QColor(239, 68, 68),      # 红色 - PDF (参考Adobe Acrobat)
+    'png': QColor(139, 92, 246),     # 紫色 - PNG图片 (参考Figma)
+    'jpeg': QColor(139, 92, 246),    # 紫色 - JPEG图片 (参考Figma)
+    'csv': QColor(34, 197, 94),      # 绿色 - CSV数据 (参考Excel)
+    'docx': QColor(59, 130, 246),    # 蓝色 - Word文档 (参考Microsoft)
+    'doc': QColor(59, 130, 246),     # 蓝色 - Word文档 (参考Microsoft)
+    'xls': QColor(34, 197, 94),      # 绿色 - Excel (参考Microsoft)
+    'xlsx': QColor(34, 197, 94),     # 绿色 - Excel (参考Microsoft)
+    'ppt': QColor(245, 158, 11),     # 橙色 - PowerPoint (参考Microsoft)
+    'pptx': QColor(245, 158, 11),    # 橙色 - PowerPoint (参考Microsoft)
+    'epub': QColor(168, 85, 247),    # 紫色 - 电子书 (参考Apple Books)
 }
-DEFAULT_COLOR = QColor(128, 128, 128)
+DEFAULT_COLOR = QColor(107, 114, 128)  # 默认灰色 - 默认文件类型颜色
 
 # 通用样式
-DIALOG_BORDER_RADIUS = "QDialog { border-radius: 4px; }"
+DIALOG_BORDER_RADIUS = "QDialog { border-radius: 6px; }"  # 更新圆角使设计更现代
 WIDGET_BACKGROUND_LIGHT = "QWidget { background-color: #fafafa; }"
 WIDGET_BACKGROUND_DARK = "QWidget { background-color: #1f1f1f; }"
 
@@ -92,11 +92,11 @@ QPushButton {{
     color: {NEUTRAL_0};
     border: 1px solid {PRIMARY_600};
     border-radius: {RADIUS_SM}px;
-    padding: {SPACING_MD}px {SPACING_XL}px;
+    padding: {SPACING_SM}px {SPACING_LG}px;
     font-size: {FONT_SIZE_MD}px;
     font-weight: 600;
     min-width: 80px;
-    min-height: 36px;
+    min-height: 32px;
 }}
 QPushButton:hover {{
     background-color: {PRIMARY_600};
@@ -139,7 +139,7 @@ QStatusBar {{
     background-color: {NEUTRAL_50};
     color: {NEUTRAL_500};
     font-size: {FONT_SIZE_XS}px;
-    padding: {SPACING_XS}px {SPACING_XL}px {SPACING_XS}px {SPACING_2XL}px;
+    padding: {SPACING_XS}px {SPACING_XL}px {SPACING_XS}px {SPACING_XL}px;
     height: {STATUSBAR_HEIGHT}px;
 }}
 QLabel {{
@@ -152,7 +152,7 @@ LINE_EDIT = f"""
 QLineEdit {{
     border: 1px solid {NEUTRAL_300};
     border-radius: {RADIUS_SM}px;
-    padding: {SPACING_MD}px {SPACING_LG}px;
+    padding: {SPACING_SM}px {SPACING_MD}px;
     font-size: {FONT_SIZE_MD}px;
     color: {NEUTRAL_700};
     background-color: {NEUTRAL_0};
@@ -272,10 +272,10 @@ QPushButton {{
     padding: {SPACING_XS}px;
     font-size: {FONT_SIZE_SM}px;
     font-weight: 500;
-    min-width: 32px;
-    min-height: 32px;
-    max-width: 36px;
-    max-height: 36px;
+    min-width: 28px;
+    min-height: 28px;
+    max-width: 32px;
+    max-height: 32px;
 }}
 QPushButton:hover {{
     background-color: {PRIMARY_50};
@@ -292,13 +292,13 @@ QPushButton:checked {{
     border: 1px solid {PRIMARY_300};
     color: {PRIMARY_500};
     font-weight: 600;
-    padding: 2.5px;
+    padding: 2px;
 }}
 QPushButton:checked:hover {{
     background-color: {PRIMARY_50};
     border: 1px solid {PRIMARY_300};
     color: {PRIMARY_600};
-    padding: 2.5px;
+    padding: 2px;
 }}
 """
 
@@ -406,38 +406,73 @@ QWidget {{
 """
 
 QUICKPICK_PANEL = f"""
-QListWidget {{
+QTreeWidget {{
     border: 1px solid {NEUTRAL_200};
     border-radius: {RADIUS_MD}px;
     background-color: {NEUTRAL_0};
     padding: {SPACING_XS}px;
     margin-top: 0px;
-    selection-background-color: transparent;
 }}
-QListWidget::item {{
+QTreeWidget::item {{
     border: none;
     border-radius: {RADIUS_SM}px;
-    padding: {SPACING_MD}px;
-    margin-bottom: {SPACING_XS}px;
+    padding: {SPACING_XS}px;
+    margin-bottom: {SPACING_XS//2}px;
     background-color: {NEUTRAL_0};
     min-height: 48px;
-    margin-left: {SPACING_MD}px;
-    margin-right: {SPACING_MD}px;
+    margin-left: {SPACING_SM}px;
+    margin-right: {SPACING_SM}px;
 }}
-QListWidget::item:last {{
+QTreeWidget::item:last {{
     margin-bottom: 0px;
 }}
-QListWidget::item:hover {{
-    background-color: transparent;
-    border-color: {PRIMARY_100};
+QTreeWidget::item:hover {{
+    background-color: {PRIMARY_50};
 }}
-QListWidget::item:selected {{
+QTreeWidget::item:selected {{
+    background-color: {PRIMARY_100};
+}}
+QTreeWidget::branch:has-children:!has-siblings:closed,
+QTreeWidget::branch:closed:has-children:has-siblings {{
+    border-image: none;
+    image: url(icons/chevron-right.svg);
+}}
+QTreeWidget::branch:open:has-children:!has-siblings,
+QTreeWidget::branch:open:has-children:has-siblings {{
+    border-image: none;
+    image: url(icons/chevron-down.svg);
+}}
+/* 确保所有层级的item都能正确响应点击事件 */
+QTreeWidget::item {{
+    padding-top: {SPACING_XS//2}px;
+    padding-bottom: {SPACING_XS//2}px;
+}}
+/* 优化树形结构的视觉层次，遵循TDesign设计原则 */
+QTreeWidget::branch {{
+    width: 16px;
+    height: 16px;
     background-color: transparent;
-    border-color: {PRIMARY_200};
-    color: {PRIMARY_700};
+}}
+/* 确保选中状态的一致性，移除可能导致冲突的分支样式 */
+QTreeWidget::branch:selected {{
+    background-color: transparent;
+}}
+QTreeWidget::branch:hover {{
+    background-color: transparent;
+}}
+/* 确保选中状态覆盖整个item区域 */
+QTreeWidget::item:selected:active {{
+    background-color: {PRIMARY_100};
+}}
+QTreeWidget::item:selected:!active {{
+    background-color: {PRIMARY_100};
+}}
+/* 移除折叠区域缩进的特殊颜色渲染 */
+QTreeWidget::branch:has-children {{
+    background-color: transparent;
+    border: none;
 }}
 """
-
 TAB_STYLE = """
 /* 去掉 tab 页边框 */
 QTabWidget::pane {
@@ -488,7 +523,7 @@ class AppStyle:
         return COLOR_BACKGROUND_LIGHT if not self.dark_mode else COLOR_BACKGROUND_DARK
 
     def get_border_color(self):
-        return QColor(34, 184, 207, 76)  # 修复 alpha 值为整数
+        return QColor(59, 130, 246, 76)  # 修复 alpha 值为整数
 
     def get_hover_color(self):
         return HOVER_COLOR

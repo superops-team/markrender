@@ -15,6 +15,8 @@ from PySide6.QtCore import Qt
 from app.preference import AppStyle
 # 导入图标选择器组件
 from .icon_selector import IconSelectorWidget
+# 导入颜色选择器组件
+from .color_selector import ColorSelectorWidget
 
 class EditItemDialog(QDialog):
     """
@@ -428,6 +430,7 @@ class EditItemDialog(QDialog):
         # 图标选择器 - 替换原有的图标类型和图标路径输入框
         icon_type = self.markdown_data.get('icon_type', '')
         icon_path = self.markdown_data.get('icon_path', '')
+        icon_color = self.markdown_data.get('icon_color', '')
         # 优先使用icon_path中的图标名称
         current_icon = None
         if icon_path and icon_path.startswith('icons/') and icon_path.endswith('.svg'):
@@ -437,6 +440,10 @@ class EditItemDialog(QDialog):
             
         self.icon_selector = IconSelectorWidget(current_icon)
         form_layout.addRow(self._make_label("图标："), self.icon_selector)
+        
+        # 图标颜色选择器 - 使用取色板选择颜色
+        self.icon_color_selector = ColorSelectorWidget(icon_color)
+        form_layout.addRow(self._make_label("图标颜色："), self.icon_color_selector)
 
         # 显示名称编辑
         display_name = self.markdown_data.get('display_name', '')
@@ -502,3 +509,6 @@ class EditItemDialog(QDialog):
         if selected_icon:
             return f"icons/{selected_icon}.svg"
         return None
+
+    def get_new_icon_color(self):
+        return self.icon_color_selector.get_selected_color()

@@ -49,29 +49,33 @@ class QuickPickPanel(QWidget):
         self.quickpick_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.quickpick_list.setItemDelegate(
             QuickPickItemDelegate(self.quickpick_list))
-        # 设置列表项可编辑
+        # 禁用双击编辑
         self.quickpick_list.setEditTriggers(
-            QAbstractItemView.EditTrigger.DoubleClicked
+            QAbstractItemView.EditTrigger.NoEditTriggers
         )
         # 配置树形控件
         self.quickpick_list.setHeaderHidden(True)  # 隐藏表头
-        self.quickpick_list.setIndentation(20)  # 设置缩进
+        self.quickpick_list.setIndentation(16)  # 减少缩进，使布局更紧凑
         # 启用右键菜单
         self.quickpick_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.quickpick_list.customContextMenuRequested.connect(self.show_tree_context_menu)
+        # 设置单击item即可展开/折叠子节点
+        self.quickpick_list.setExpandsOnDoubleClick(False)  # 禁用双击展开
+        self.quickpick_list.setAllColumnsShowFocus(True)  # 确保所有列都能响应焦点
+        self.quickpick_list.setRootIsDecorated(True)  # 确保根节点有装饰（展开/折叠图标）
+        self.quickpick_list.itemClicked.connect(self.on_item_clicked_with_expand)  # 连接单击事件
         self.init_ui()
         self.load_quickpick_items()
         self.switch_pending = None  # 存储待切换的项数据
         self.save_complete.connect(self._complete_item_switch)
-        self.quickpick_list.clicked.connect(self.on_item_clicked)
 
     def init_ui(self):
         main_layout = QVBoxLayout()
-        # 统一Editor区域的边距，确保高度对齐
-        main_layout.setContentsMargins(5, 5, 5, 5)
+        # 统一Editor区域的边距，确保高度对齐 - 减少边距使布局更紧凑
+        main_layout.setContentsMargins(4, 4, 4, 4)
         # 创建搜索和新建按钮的水平布局
         search_layout = QHBoxLayout()
-        search_layout.setSpacing(8)  # 使用统一的小间距
+        search_layout.setSpacing(6)  # 减少间距，使用更紧凑的布局
         search_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)  # 垂直居中对齐
 
         # 创建美观的搜索框
@@ -79,7 +83,7 @@ class QuickPickPanel(QWidget):
         self.search_input.setPlaceholderText("搜索历史记录...")
         # 使用统一的样式系统
         self.search_input.setStyleSheet(self.app_style.get_line_edit())
-        self.search_input.setMinimumHeight(40)  # 统一高度，改善对齐
+        self.search_input.setMinimumHeight(32)  # 减小高度，使布局更紧凑
         self.search_input.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.search_input.textChanged.connect(self.filter_quickpick)
         self.search_input.returnPressed.connect(self.filter_quickpick)
@@ -88,9 +92,9 @@ class QuickPickPanel(QWidget):
         self.new_btn = QPushButton()
         # 初始图标
         self.new_btn.setIcon(QIcon(get_icon_path("pencil-square", selected=False)))
-        self.new_btn.setIconSize(QSize(20, 20))
+        self.new_btn.setIconSize(QSize(16, 16))  # 减小图标尺寸
         # 设置固定尺寸，与搜索框对齐
-        self.new_btn.setFixedSize(40, 40)
+        self.new_btn.setFixedSize(32, 32)  # 减小按钮尺寸
         # 应用统一侧边栏按钮样式
         self.new_btn.setStyleSheet(self.app_style.get_sidebar_button_style())
         # 连接点击事件到显示菜单方法
@@ -103,12 +107,14 @@ class QuickPickPanel(QWidget):
         # 添加到主布局
         main_layout.addLayout(search_layout)
 
-        # 设置搜索框和历史列表之间的间距为8px
-        main_layout.setSpacing(8)
+        # 设置搜索框和历史列表之间的间距为6px - 减少间距使布局更紧凑
+        main_layout.setSpacing(6)
 
         # 优化列表项选中样式，与全局风格保持一致
         self.quickpick_list.viewport().setMouseTracking(True)
         self.quickpick_list.setStyleSheet(self.app_style.get_quickpick_panel())
+        # 确保整个控件区域都能响应鼠标事件
+        self.quickpick_list.setMouseTracking(True)
         main_layout.addWidget(self.quickpick_list)
         # 设置布局后，设置统一的背景色
         self.setLayout(main_layout)
@@ -133,44 +139,48 @@ class QuickPickPanel(QWidget):
         if dialog.exec():  # 显示对话框并等待用户操作
             new_title = dialog.get_new_title()
             if new_title:
+                # 更新item_data
                 item_data['title'] = new_title
                 item_data['tags'] = dialog.get_new_tags()
-                # 更新 item 数据
-                item.setData(0, Qt.ItemDataRole.UserRole, item_data)
-                # 调用数据库更新逻辑，需根据实际情况实现
+                
+                # 获取可能更新的字段
+                new_icon_type = dialog.get_new_icon_type()
+                new_icon_path = dialog.get_new_icon_path()
+                new_display_name = dialog.get_new_display_name()
+                new_page_type = dialog.get_new_page_type()
+                new_icon_color = dialog.get_new_icon_color()
+                
+                # 更新item_data中的字段
+                if new_icon_type is not None:
+                    item_data['icon_type'] = new_icon_type
+                if new_icon_path is not None:
+                    item_data['icon_path'] = new_icon_path
+                if new_display_name is not None:
+                    item_data['display_name'] = new_display_name
+                if new_page_type is not None:
+                    item_data['page_type'] = new_page_type
+                if new_icon_color is not None:
+                    item_data['icon_color'] = new_icon_color
+                
+                # 调用数据库更新逻辑
                 if 'id' in item_data:
-                    # 获取可能更新的字段
-                    new_icon_type = dialog.get_new_icon_type()
-                    new_icon_path = dialog.get_new_icon_path()
-                    new_display_name = dialog.get_new_display_name()
-                    new_page_type = dialog.get_new_page_type()
-                    
-                    # 更新数据库
                     self.markrender_manager.save_item(
                         id=item_data['id'],
                         title=new_title,
                         tags=item_data['tags'],
                         icon_type=new_icon_type,
                         icon_path=new_icon_path,
+                        icon_color=new_icon_color,
                         display_name=new_display_name,
-                        page_type=new_page_type
+                        page_type=new_page_type,
+                        parent_id=item_data.get('parent_id'),
+                        order=item_data.get('order'),
+                        level=item_data.get('level'),
+                        is_folder=item_data.get('is_folder')
                     )
-                    
-                    # 更新item_data中的字段
-                    if new_icon_type is not None:
-                        item_data['icon_type'] = new_icon_type
-                    if new_icon_path is not None:
-                        item_data['icon_path'] = new_icon_path
-                    if new_display_name is not None:
-                        item_data['display_name'] = new_display_name
-                    if new_page_type is not None:
-                        item_data['page_type'] = new_page_type
-                    
-                    # 更新 item 数据
-                    item.setData(0, Qt.ItemDataRole.UserRole, item_data)
-                    
-                    # 重新加载数据以确保UI更新
-                    self.load_quickpick_items()
+                
+                # 更新树中的节点数据，而不是刷新整个树
+                self.find_and_update_item_in_tree(item_data['id'], item_data)
 
     def on_item_clicked(self, index):
         # 修改获取数据的方式
@@ -196,6 +206,40 @@ class QuickPickPanel(QWidget):
             self.save_current_item()
         else:
             logger.warning("点击的列表项数据为空或缺少ID字段")
+
+    def on_item_clicked_with_expand(self, item, column):
+        """处理item单击事件，如果是文件夹则展开/折叠子节点"""
+        # 获取项数据
+        data = item.data(0, Qt.ItemDataRole.UserRole)
+        if data:
+            # 检查是否为文件夹或是否有子节点
+            is_folder = data.get('is_folder', 0)
+            has_children = 'children' in data and len(data['children']) > 0
+            
+            # 如果是文件夹或有子节点，则切换展开状态
+            if is_folder or has_children:
+                # 切换展开状态
+                item.setExpanded(not item.isExpanded())
+                logger.debug(f"切换节点展开状态: {data.get('title', 'Unknown')} -> {item.isExpanded()}")
+            
+            # 如果有ID，则处理项选择逻辑
+            if 'id' in data:
+                # 确保 parent 和 current_item 属性存在
+                if self._parent is not None and hasattr(self._parent, 'current_item'):
+                    current_item = getattr(self._parent, 'current_item', None)
+                    if current_item:
+                        current_id = current_item.get('id')
+                        # 检查当前点击项是否和 current_item 是同一项目
+                        if current_id == data['id']:
+                            logger.debug(f"点击的是当前正在查看的历史记录项: {data['id']}，跳过处理")
+                            return
+
+                # 存储待切换的项数据
+                self.switch_pending = data
+                # 在切换前保存当前 markdown 内容
+                self.save_current_item()
+        else:
+            logger.warning("点击的列表项数据为空")
 
     def load_quickpick_items(self):
         """加载所有历史记录"""
@@ -230,21 +274,39 @@ class QuickPickPanel(QWidget):
                     # 设置节点文本，确保项可见
                     tree_item.setText(0, item.get('title', ''))
                     
+                    # 确保所有层级的节点都正确设置数据和标志
+                    tree_item.setFlags(
+                        Qt.ItemFlag.ItemIsSelectable | 
+                        Qt.ItemFlag.ItemIsEnabled | 
+                        Qt.ItemFlag.ItemIsEditable
+                    )
+                    
                     # 如果有子节点，递归添加
                     if 'children' in item and item['children']:
                         add_tree_items(tree_item, item['children'])
                     
-                    # 如果没有父节点且匹配搜索条件，则添加到顶层
-                    if not parent_item and (not search_text or search_text in item['title'].lower()):
-                        self.quickpick_list.addTopLevelItem(tree_item)
-                    
-                    # 如果有父节点，则已经在父节点下添加了
-                    elif parent_item:
-                        pass
-                    
-                    # 如果没有父节点但不匹配搜索条件，且搜索文本为空，则添加到顶层
-                    elif not search_text:
-                        self.quickpick_list.addTopLevelItem(tree_item)
+                    # 根据搜索条件决定是否添加到显示列表
+                    if not search_text or search_text in item['title'].lower():
+                        if not parent_item:
+                            # 如果没有父节点，则添加到顶层
+                            self.quickpick_list.addTopLevelItem(tree_item)
+                    elif not parent_item:
+                        # 如果不匹配搜索条件且没有父节点，检查子节点是否有匹配的
+                        has_matching_children = False
+                        if 'children' in item and item['children']:
+                            def check_children(children):
+                                for child in children:
+                                    if search_text in child['title'].lower():
+                                        return True
+                                    if 'children' in child and child['children']:
+                                        if check_children(child['children']):
+                                            return True
+                                return False
+                            has_matching_children = check_children(item['children'])
+                        
+                        # 如果有匹配的子节点，也添加到显示列表
+                        if has_matching_children:
+                            self.quickpick_list.addTopLevelItem(tree_item)
             
             # 添加树形结构数据
             add_tree_items(None, self.all_quickpick_items)
@@ -460,22 +522,22 @@ class QuickPickPanel(QWidget):
 
         # 创建 内容 按钮组合（紧凑设计）
         content_container = QWidget()
-        content_container.setFixedSize(36, 48)  # 固定小尺寸
+        content_container.setFixedSize(32, 40)  # 减小尺寸使布局更紧凑
         content_layout = QVBoxLayout(content_container)
         content_layout.setSpacing(2)  # 最小间距
         content_layout.setContentsMargins(0, 0, 0, 0)
         
         content_btn = QPushButton()
         content_btn.setIcon(QIcon(get_icon_path("textarea")))
-        content_btn.setIconSize(QSize(20, 20))  # 紧凑图标尺寸
-        content_btn.setFixedSize(32, 32)  # 固定按钮尺寸
+        content_btn.setIconSize(QSize(16, 16))  # 减小图标尺寸
+        content_btn.setFixedSize(28, 28)  # 减小按钮尺寸
         content_btn.setToolTip("创建笔记")
         content_btn.clicked.connect(self.create_new_markdown_item)
         
         # 创建紧凑的 内容 标签
         content_label = QLabel("笔记")
         content_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        content_label.setFixedHeight(12)  # 固定标签高度
+        content_label.setFixedHeight(10)  # 减小标签高度
         # 应用样式
         content_label.setStyleSheet("color: #6B7280; font-size: 10px; font-weight: 500;")
         
@@ -484,22 +546,22 @@ class QuickPickPanel(QWidget):
 
         # 创建 Board 按钮组合（紧凑设计）
         board_container = QWidget()
-        board_container.setFixedSize(36, 48)  # 固定小尺寸
+        board_container.setFixedSize(32, 40)  # 减小尺寸使布局更紧凑
         board_layout = QVBoxLayout(board_container)
         board_layout.setSpacing(2)  # 最小间距
         board_layout.setContentsMargins(0, 0, 0, 0)
         
         board_btn = QPushButton()
         board_btn.setIcon(QIcon(get_icon_path("excalidraw")))
-        board_btn.setIconSize(QSize(20, 20))  # 紧凑图标尺寸
-        board_btn.setFixedSize(32, 32)  # 固定按钮尺寸
+        board_btn.setIconSize(QSize(16, 16))  # 减小图标尺寸
+        board_btn.setFixedSize(28, 28)  # 减小按钮尺寸
         board_btn.setToolTip("创建画布")
         board_btn.clicked.connect(self.create_new_board_item)
         
         # 创建紧凑的 Board 标签
         board_label = QLabel("画布")
         board_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        board_label.setFixedHeight(12)  # 固定标签高度
+        board_label.setFixedHeight(10)  # 减小标签高度
         # 应用样式
         board_label.setStyleSheet("color: #6B7280; font-size: 10px; font-weight: 500;")
         
@@ -639,6 +701,45 @@ class QuickPickPanel(QWidget):
         # 不进行全局刷新，而是直接在树中添加新节点
         self.add_node_to_tree(parent_index, folder_id, folder_title, is_folder=True)
 
+    def find_and_update_item_in_tree(self, item_id, updated_data):
+        """在树中查找并更新特定节点的数据"""
+        def find_item_recursive(parent_item):
+            """递归查找节点"""
+            if parent_item is None:
+                # 搜索顶层节点
+                for i in range(self.quickpick_list.topLevelItemCount()):
+                    item = self.quickpick_list.topLevelItem(i)
+                    if item:
+                        data = item.data(0, Qt.ItemDataRole.UserRole)
+                        if data and data.get('id') == item_id:
+                            return item
+                        # 递归搜索子节点
+                        found = find_item_recursive(item)
+                        if found:
+                            return found
+            else:
+                # 搜索子节点
+                for i in range(parent_item.childCount()):
+                    item = parent_item.child(i)
+                    if item:
+                        data = item.data(0, Qt.ItemDataRole.UserRole)
+                        if data and data.get('id') == item_id:
+                            return item
+                        # 递归搜索子节点的子节点
+                        found = find_item_recursive(item)
+                        if found:
+                            return found
+            return None
+        
+        # 查找节点
+        tree_item = find_item_recursive(None)
+        if tree_item:
+            # 更新节点数据
+            tree_item.setData(0, Qt.ItemDataRole.UserRole, updated_data)
+            tree_item.setText(0, updated_data.get('title', ''))
+            return True
+        return False
+
     def show_tree_context_menu(self, position):
         """显示树形控件的上下文菜单"""
         # 获取右键点击的项
@@ -653,31 +754,30 @@ class QuickPickPanel(QWidget):
         item_data = item.data(0, Qt.ItemDataRole.UserRole)
         is_folder = item_data.get('is_folder', 0) if item_data else 0
         
-        # 添加"添加子项"菜单项（仅对文件夹有效）
-        if is_folder:
-            add_submenu = menu.addMenu("添加子项")
-            
-            # 添加 Markdown 文件
-            add_markdown_action = QAction("Markdown 文件", self)
-            add_markdown_action.triggered.connect(lambda: self.create_new_child_item(self.quickpick_list.indexFromItem(item), 'markdown'))
-            add_submenu.addAction(add_markdown_action)
-            
-            # 添加 Excalidraw 文件
-            add_excalidraw_action = QAction("Excalidraw 文件", self)
-            add_excalidraw_action.triggered.connect(lambda: self.create_new_child_item(self.quickpick_list.indexFromItem(item), 'excalidraw'))
-            add_submenu.addAction(add_excalidraw_action)
-            
-            # 添加文件夹
-            add_folder_action = QAction("文件夹", self)
-            add_folder_action.triggered.connect(lambda: self.create_new_child_folder(self.quickpick_list.indexFromItem(item)))
-            add_submenu.addAction(add_folder_action)
-            
-            menu.addSeparator()
+        # 添加"添加子项"菜单项（所有节点都支持添加子项）
+        add_submenu = menu.addMenu("添加子项")
         
-        # 添加重命名和删除操作
-        rename_action = QAction("重命名", self)
-        rename_action.triggered.connect(lambda: self.rename_selected_file())
-        menu.addAction(rename_action)
+        # 添加 Markdown 文件
+        add_markdown_action = QAction("Markdown 文件", self)
+        add_markdown_action.triggered.connect(lambda: self.create_new_child_item(self.quickpick_list.indexFromItem(item), 'markdown'))
+        add_submenu.addAction(add_markdown_action)
+        
+        # 添加 Excalidraw 文件
+        add_excalidraw_action = QAction("Excalidraw 文件", self)
+        add_excalidraw_action.triggered.connect(lambda: self.create_new_child_item(self.quickpick_list.indexFromItem(item), 'excalidraw'))
+        add_submenu.addAction(add_excalidraw_action)
+        
+        # 添加文件夹
+        add_folder_action = QAction("文件夹", self)
+        add_folder_action.triggered.connect(lambda: self.create_new_child_folder(self.quickpick_list.indexFromItem(item)))
+        add_submenu.addAction(add_folder_action)
+        
+        menu.addSeparator()
+        
+        # 添加编辑和删除操作
+        edit_action = QAction("编辑", self)
+        edit_action.triggered.connect(lambda: self.edit_item(self.quickpick_list.indexFromItem(item)))
+        menu.addAction(edit_action)
         
         delete_action = QAction("删除", self)
         delete_action.triggered.connect(lambda: self.delete_selected_file())
@@ -698,48 +798,3 @@ class QuickPickPanel(QWidget):
                 if data and data.get('id') == current_item['id']:
                     self.quickpick_list.setCurrentItem(item)
                     break
-
-    def show_add_menu(self, position, index):
-        """显示添加菜单"""
-        # 创建菜单
-        menu = QMenu(self)
-        
-        # 获取项数据
-        item_data = index.data(Qt.ItemDataRole.UserRole)
-        is_folder = item_data.get('is_folder', 0) if item_data else 0
-        
-        # 添加 Markdown 文件
-        add_markdown_action = QAction("添加 Markdown", self)
-        add_markdown_action.triggered.connect(lambda: self.create_new_child_item(index, 'markdown'))
-        menu.addAction(add_markdown_action)
-        
-        # 添加 Excalidraw 文件
-        add_excalidraw_action = QAction("添加 Excalidraw", self)
-        add_excalidraw_action.triggered.connect(lambda: self.create_new_child_item(index, 'excalidraw'))
-        menu.addAction(add_excalidraw_action)
-        
-        # 添加文件夹
-        add_folder_action = QAction("添加子目录", self)
-        add_folder_action.triggered.connect(lambda: self.create_new_child_folder(index))
-        menu.addAction(add_folder_action)
-        
-        # 显示菜单
-        menu.exec(position)
-
-    def show_more_menu(self, position, index):
-        """显示更多操作菜单"""
-        # 创建菜单
-        menu = QMenu(self)
-        
-        # 添加重命名操作
-        rename_action = QAction("重命名", self)
-        rename_action.triggered.connect(lambda: self.rename_selected_file())
-        menu.addAction(rename_action)
-        
-        # 添加删除操作
-        delete_action = QAction("删除", self)
-        delete_action.triggered.connect(lambda: self.delete_selected_file())
-        menu.addAction(delete_action)
-        
-        # 显示菜单
-        menu.exec(position)

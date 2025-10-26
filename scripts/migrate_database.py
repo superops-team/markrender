@@ -8,10 +8,10 @@ import sys
 import os
 
 # 添加项目根目录到Python路径
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy import create_engine, text
-from db.db_manager import SingletonEngine, get_user_data_dir
+from db.db_manager import SingletonEngine
 
 def migrate_database():
     """迁移数据库以添加新的字段"""
@@ -46,6 +46,16 @@ def migrate_database():
                     print("icon_path字段已存在")
                 else:
                     print(f"添加icon_path字段时出错: {e}")
+            
+            # 添加icon_color字段
+            try:
+                conn.execute(text("ALTER TABLE markrender_data ADD COLUMN icon_color VARCHAR"))
+                print("添加icon_color字段成功")
+            except Exception as e:
+                if "duplicate column name" in str(e).lower():
+                    print("icon_color字段已存在")
+                else:
+                    print(f"添加icon_color字段时出错: {e}")
             
             # 添加display_name字段
             try:

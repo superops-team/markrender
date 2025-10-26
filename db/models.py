@@ -41,12 +41,12 @@ class MarkRenderData(Base):
     parent_id = Column(Integer, ForeignKey('markrender_data.id'), nullable=True)  # 父节点ID
     order = Column(Integer, default=0)  # 同级排序
     level = Column(Integer, default=0)  # 层级深度
-    is_folder = Column(Integer, default=0)  # 是否为文件夹，0表示文件，1表示文件夹
-    
     # 图标和显示相关字段
     icon_type = Column(String, nullable=True)  # 图标类型，用于区分显示图标
     icon_path = Column(String, nullable=True)  # 图标路径，支持自定义图标
+    icon_color = Column(String, nullable=True)  # 图标颜色，支持自定义图标颜色
     display_name = Column(String, nullable=True)  # 显示名称，可与title不同
+    is_folder = Column(Integer, default=0)  # 是否为文件夹，0表示文件，1表示文件夹
     
     # 自引用关系
     children = relationship("MarkRenderData", backref="parent", remote_side=[id])
