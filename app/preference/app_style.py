@@ -541,7 +541,36 @@ class AppStyle:
         return CLOSE_BUTTON if not self.dark_mode else CLOSE_BUTTON.replace('#0d6efd', '#005A9E')
 
     def get_sidebar_button_style(self):
-        return SIDEBAR_BUTTON
+        # TDesign风格的侧边栏按钮
+        return """
+        QPushButton {
+            background-color: transparent;
+            color: #374151;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            padding: 8px;
+            margin: 2px;
+            font-size: 14px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        QPushButton:hover {
+            background-color: #f2f3ff;
+            color: #0052d9;
+            border-color: #d9e1ff;
+        }
+        
+        QPushButton:pressed {
+            background-color: #d9e1ff;
+            color: #003cab;
+        }
+        
+        QPushButton:checked {
+            background-color: #d9e1ff;
+            color: #0052d9;
+            border-color: #8eabff;
+        }
+        """
 
     def get_dialog_border_radius(self):
         return DIALOG_BORDER_RADIUS
@@ -565,7 +594,85 @@ class AppStyle:
         return EDITOR_PREVIEW
 
     def get_quickpick_panel(self):
-        return QUICKPICK_PANEL
+        # TDesign风格的树形导航面板样式
+        return """
+        QTreeWidget {
+            background-color: #ffffff;
+            border: 1px solid #e8e8e8;
+            border-radius: 8px;
+            padding: 4px;
+            font-size: 14px;
+            color: #111827;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        QTreeWidget::item {
+            height: 56px;
+            border-radius: 6px;
+            margin: 2px;
+        }
+        
+        /* TDesign选中状态 - 腾讯蓝风格 */
+        QTreeWidget::item:selected {
+            background-color: #f2f3ff;
+            color: #0052d9;
+        }
+        
+        /* TDesign悬停状态 */
+        QTreeWidget::item:hover {
+            background-color: #fafafa;
+        }
+        
+        /* TDesign风格的展开/折叠按钮 */
+        QTreeWidget::branch {
+            background: transparent;
+            margin-left: 4px;
+        }
+        
+        QTreeWidget::branch:has-children:!has-siblings:closed,
+        QTreeWidget::branch:closed:has-children:has-siblings {
+            border-image: none;
+            image: url(icons/chevron-right.svg);
+            width: 16px;
+            height: 16px;
+        }
+        
+        QTreeWidget::branch:open:has-children:!has-siblings,
+        QTreeWidget::branch:open:has-children:has-siblings {
+            border-image: none;
+            image: url(icons/chevron-down.svg);
+            width: 16px;
+            height: 16px;
+        }
+        
+        /* TDesign风格的滚动条 */
+        QScrollBar:vertical {
+            width: 6px;
+            background-color: #f5f5f5;
+            margin: 4px 2px 4px 2px;
+            border-radius: 3px;
+        }
+        
+        QScrollBar::handle:vertical {
+            background-color: #d9d9d9;
+            border-radius: 3px;
+            min-height: 30px;
+        }
+        
+        QScrollBar::handle:vertical:hover {
+            background-color: #bfbfbf;
+        }
+        
+        QScrollBar::add-line:vertical,
+        QScrollBar::sub-line:vertical {
+            height: 0px;
+        }
+        
+        QScrollBar::add-page:vertical,
+        QScrollBar::sub-page:vertical {
+            background-color: transparent;
+        }
+        """
 
     def get_format_label(self):
         return FORMAT_LABEL
@@ -598,7 +705,33 @@ class AppStyle:
         return TITLE_BAR
 
     def get_line_edit(self):
-        return LINE_EDIT
+        # TDesign风格的输入框
+        return """
+        QLineEdit {
+            background-color: #ffffff;
+            border: 1px solid #e8e8e8;
+            border-radius: 6px;
+            padding: 0 12px;
+            color: #111827;
+            font-size: 14px;
+            height: 36px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        QLineEdit:focus {
+            border-color: #0052d9;
+            border: 1px solid rgba(0, 82, 217, 0.3); /* 替代box-shadow，Qt不支持 */
+            outline: none;
+        }
+        
+        QLineEdit:hover {
+            border-color: #c6c6c6;
+        }
+        
+        QLineEdit::placeholder {
+            color: #8b8b8b;
+        }
+        """
 
     def get_sidebar(self):
         bg_color = COLOR_BACKGROUND_LIGHT if not self.dark_mode else COLOR_BACKGROUND_DARK

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy import or_
 from .models import Base, MarkRenderData, MarkRenderChangeHistory
 from db.db_manager import SingletonEngine, get_user_data_dir
 from utils.hash_utils import calculate_md5
@@ -155,91 +156,118 @@ class MarkRenderManager:
                     old_content = getattr(history, 'content', '')
                     old_theme_id = getattr(history, 'theme_id', 0)
                     old_page_type = getattr(history, 'page_type', '')
-                    old_page_engine = getattr(history, 'page_engine', '')
-                    old_page_settings = getattr(history, 'page_settings', '')
-                    old_file_path = getattr(history, 'file_path', '')
                     
-                    if content_md5 and content_md5 != (getattr(history, 'content_md5', '') or ''):
-                        setattr(history, 'content_md5', content_md5)
-                    if title and title != (getattr(history, 'title', '') or ''):
+                    # 更新字段
+                    setattr(history, 'content', content_str)
+                    setattr(history, 'content_md5', content_md5)
+                    setattr(history, 'updated_at', now)
+                    
+                    # 更新其他可选字段
+                    if title is not None:
                         setattr(history, 'title', title)
-                    if content_str and content_str != (getattr(history, 'content', '') or ''):
-                        setattr(history, 'content', content_str)
-                        changed = True
-                    if file_path and file_path != (getattr(history, 'file_path', '') or ''):
-                        setattr(history, 'file_path', file_path)
-                    if theme_id and theme_id != (getattr(history, 'theme_id', 0) or 0):
-                        setattr(history, 'theme_id', theme_id)
-                    if tags and tags != (getattr(history, 'tags', '') or ''):
+                    if tags is not None:
                         setattr(history, 'tags', tags)
-                    if page_type and page_type != (getattr(history, 'page_type', '') or ''):
-                        setattr(history, 'page_type', page_type)
-                    if render_style and render_style != (getattr(history, 'render_style', '') or ''):
+                    if render_style is not None:
                         setattr(history, 'render_style', render_style)
-                    if page_settings and page_settings != (getattr(history, 'page_settings', '') or ''):
-                        setattr(history, 'page_settings', page_settings)
-                    if page_engine and page_engine != (getattr(history, 'page_engine', '') or ''):
-                        setattr(history, 'page_engine', page_engine)
-                    # 树形结构字段更新
-                    if parent_id is not None and parent_id != (getattr(history, 'parent_id', None) or None):
-                        setattr(history, 'parent_id', parent_id)
-                    if order is not None and order != (getattr(history, 'order', 0) or 0):
-                        setattr(history, 'order', order)
-                    if level is not None and level != (getattr(history, 'level', 0) or 0):
-                        setattr(history, 'level', level)
-                    if is_folder is not None and is_folder != (getattr(history, 'is_folder', 0) or 0):
-                        setattr(history, 'is_folder', is_folder)
-                    # 图标和显示字段更新
-                    if icon_type is not None and icon_type != (getattr(history, 'icon_type', None) or None):
-                        setattr(history, 'icon_type', icon_type)
-                    if icon_path is not None and icon_path != (getattr(history, 'icon_path', None) or None):
-                        setattr(history, 'icon_path', icon_path)
-                    if icon_color is not None and icon_color != (getattr(history, 'icon_color', None) or None):
-                        setattr(history, 'icon_color', icon_color)
-                    if display_name is not None and display_name != (getattr(history, 'display_name', None) or None):
-                        setattr(history, 'display_name', display_name)
-                    setattr(history, 'updated_at', now)  # 使用北京时间更新
-                    if converter_start:
-                        setattr(history, 'converter_start', converter_start)
-                    if converter_end:
-                        setattr(history, 'converter_end', converter_end)
-                    if status:
-                        setattr(history, 'status', status)
-                    if converter:
+                    if file_path is not None:
+                        setattr(history, 'file_path', file_path)
+                    if converter is not None:
                         setattr(history, 'converter', converter)
-                    session.commit()
+                    if theme_id is not None:
+                        setattr(history, 'theme_id', theme_id)
+                    if status is not None:
+                        setattr(history, 'status', status)
+                    if converter_start is not None:
+                        setattr(history, 'converter_start', converter_start)
+                    if converter_end is not None:
+                        setattr(history, 'converter_end', converter_end)
+                    if page_type is not None:
+                        setattr(history, 'page_type', page_type)
+                    if page_settings is not None:
+                        setattr(history, 'page_settings', page_settings)
+                    if page_engine is not None:
+                        setattr(history, 'page_engine', page_engine)
+                    # 树形结构字段
+                    if parent_id is not None:
+                        setattr(history, 'parent_id', parent_id)
+                    if order is not None:
+                        setattr(history, 'order', order)
+                    if level is not None:
+                        setattr(history, 'level', level)
+                    if is_folder is not None:
+                        setattr(history, 'is_folder', is_folder)
+                    # 图标和显示字段
+                    if icon_type is not None:
+                        setattr(history, 'icon_type', icon_type)
+                    if icon_path is not None:
+                        setattr(history, 'icon_path', icon_path)
+                    if icon_color is not None:
+                        setattr(history, 'icon_color', icon_color)
+                    if display_name is not None:
+                        setattr(history, 'display_name', display_name)
                     
-                    # 如果内容有变化，记录历史变更
-                    if changed:
-                        self._save_change_history(
-                            session, id, old_content, content_str, 'content_update',
-                            'user_edit', 'user', '127.0.0.1', file_path or old_file_path or '',
-                            theme_id or old_theme_id or 0, page_type or old_page_type or '',
-                            page_engine or old_page_engine or '', page_settings or old_page_settings or ''
-                        )
-                    return getattr(history, 'id', 0)
+                    session.commit()
+                    changed = True
                 else:
-                    raise ValueError(f"未找到 ID 为 {id} 的记录")
+                    # 记录不存在，创建新记录
+                    new_history = MarkRenderData(
+                        title=title or '',
+                        content=content_str,
+                        content_md5=content_md5,
+                        tags=tags or '',
+                        render_style=render_style or '',
+                        file_path=file_path or '',
+                        converter=converter or '',
+                        theme_id=theme_id or 0,
+                        status=status or 'processed',
+                        converter_start=converter_start,
+                        converter_end=converter_end,
+                        page_type=page_type or 'markdown',
+                        page_settings=page_settings or '',
+                        page_engine=page_engine or 'markdown',
+                        updated_at=now,
+                        created_at=now,
+                        # 树形结构字段
+                        parent_id=parent_id,
+                        order=order if order is not None else 0,
+                        level=level if level is not None else 0,
+                        is_folder=is_folder if is_folder is not None else 0,
+                        # 图标和显示字段
+                        icon_type=icon_type,
+                        icon_path=icon_path,
+                        icon_color=icon_color,
+                        display_name=display_name,
+                    )
+                    session.add(new_history)
+                    session.commit()
+                    id = getattr(new_history, 'id', 0)
+                    changed = True
+                    
+                    # 记录创建历史
+                    self._save_change_history(
+                        session, id, '', content_str, 'content_create',
+                        'user_create', 'user', '127.0.0.1', file_path or '',
+                        theme_id or 0, page_type or '', page_engine or '', page_settings or ''
+                    )
             else:
                 # 创建新记录
-                changed = True
                 new_history = MarkRenderData(
-                    title=title,
+                    title=title or '',
                     content=content_str,
-                    tags=tags,
-                    render_style=render_style,
                     content_md5=content_md5,
-                    created_at=now,  # 使用北京时间创建
-                    updated_at=now,  # 使用北京时间更新
-                    file_path=file_path,
-                    theme_id=theme_id,
-                    converter=converter,
+                    tags=tags or '',
+                    render_style=render_style or '',
+                    file_path=file_path or '',
+                    converter=converter or '',
+                    theme_id=theme_id or 0,
+                    status=status or 'processed',
                     converter_start=converter_start,
                     converter_end=converter_end,
-                    status=status,
-                    page_type=page_type,
-                    page_settings=page_settings,
-                    page_engine=page_engine,
+                    page_type=page_type or 'markdown',
+                    page_settings=page_settings or '',
+                    page_engine=page_engine or 'markdown',
+                    updated_at=now,
+                    created_at=now,
                     # 树形结构字段
                     parent_id=parent_id,
                     order=order if order is not None else 0,
@@ -254,6 +282,7 @@ class MarkRenderManager:
                 session.add(new_history)
                 session.commit()
                 id = getattr(new_history, 'id', 0)
+                changed = True
                 
                 # 记录创建历史
                 self._save_change_history(
@@ -312,13 +341,6 @@ class MarkRenderManager:
                 old_content_str = old_content
             
             new_change = MarkRenderChangeHistory(
-                file_id=file_id,
-                old_content=old_content_str,
-                new_content=content_str,
-                change_type=change_type,
-                change_reason=change_reason,
-                change_by=change_by,
-                change_ip=change_ip,
                 change_content_md5=change_content_md5,
                 change_file_path=change_file_path,
                 change_theme_id=change_theme_id,
@@ -352,10 +374,8 @@ class MarkRenderManager:
                 content_str = str(content)
             else:
                 content_str = content
-                
-            suffix = 'markrender'
-            if page_type == 'markdown':
-                suffix = 'md'
+            # 设置文件后缀，默认为markdown
+            suffix = 'markdown'  # 默认后缀
             if page_engine == 'excalidraw':
                 suffix = 'excalidraw'
             with open(f'{get_user_data_dir()}/output/{id}.{suffix}', 'w') as f:
@@ -529,6 +549,8 @@ class MarkRenderManager:
             record = session.query(MarkRenderData).filter_by(
                 id=id).first()
             if record:
+                pass
+                pass
                 # 保存旧标题用于历史记录
                 old_title = getattr(record, 'title', '')
                 setattr(record, 'title', title)
@@ -645,77 +667,41 @@ class MarkRenderManager:
                 return getattr(record, 'page_engine', None)
             return None
         except Exception as e:
+            session.rollback()
             logger.error(f"Error getting page engine: {e}")
-            raise e
+            return None
         finally:
             session.close()
             
-    # 树形结构相关接口
-    
-    def create_folder(self, title, parent_id=None, icon_type=None, icon_path=None, icon_color=None, display_name=None, page_type=None):
-        """创建文件夹"""
-        return self.save_item(
-            title=title,
-            content='',
-            is_folder=1,
-            parent_id=parent_id,
-            page_type=page_type if page_type is not None else 'folder',
-            icon_type=icon_type,
-            icon_path=icon_path,
-            icon_color=icon_color,
-            display_name=display_name
-        )
-    
-    def create_file(self, title, content='', parent_id=None, page_type=None, page_engine=None, icon_type=None, icon_path=None, icon_color=None, display_name=None):
-        """创建文件"""
-        return self.save_item(
-            title=title,
-            content=content,
-            is_folder=0,  # 文件节点默认不是文件夹
-            parent_id=parent_id,
-            page_type=page_type,
-            page_engine=page_engine,
-            icon_type=icon_type,
-            icon_path=icon_path,
-            icon_color=icon_color,
-            display_name=display_name
-        )
-    
     def get_children(self, parent_id=None):
-        """获取指定节点的子节点"""
+        """获取指定父节点的所有子节点"""
         session = self.Session()
         try:
-            query = session.query(MarkRenderData)
             if parent_id is None:
-                # 获取根节点（parent_id为NULL的节点）
-                query = query.filter(MarkRenderData.parent_id.is_(None))
+                # 获取根节点（parent_id为None或空的记录）
+                records = session.query(MarkRenderData).filter(
+                    or_(MarkRenderData.parent_id == None, MarkRenderData.parent_id == '')
+                ).order_by(MarkRenderData.order).all()
             else:
                 # 获取指定父节点的子节点
-                query = query.filter_by(parent_id=parent_id)
+                records = session.query(MarkRenderData).filter_by(
+                    parent_id=parent_id
+                ).order_by(MarkRenderData.order).all()
             
-            # 按照order字段排序
-            records = query.order_by(MarkRenderData.order).all()
-            
+            # 转换为字典列表
             return [
                 {
+                    'id': getattr(r, 'id', None),
                     'title': getattr(r, 'title', ''),
-                    'id': getattr(r, 'id', 0),
+                    'content': getattr(r, 'content', ''),
                     'tags': getattr(r, 'tags', ''),
                     'file_path': getattr(r, 'file_path', ''),
                     'theme_id': getattr(r, 'theme_id', 0),
-                    'page_type': getattr(r, 'page_type', ''),
-                    'converter': getattr(r, 'converter', ''),
-                    'converter_start': getattr(r, 'converter_start', None),
-                    'converter_end': getattr(r, 'converter_end', None),
-                    'status': getattr(r, 'status', ''),
-                    'content': getattr(r, 'content', ''),
                     'render_style': getattr(r, 'render_style', ''),
-                    'updated_at': getattr(r, 'updated_at', None),
-                    'content_md5': getattr(r, 'content_md5', ''),
-                    'created_at': getattr(r, 'created_at', None),
-                    'page_settings': getattr(r, 'page_settings', ''),
+                    'page_type': getattr(r, 'page_type', ''),
                     'page_engine': getattr(r, 'page_engine', ''),
-                    'file_size': len(getattr(r, 'content', '') or ''),
+                    'updated_at': getattr(r, 'updated_at', None),
+                    'created_at': getattr(r, 'created_at', None),
                     # 树形结构字段
                     'parent_id': getattr(r, 'parent_id', None),
                     'order': getattr(r, 'order', 0),

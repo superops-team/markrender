@@ -11,58 +11,42 @@ from .style_constants import *
 # ============================================================================
 
 def create_menu_style():
-    """创建菜单样式"""
+    """
+    创建符合TDesign设计风格的菜单样式
+    遵循设计原则：对比度、对齐、重复和亲密性
+    """
     return f"""
     QMenu {{
         background-color: {NEUTRAL_0};
         border: 1px solid {NEUTRAL_200};
         border-radius: {RADIUS_SM}px;
-        padding: {SPACING_XS}px;
-        min-width: 80px;
+        padding: 8px;
+        min-width: 160px;
     }}
     QMenu::item {{
-        color: {NEUTRAL_700};
-        padding: {SPACING_XS}px {SPACING_SM}px;
-        margin: 1px;
+        color: {NEUTRAL_700}; /* 使用较深的文本颜色提高对比度 */
+        padding: 8px 16px;
+        margin: 2px 0;
         border-radius: {RADIUS_SM}px;
-        font-size: {FONT_SIZE_SM}px;
+        font-size: {FONT_SIZE_MD}px;
+        min-height: 32px;
+        text-align: left;
     }}
     QMenu::item:selected {{
         background-color: {PRIMARY_50};
-        color: {PRIMARY_700};
+        color: {PRIMARY_600}; /* 使用更鲜明的选中颜色增强对比度 */
     }}
     QMenu::item:pressed {{
         background-color: {PRIMARY_100};
     }}
-    QPushButton {{
-        border: none;
-        border-radius: {RADIUS_SM}px;
+    QMenu::item:disabled {{
+        color: {NEUTRAL_400};
         background-color: transparent;
-        color: {NEUTRAL_700};
-        padding: {SPACING_XS}px;
-        min-width: 32px;
-        min-height: 32px;
-        max-width: 40px;
-        max-height: 40px;
-        font-size: {FONT_SIZE_SM}px;
     }}
-    QPushButton:hover {{
-        background-color: {PRIMARY_50};
-        color: {PRIMARY_700};
-    }}
-    QPushButton:pressed {{
-        background-color: {PRIMARY_100};
-    }}
-    QWidget {{
-        background-color: {NEUTRAL_0};
-        border: none;
-    }}
-    QLabel {{
-        color: {NEUTRAL_600};
-        font-size: 10px;
-        font-weight: 500;
-        padding: 1px;
-        margin: 0px;
+    QMenu::separator {{
+        height: 1px;
+        background-color: {NEUTRAL_200};
+        margin: 4px 0;
     }}
     """
 
