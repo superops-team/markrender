@@ -260,46 +260,8 @@ class QuickPickItemDelegate(QStyledItemDelegate):
                 time_y = content_y + title_metrics.height() + SPACING_XS + painter.fontMetrics().ascent()
                 painter.drawText(content_x, time_y, formatted_time)
             
-            # 绘制标签（如果有）
-            tags = item_data.get('tags', [])
-            if tags:
-                # 确保tags是列表
-                if isinstance(tags, str):
-                    tags = [tags]
-                
-                tag_y = content_y + title_metrics.height() + SPACING_XS + painter.fontMetrics().height()
-                current_x = content_x
-                
-                # 设置标签字体
-                tag_font = QFont()
-                tag_font.setPointSize(FONT_SIZE_XS)
-                painter.setFont(tag_font)
-                
-                for tag in tags[:2]:  # 最多显示2个标签
-                    tag_metrics = painter.fontMetrics()
-                    tag_width = tag_metrics.horizontalAdvance(tag) + 12  # 左右padding
-                    tag_height = 20
-                    
-                    # 检查是否有足够空间显示标签
-                    if current_x + tag_width > option_rect.width() - 90:
-                        break
-                    
-                    # 绘制标签背景
-                    painter.setBrush(NEUTRAL_200)  # TDesign tag background
-                    painter.setPen(Qt.PenStyle.NoPen)
-                    painter.drawRoundedRect(current_x, tag_y, tag_width, tag_height, RADIUS_PILL, RADIUS_PILL)
-                    
-                    # 绘制标签文本
-                    if option.state & QStyle.StateFlag.State_Selected:
-                        painter.setPen(PRIMARY_600)
-                    else:
-                        painter.setPen(NEUTRAL_700)
-                    
-                    text_x = current_x + 6
-                    text_y = tag_y + tag_metrics.ascent() + (tag_height - tag_metrics.height()) // 2
-                    painter.drawText(text_x, text_y, tag)
-                    
-                    current_x += tag_width + SPACING_XS
+            # 注释掉标签绘制代码，不再显示标签
+            # 标签只在编辑对话框中管理，不在列表项中显示
             
             # 绘制底部边框分隔线 - TDesign风格
             painter.setPen(NEUTRAL_200)  # TDesign border color

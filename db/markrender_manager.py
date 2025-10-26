@@ -148,10 +148,12 @@ class MarkRenderManager:
                 
             content_md5 = calculate_md5(content_str)
             now = time_utils.now()  # 获取当前北京时间
+            logger.info(f"准备保存项目，ID: {id}, 标题: {title}")
             if id:
                 # 更新现有记录
                 history = session.query(MarkRenderData).filter_by(id=id).first()
                 if history:
+                    logger.info(f"找到现有记录，开始更新字段")
                     # 保存旧内容用于历史记录
                     old_content = getattr(history, 'content', '')
                     old_theme_id = getattr(history, 'theme_id', 0)
@@ -163,10 +165,16 @@ class MarkRenderManager:
                     setattr(history, 'updated_at', now)
                     
                     # 更新其他可选字段
-                    if title is not None:
+                    if title is not None and title != '':
+                        logger.info(f"更新标题: '{title}'")
                         setattr(history, 'title', title)
-                    if tags is not None:
+                    elif title is None:
+                        logger.info("标题参数为None，保持原有标题不变")
+                    if tags is not None and tags != '':
+                        logger.info(f"更新标签: {tags}")
                         setattr(history, 'tags', tags)
+                    elif tags is None:
+                        logger.info("标签参数为None，保持原有标签不变")
                     if render_style is not None:
                         setattr(history, 'render_style', render_style)
                     if file_path is not None:
@@ -208,8 +216,10 @@ class MarkRenderManager:
                     
                     session.commit()
                     changed = True
+                    logger.info(f"记录更新完成，ID: {id}")
                 else:
                     # 记录不存在，创建新记录
+                    logger.info(f"记录不存在，创建新记录")
                     new_history = MarkRenderData(
                         title=title or '',
                         content=content_str,
@@ -251,6 +261,7 @@ class MarkRenderManager:
                     )
             else:
                 # 创建新记录
+                logger.info(f"创建新记录")
                 new_history = MarkRenderData(
                     title=title or '',
                     content=content_str,
@@ -298,6 +309,7 @@ class MarkRenderManager:
             session.close()
             if id and content_str and changed:
                 self.sync_write_localdisk(id, content_str, page_type, page_engine)
+        logger.info(f"保存项目完成，返回ID: {id}")
         return id
 
     def _save_change_history(self, session, file_id, old_content, new_content, change_type, 
@@ -375,7 +387,7 @@ class MarkRenderManager:
             else:
                 content_str = content
             # 设置文件后缀，默认为markdown
-            suffix = 'markdown'  # 默认后缀
+            suffix = 'md'  # 默认后缀
             if page_engine == 'excalidraw':
                 suffix = 'excalidraw'
             with open(f'{get_user_data_dir()}/output/{id}.{suffix}', 'w') as f:
@@ -681,12 +693,12 @@ class MarkRenderManager:
                 # 获取根节点（parent_id为None或空的记录）
                 records = session.query(MarkRenderData).filter(
                     or_(MarkRenderData.parent_id == None, MarkRenderData.parent_id == '')
-                ).order_by(MarkRenderData.order).all()
+                ).order_by(MarkRenderData.created_at.asc()).all()  # 按创建时间升序排列（创建早的在前）
             else:
                 # 获取指定父节点的子节点
                 records = session.query(MarkRenderData).filter_by(
                     parent_id=parent_id
-                ).order_by(MarkRenderData.order).all()
+                ).order_by(MarkRenderData.created_at.asc()).all()  # 按创建时间升序排列（创建早的在前）
             
             # 转换为字典列表
             return [
