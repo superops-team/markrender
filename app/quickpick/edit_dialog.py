@@ -136,6 +136,8 @@ class EditItemDialog(QDialog):
         self.title_edit = QLineEdit(self.markdown_data.get('title', ''))
         self.title_edit.setMinimumHeight(40)  # 统一高度
         self.title_edit.setStyleSheet(self.app_style.get_line_edit())
+        # 为标题输入框安装事件过滤器，防止回车触发图标选择对话框
+        self.title_edit.installEventFilter(self)
         title_label = self._make_label('标题')
         form_layout.addRow(title_label, self.title_edit)
         
@@ -401,21 +403,19 @@ class EditItemDialog(QDialog):
             print(f"添加标签时发生错误: {e}")
             self.tag_add_edit.clear()
     
-    def _icon_selector_mouse_press(self, event):
-        """自定义的图标选择器鼠标按下事件处理"""
-        # 只有当焦点不在标签输入框时才允许点击图标选择器
-        if not self.tag_add_edit.hasFocus():
-            # 调用原始的鼠标按下事件处理函数
-            self.icon_selector_mousePressEvent(event)
+
     
     def eventFilter(self, source, event):
-        """事件过滤器，专注于拦截标签输入框的回车事件并阻止其传播"""
+        """事件过滤器，拦截标题和标签输入框的回车事件并阻止其传播"""
+        # 处理标签输入框的回车事件
         if source == self.tag_add_edit:
-            # 只处理回车键，确保它不会传播到其他控件
             if event.type() == event.Type.KeyPress and (event.key() == Qt.Key_Return or event.key() == Qt.Key_Enter):
-                # 处理回车键，添加标签
                 self._add_new_tag()
-                # 明确接受此事件，阻止其继续传播到图标编辑器
+                return True
+        # 处理标题输入框的回车事件，防止触发图标选择对话框
+        elif source == self.title_edit:
+            if event.type() == event.Type.KeyPress and (event.key() == Qt.Key_Return or event.key() == Qt.Key_Enter):
+                # 明确接受此事件，阻止其继续传播
                 return True
         # 其他事件让其正常传播
         return super().eventFilter(source, event)
@@ -480,10 +480,6 @@ class EditItemDialog(QDialog):
         self.icon_selector.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         self.icon_selector.setMinimumHeight(40)
         self.icon_selector.setCursor(Qt.PointingHandCursor)  # 鼠标悬停显示手型
-        # 保存原始的鼠标按下事件处理函数
-        self.icon_selector_mousePressEvent = self.icon_selector.mousePressEvent
-        # 替换为自定义的事件处理函数
-        self.icon_selector.mousePressEvent = self._icon_selector_mouse_press
         
         # 颜色选择器 - 设置为可点击弹出
         self.icon_color_selector = ColorSelectorWidget(icon_color)
