@@ -92,8 +92,8 @@ class QuickPickPanel(QWidget):
 
         # 创建新建按钮
         self.new_btn = QPushButton()
-        # 初始图标
-        self.new_btn.setIcon(QIcon(get_icon_path("folder", selected=False)))
+        # 初始图标改为加号图标
+        self.new_btn.setIcon(QIcon(get_icon_path("plus-square", selected=False)))
         self.new_btn.setIconSize(QSize(18, 18))  # TDesign标准图标尺寸
         # 设置固定尺寸，与搜索框对齐
         self.new_btn.setFixedSize(36, 36)  # TDesign标准按钮尺寸
@@ -744,6 +744,10 @@ class QuickPickPanel(QWidget):
             'status': 'processed',
             'page_type': 'markdown',
             'converter': 'manual',
+            'icon_type': 'textarea',  # 使用textarea图标类型
+            'icon_path': None,  # 不设置图标路径，确保使用icon_type
+            'icon_color': None,  # 不设置图标颜色
+            'display_name': None  # 不设置显示名称
         }
         # 保存到数据库
         self.markrender_manager.save_item(**new_item)
@@ -762,6 +766,10 @@ class QuickPickPanel(QWidget):
             'page_type': 'excalidraw',
             'page_engine': 'excalidraw',
             'converter': 'manual',
+            'icon_type': 'excalidraw',  # 使用excalidraw图标类型
+            'icon_path': None,  # 不设置图标路径，确保使用icon_type
+            'icon_color': None,  # 不设置图标颜色
+            'display_name': None  # 不设置显示名称
         }
         # 保存到数据库
         self.markrender_manager.save_item(**new_item)
@@ -782,8 +790,10 @@ class QuickPickPanel(QWidget):
             parent_id=None,  # 根目录文件夹
             page_type='markdown',  # 默认markdown类型
             is_folder=1,  # 标记为文件夹
-            icon_type='folder',  # 使用folder图标类型
-            icon_path=None  # 暂时不设置自定义图标路径
+            icon_type='folder',  # 所有文件夹统一使用folder图标
+            icon_path=None,  # 不设置图标路径，确保使用icon_type
+            icon_color=None,  # 不设置图标颜色
+            display_name=None  # 不设置显示名称
         )
         
         # 重新加载数据以显示新文件夹
@@ -859,7 +869,9 @@ class QuickPickPanel(QWidget):
                 page_type='markdown',
                 page_engine=None,
                 icon_type='textarea',  # 使用textarea图标类型
-                icon_path=None  # 暂时不设置自定义图标路径
+                icon_path=None,  # 不设置图标路径，确保使用icon_type
+                icon_color=None,  # 不设置图标颜色
+                display_name=None  # 不设置显示名称
             )
             # 不进行全局刷新，而是直接在树中添加新节点
             self.add_node_to_tree(parent_index, item_id, 'MD-{}'.format(timestamp), is_folder=False)
@@ -872,7 +884,9 @@ class QuickPickPanel(QWidget):
                 page_type='excalidraw',
                 page_engine='excalidraw',
                 icon_type='excalidraw',  # 使用excalidraw图标类型
-                icon_path=None  # 暂时不设置自定义图标路径
+                icon_path=None,  # 不设置图标路径，确保使用icon_type
+                icon_color=None,  # 不设置图标颜色
+                display_name=None  # 不设置显示名称
             )
             # 不进行全局刷新，而是直接在树中添加新节点
             self.add_node_to_tree(parent_index, item_id, 'Board-{}'.format(timestamp), is_folder=False)
@@ -890,19 +904,14 @@ class QuickPickPanel(QWidget):
         timestamp = time_utils.now().strftime('%Y%m%d%H%M%S')
         folder_title = '文件夹-{}'.format(timestamp)
         
-        # 根据父节点的page_type设置子文件夹的page_type和图标
+        # 根据父节点的page_type设置子文件夹的page_type
         page_type = 'markdown'  # 默认page_type
-        icon_type = 'folder'    # 默认图标类型为文件夹
+        icon_type = 'folder'    # 所有文件夹统一使用folder图标
         
         if parent_data and 'page_type' in parent_data:
             parent_page_type = parent_data.get('page_type')
             if parent_page_type in ['markdown', 'excalidraw']:
                 page_type = parent_page_type
-                # 为不同类型的文件夹设置不同的图标
-                if parent_page_type == 'markdown':
-                    icon_type = 'filetype-md'  # 使用markdown文件类型图标
-                elif parent_page_type == 'excalidraw':
-                    icon_type = 'excalidraw'  # 使用excalidraw图标
             else:
                 page_type = 'markdown'  # 其他情况默认为markdown
         
@@ -913,8 +922,10 @@ class QuickPickPanel(QWidget):
             parent_id=parent_id,
             page_type=page_type,  # 根据父节点设置page_type
             is_folder=1,  # 标记为文件夹
-            icon_type=icon_type,  # 根据page_type设置图标类型
-            icon_path=None  # 暂时不设置自定义图标路径
+            icon_type=icon_type,  # 所有文件夹统一使用folder图标
+            icon_path=None,  # 不设置图标路径，确保使用icon_type
+            icon_color=None,  # 不设置图标颜色
+            display_name=None  # 不设置显示名称
         )
         
         # 不进行全局刷新，而是直接在树中添加新节点
