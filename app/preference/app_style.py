@@ -430,7 +430,7 @@ QTreeWidget::item:hover {{
     background-color: {PRIMARY_50};
 }}
 QTreeWidget::item:selected {{
-    background-color: {PRIMARY_100};
+    background-color: rgba(245, 249, 255, 180);  /* 更轻量的选中背景色 */
 }}
 QTreeWidget::branch:has-children:!has-siblings:closed,
 QTreeWidget::branch:closed:has-children:has-siblings {{
@@ -462,10 +462,10 @@ QTreeWidget::branch:hover {{
 }}
 /* 确保选中状态覆盖整个item区域 */
 QTreeWidget::item:selected:active {{
-    background-color: {PRIMARY_100};
+    background-color: rgba(245, 249, 255, 180);  /* 更轻量的选中背景色 */
 }}
 QTreeWidget::item:selected:!active {{
-    background-color: {PRIMARY_100};
+    background-color: rgba(245, 249, 255, 180);  /* 更轻量的选中背景色 */
 }}
 /* 移除折叠区域缩进的特殊颜色渲染 */
 QTreeWidget::branch:has-children {{
@@ -612,9 +612,9 @@ class AppStyle:
             margin: 2px;
         }
         
-        /* TDesign选中状态 - 腾讯蓝风格 */
+        /* TDesign选中状态 - 腾讯蓝风格，更轻量的配色 */
         QTreeWidget::item:selected {
-            background-color: #f2f3ff;
+            background-color: rgba(245, 249, 255, 180);
             color: #0052d9;
         }
         

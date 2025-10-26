@@ -153,8 +153,8 @@ class QuickPickItemDelegate(QStyledItemDelegate):
         
         # TDesign风格的状态颜色处理 - 优化点击区域和视觉效果
         if option.state & QStyle.StateFlag.State_Selected:
-            # TDesign选中状态 - 使用腾讯蓝的浅色背景
-            painter.setBrush(PRIMARY_100)  # TDesign Blue1
+            # TDesign选中状态 - 使用更轻量的选中背景色，符合自然、务实的设计原则
+            painter.setBrush(QColor(245, 249, 255, 180))  # 更轻量的腾讯蓝浅色背景，带透明度
             painter.setPen(Qt.PenStyle.NoPen)
             painter.drawRoundedRect(option_rect, 6, 6)  # TDesign风格圆角优化
         elif option.state & QStyle.StateFlag.State_MouseOver:
