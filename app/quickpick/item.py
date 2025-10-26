@@ -26,24 +26,39 @@ from app.preference.style_constants import (
 
 
 class QuickPickItemDelegate(QStyledItemDelegate):
-    # TDesign风格的标签颜色映射 - 基于腾讯蓝系统色
+    # TDesign风格的标签颜色映射 - 基于腾讯蓝系统色，优化色彩搭配以符合Robin Williams设计原则
+    # 遵循60-30-10色彩法则：60%主色(PRIMARY)，30%辅助色(SECONDARY)，10%强调色(ACCENT)
+    # 同时确保颜色之间的和谐搭配和良好的视觉层次
     tag_color_map = {
+        # 主色系列 - 腾讯蓝 (60%主色调，用于主要文档类型)
         'md': PRIMARY_500,        # 腾讯蓝 - Markdown文档
         'markdown': PRIMARY_500,
+        'docx': PRIMARY_400,      # 稍浅的蓝色 - Word文档
+        'doc': PRIMARY_400,       # 稍浅的蓝色 - Word文档
+        
+        # 辅助色系列 - 成功绿 (30%辅助色，用于数据类文件)
+        'csv': SUCCESS_500,       # TDesign成功色 - CSV数据文件
+        'xls': SUCCESS_500,       # TDesign成功色 - Excel文件
+        'xlsx': SUCCESS_500,      # TDesign成功色 - Excel文件
+        
+        # 辅助色系列 - 警告橙 (30%辅助色，用于演示类文件)
+        'ppt': WARNING_500,       # TDesign警告色 - PowerPoint演示文稿
+        'pptx': WARNING_500,      # TDesign警告色 - PowerPoint演示文稿
+        
+        # 强调色系列 - 危险红 (10%强调色，用于PDF等特殊文件)
         'pdf': DANGER_500,        # TDesign错误色 - PDF文档
-        'png': PURPLE_500,        # TDesign紫色 - 图片文件
-        'jpeg': PURPLE_500,
-        'jpg': PURPLE_500,
-        'csv': SUCCESS_500,       # TDesign成功色 - 数据文件
-        'docx': PRIMARY_500,
-        'doc': PRIMARY_500,
-        'xls': SUCCESS_500,
-        'xlsx': SUCCESS_500,
-        'ppt': WARNING_500,       # TDesign警告色 - 演示文稿
-        'pptx': WARNING_500,
-        'epub': PURPLE_500,       # TDesign紫色 - 电子书
+        
+        # 强调色系列 - 紫色 (10%强调色，用于媒体类文件)
+        'png': PURPLE_500,        # TDesign紫色 - PNG图片文件
+        'jpeg': PURPLE_500,       # TDesign紫色 - JPEG图片文件
+        'jpg': PURPLE_500,        # TDesign紫色 - JPG图片文件
+        'epub': PURPLE_500,       # TDesign紫色 - 电子书文件
+        
+        # 强调色系列 - 粉色 (10%强调色，用于创意类文件)
         'board': PINK_500,        # TDesign粉色 - 画布文件
         'excalidraw': PINK_500,   # TDesign粉色 - Excalidraw文件
+        
+        # 特殊色系列 - 青色 (用于文件夹)
         'folder': CYAN_500,       # TDesign天蓝色 - 文件夹
     }
     default_color = NEUTRAL_500  # TDesign中性灰 - 默认文件类型颜色
@@ -190,8 +205,36 @@ class QuickPickItemDelegate(QStyledItemDelegate):
             icon_x = option_rect.x() + SPACING_SM + indent
             icon_y = option_rect.y() + (option_rect.height() - icon_bg_height) // 2
             
-            # 绘制图标背景 - TDesign风格的圆角矩形
-            painter.setBrush(tag_color)
+            # 绘制图标背景 - TDesign风格的圆角矩形，优化颜色对比度和视觉层次
+            # 使用更柔和的颜色处理方式，确保整体协调性
+            bg_color = QColor(tag_color)
+            
+            # 根据TDesign设计原则优化颜色：
+            # 1. 对比度：确保图标背景与整体背景有足够的对比度
+            # 2. 重复：使用一致的颜色处理方式
+            # 3. 亲密性：相关文件类型使用相近的颜色
+            # 4. 对齐：保持视觉层次的一致性
+            
+            # 调整颜色饱和度和亮度以获得更好的视觉效果
+            h = bg_color.hsvHue()
+            s = bg_color.hsvSaturation()
+            v = bg_color.value()
+            a = bg_color.alpha()
+            
+            # TDesign推荐的图标背景色优化策略：
+            # 1. 对于饱和度较高的颜色，适当降低饱和度以获得更柔和的效果
+            # 2. 对于过亮或过暗的颜色，调整亮度以增强可读性
+            # 3. 保持颜色的一致性和和谐性
+            if s > 150:  # 对于高饱和度颜色
+                s = int(s * 0.7)  # 适度降低饱和度
+            if v < 180:  # 对于较暗的颜色
+                v = min(255, int(v * 1.3))  # 提高亮度
+            elif v > 220:  # 对于过亮的颜色
+                v = int(v * 0.85)  # 降低亮度
+            
+            bg_color.setHsv(h, s, v, a)
+            
+            painter.setBrush(bg_color)
             painter.setPen(Qt.PenStyle.NoPen)
             painter.drawRoundedRect(icon_x, icon_y, icon_bg_width, icon_bg_height, 8, 8)  # TDesign圆角8px
             
