@@ -73,10 +73,6 @@ class ButtonController(QWidget):
             # 选中状态，使用选中图标
             self.quickpick_btn.setIcon(QIcon(get_icon_path('sidebar', True)))
             self.is_quickpick_selected = True
-            # 取消历史面板的选中状态
-            if self.is_history_selected:
-                self.is_history_selected = False
-                self.history_btn.setIcon(QIcon(get_icon_path('history', False)))
 
     def toggle_history_panel(self):
         """切换历史记录面板显示状态"""
@@ -94,10 +90,6 @@ class ButtonController(QWidget):
                     # 选中状态，使用选中图标
                     self.history_btn.setIcon(QIcon(get_icon_path('history', True)))
                     self.is_history_selected = True
-                    # 取消快速选择面板的选中状态
-                    if self.is_quickpick_selected:
-                        self.is_quickpick_selected = False
-                        self.quickpick_btn.setIcon(QIcon(get_icon_path('sidebar', False)))
                     # 如果当前有选中的项目，加载其历史记录
                     if hasattr(self.main_window, 'current_item') and self.main_window.current_item:
                         item_id = self.main_window.current_item.get('id')
