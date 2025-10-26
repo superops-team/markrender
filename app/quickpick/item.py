@@ -112,11 +112,10 @@ class QuickPickItemDelegate(QStyledItemDelegate):
             else:
                 # 相对路径，需要根据应用根目录解析
                 if hasattr(sys, '_MEIPASS'):
-                    # 打包环境
-                    icon_file_path = os.path.join(sys._MEIPASS, icon_path)  # type: ignore
+                    # 打包环境 - 确保正确解析icons目录下的图标
+                    icon_file_path = os.path.join(getattr(sys, '_MEIPASS'), icon_path)
                 else:
-                    # 开发环境 - 修复路径解析逻辑
-                    # 直接使用相对路径，因为图标目录就在项目根目录下
+                    # 开发环境 - 直接使用相对路径
                     icon_file_path = icon_path
             
             # 检查文件是否存在
@@ -128,6 +127,17 @@ class QuickPickItemDelegate(QStyledItemDelegate):
                 return icon
             else:
                 # 文件不存在，回退到默认处理
+                # 在打包环境中，如果图标不存在，尝试从icons目录加载
+                if hasattr(sys, '_MEIPASS'):
+                    # 从icons目录尝试加载图标
+                    icon_name = os.path.basename(icon_path)
+                    if icon_name.endswith('.svg'):
+                        icon_name = icon_name[:-4]  # 移除.svg后缀
+                    fallback_path = os.path.join(getattr(sys, '_MEIPASS'), 'icons', f"{icon_name}.svg")
+                    if os.path.exists(fallback_path):
+                        icon = QIcon(fallback_path)
+                        self.icon_cache[icon_path] = icon
+                        return icon
                 # 不打印错误信息，避免日志污染
                 pass
         
@@ -138,10 +148,21 @@ class QuickPickItemDelegate(QStyledItemDelegate):
                 return self.icon_cache[icon_type]
             # 获取图标路径并创建图标对象
             icon_path_result = get_icon_path(icon_type)
-            icon = QIcon(icon_path_result)
-            # 缓存图标
-            self.icon_cache[icon_type] = icon
-            return icon
+            if os.path.exists(icon_path_result):
+                icon = QIcon(icon_path_result)
+                # 缓存图标
+                self.icon_cache[icon_type] = icon
+                return icon
+            else:
+                # 如果图标不存在，尝试从icons目录加载
+                if hasattr(sys, '_MEIPASS'):
+                    # 在打包环境中，直接从icons目录加载
+                    icon_file_path = os.path.join(getattr(sys, '_MEIPASS'), 'icons', f"{icon_type}.svg")
+                    if os.path.exists(icon_file_path):
+                        icon = QIcon(icon_file_path)
+                        self.icon_cache[icon_type] = icon
+                        return icon
+                pass
         
         # 检查缓存中是否已有该图标
         if file_type in self.icon_cache:
@@ -151,10 +172,23 @@ class QuickPickItemDelegate(QStyledItemDelegate):
         icon_name = self.file_type_to_icon.get(file_type_str, 'file-earmark-plus')
         # 获取图标路径并创建图标对象
         icon_path_result = get_icon_path(icon_name)
-        icon = QIcon(icon_path_result)
-        # 缓存图标
-        self.icon_cache[file_type] = icon
-        return icon
+        if os.path.exists(icon_path_result):
+            icon = QIcon(icon_path_result)
+            # 缓存图标
+            self.icon_cache[file_type] = icon
+            return icon
+        else:
+            # 如果图标不存在，尝试从icons目录加载
+            if hasattr(sys, '_MEIPASS'):
+                # 在打包环境中，直接从icons目录加载
+                icon_file_path = os.path.join(getattr(sys, '_MEIPASS'), 'icons', f"{icon_name}.svg")
+                if os.path.exists(icon_file_path):
+                    icon = QIcon(icon_file_path)
+                    self.icon_cache[file_type] = icon
+                    return icon
+            pass
+        # 如果所有方法都失败，返回空图标
+        return QIcon()
 
     def paint(self, painter: QPainter, option: QStyleOptionViewItem, index):
         painter.save()

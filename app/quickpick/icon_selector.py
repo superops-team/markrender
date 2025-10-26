@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QIcon, QPixmap, QPainter, QColor
 from PySide6.QtCore import Qt, QSize, Signal
 import os
+import sys
 from utils.path import get_icon_path
 from app.preference.style_constants import (
     NEUTRAL_0, NEUTRAL_50, NEUTRAL_100, NEUTRAL_200, NEUTRAL_300, NEUTRAL_400, NEUTRAL_500, NEUTRAL_600, NEUTRAL_700, NEUTRAL_900,
@@ -198,8 +199,22 @@ class IconSelectorDialog(QDialog):
                 widget = item.widget()
                 widget.setParent(None)
                 
-        # 获取图标目录
-        icons_dir = os.path.join(os.getcwd(), "icons")
+        # 获取图标目录 - 修复打包环境中的路径问题
+        if hasattr(sys, '_MEIPASS'):
+            # 在打包环境中，从_MEIPASS路径获取icons目录
+            icons_dir = os.path.join(getattr(sys, '_MEIPASS'), "icons")
+        else:
+            # 在开发环境中，从当前工作目录获取icons目录
+            icons_dir = os.path.join(os.getcwd(), "icons")
+            
+        if not os.path.exists(icons_dir):
+            # 如果上述路径不存在，尝试从脚本所在目录获取icons目录
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            icons_dir = os.path.join(os.path.dirname(script_dir), "icons")
+            # 如果仍然不存在，尝试从项目根目录获取
+            if not os.path.exists(icons_dir):
+                icons_dir = os.path.join(os.path.dirname(os.path.dirname(script_dir)), "icons")
+            
         if not os.path.exists(icons_dir):
             return
             
@@ -240,6 +255,13 @@ class IconSelectorDialog(QDialog):
             if os.path.exists(icon_path):
                 icon = QIcon(icon_path)
                 icon_button.setIcon(icon)
+            else:
+                # 在打包环境中，尝试从_MEIPASS路径加载图标
+                if hasattr(sys, '_MEIPASS'):
+                    packed_icon_path = os.path.join(getattr(sys, '_MEIPASS'), 'icons', icon_file)
+                    if os.path.exists(packed_icon_path):
+                        icon = QIcon(packed_icon_path)
+                        icon_button.setIcon(icon)
             
             icon_button.setToolTip(icon_name)
             icon_button.setCheckable(True)

@@ -511,6 +511,9 @@ QTabWidget::tab-bar {
 }
 """
 
+import os
+import sys
+
 class AppStyle:
     '''
     应用程序样式
@@ -594,9 +597,17 @@ class AppStyle:
         return EDITOR_PREVIEW
 
     def get_quickpick_panel(self):
+        # 在打包环境中，需要使用绝对路径
+        if hasattr(sys, '_MEIPASS'):
+            chevron_right_path = os.path.join(getattr(sys, '_MEIPASS'), 'icons', 'chevron-right.svg').replace('\\', '/')
+            chevron_down_path = os.path.join(getattr(sys, '_MEIPASS'), 'icons', 'chevron-down.svg').replace('\\', '/')
+        else:
+            chevron_right_path = 'icons/chevron-right.svg'
+            chevron_down_path = 'icons/chevron-down.svg'
+        
         # TDesign风格的树形导航面板样式
-        return """
-        QTreeWidget {
+        return f"""
+        QTreeWidget {{
             background-color: #ffffff;
             border: 1px solid #e8e8e8;
             border-radius: 8px;
@@ -604,74 +615,83 @@ class AppStyle:
             font-size: 14px;
             color: #111827;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        }
+        }}
         
-        QTreeWidget::item {
+        QTreeWidget::item {{
             height: 56px;
             border-radius: 6px;
             margin: 2px;
-        }
+        }}
         
         /* TDesign选中状态 - 腾讯蓝风格，更轻量的配色 */
-        QTreeWidget::item:selected {
+        QTreeWidget::item:selected {{
             background-color: rgba(245, 249, 255, 180);
             color: #0052d9;
-        }
+        }}
         
         /* TDesign悬停状态 */
-        QTreeWidget::item:hover {
+        QTreeWidget::item:hover {{
             background-color: #fafafa;
-        }
+        }}
         
         /* TDesign风格的展开/折叠按钮 */
-        QTreeWidget::branch {
+        QTreeWidget::branch {{
             background: transparent;
             margin-left: 4px;
-        }
+        }}
         
         QTreeWidget::branch:has-children:!has-siblings:closed,
-        QTreeWidget::branch:closed:has-children:has-siblings {
+        QTreeWidget::branch:closed:has-children:has-siblings {{
             border-image: none;
-            image: url(icons/chevron-right.svg);
+            image: url({chevron_right_path});
             width: 16px;
             height: 16px;
-        }
+        }}
         
         QTreeWidget::branch:open:has-children:!has-siblings,
-        QTreeWidget::branch:open:has-children:has-siblings {
+        QTreeWidget::branch:open:has-children:has-siblings {{
             border-image: none;
-            image: url(icons/chevron-down.svg);
+            image: url({chevron_down_path});
             width: 16px;
             height: 16px;
-        }
+        }}
         
-        /* TDesign风格的滚动条 */
-        QScrollBar:vertical {
-            width: 6px;
-            background-color: #f5f5f5;
-            margin: 4px 2px 4px 2px;
-            border-radius: 3px;
-        }
+        /* 确保所有层级的item都能正确响应点击事件 */
+        QTreeWidget::item {{
+            padding-top: 4px;
+            padding-bottom: 4px;
+        }}
         
-        QScrollBar::handle:vertical {
-            background-color: #d9d9d9;
-            border-radius: 3px;
-            min-height: 30px;
-        }
-        
-        QScrollBar::handle:vertical:hover {
-            background-color: #bfbfbf;
-        }
-        
-        QScrollBar::add-line:vertical,
-        QScrollBar::sub-line:vertical {
-            height: 0px;
-        }
-        
-        QScrollBar::add-page:vertical,
-        QScrollBar::sub-page:vertical {
+        /* 优化树形结构的视觉层次，遵循TDesign设计原则 */
+        QTreeWidget::branch {{
+            width: 16px;
+            height: 16px;
             background-color: transparent;
-        }
+        }}
+        
+        /* 确保选中状态的一致性，移除可能导致冲突的分支样式 */
+        QTreeWidget::branch:selected {{
+            background-color: transparent;
+        }}
+        
+        QTreeWidget::branch:hover {{
+            background-color: transparent;
+        }}
+        
+        /* 确保选中状态覆盖整个item区域 */
+        QTreeWidget::item:selected:active {{
+            background-color: rgba(245, 249, 255, 180);  /* 更轻量的选中背景色 */
+        }}
+        
+        QTreeWidget::item:selected:!active {{
+            background-color: rgba(245, 249, 255, 180);  /* 更轻量的选中背景色 */
+        }}
+        
+        /* 移除折叠区域缩进的特殊颜色渲染 */
+        QTreeWidget::branch:has-children {{
+            background-color: transparent;
+            border: none;
+        }}
         """
 
     def get_format_label(self):
