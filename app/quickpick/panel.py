@@ -93,16 +93,31 @@ class QuickPickPanel(QWidget):
         # 创建新建按钮
         self.new_btn = QPushButton()
         # 初始图标
-        self.new_btn.setIcon(QIcon(get_icon_path("plus", selected=False)))
+        self.new_btn.setIcon(QIcon(get_icon_path("folder", selected=False)))
         self.new_btn.setIconSize(QSize(18, 18))  # TDesign标准图标尺寸
         # 设置固定尺寸，与搜索框对齐
         self.new_btn.setFixedSize(36, 36)  # TDesign标准按钮尺寸
-        # 应用统一侧边栏按钮样式
-        self.new_btn.setStyleSheet(self.app_style.get_sidebar_button_style())
-        # 连接点击事件到显示菜单方法
-        self.new_btn.clicked.connect(self.show_create_menu)
+        # 应用TDesign风格的按钮样式
+        self.new_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #f5f5f5;
+                border: 1px solid #e0e0e0;
+                border-radius: 6px;
+                padding: 8px;
+            }
+            QPushButton:hover {
+                background-color: #e8f3ff;
+                border-color: #b3d9ff;
+            }
+            QPushButton:pressed {
+                background-color: #d0e1ff;
+                border-color: #80bfff;
+            }
+        """)
+        # 连接点击事件到创建子目录方法
+        self.new_btn.clicked.connect(self.create_new_folder_item)
         # 添加ToolTip
-        self.new_btn.setToolTip("新建")
+        self.new_btn.setToolTip("新建文件夹")
 
         # 添加到水平布局
         search_layout.addWidget(self.search_input)
@@ -753,6 +768,27 @@ class QuickPickPanel(QWidget):
         # 刷新快速选择列表
         self.load_quickpick_items()
 
+    def create_new_folder_item(self):
+        """创建新的根目录文件夹"""
+        from utils import time_utils
+        
+        timestamp = time_utils.now().strftime('%Y%m%d%H%M%S')
+        folder_title = '文件夹-{}'.format(timestamp)
+        
+        # 创建根目录文件夹，默认使用markdown类型
+        folder_id = self.markrender_manager.save_item(
+            title=folder_title, 
+            content='',  # 文件夹通常不需要内容
+            parent_id=None,  # 根目录文件夹
+            page_type='markdown',  # 默认markdown类型
+            is_folder=1,  # 标记为文件夹
+            icon_type='folder',  # 使用folder图标类型
+            icon_path=None  # 暂时不设置自定义图标路径
+        )
+        
+        # 重新加载数据以显示新文件夹
+        self.load_quickpick_items()
+
     def add_node_to_tree(self, parent_index, item_id, title, is_folder=False):
         """在树中添加新节点而不进行全局刷新"""
         # 获取父项
@@ -773,6 +809,33 @@ class QuickPickPanel(QWidget):
         new_item = QTreeWidgetItem(parent_item)
         new_item.setData(0, Qt.ItemDataRole.UserRole, item_data)
         new_item.setText(0, title)
+        
+        # 确保节点标志正确设置
+        new_item.setFlags(
+            Qt.ItemFlag.ItemIsSelectable | 
+            Qt.ItemFlag.ItemIsEnabled | 
+            Qt.ItemFlag.ItemIsEditable
+        )
+        
+        # 更新父节点的数据，确保父节点知道自己有子节点
+        parent_data = parent_item.data(0, Qt.ItemDataRole.UserRole)
+        if parent_data:
+            # 如果父节点原来没有children字段或者children为空，需要更新它
+            if 'children' not in parent_data or not parent_data['children']:
+                parent_data['children'] = []
+            
+            # 将新节点添加到父节点的children列表中
+            parent_data['children'].append(item_data)
+            
+            # 更新父节点的数据
+            parent_item.setData(0, Qt.ItemDataRole.UserRole, parent_data)
+            
+            # 确保父节点的标志位正确设置
+            parent_item.setFlags(
+                Qt.ItemFlag.ItemIsSelectable | 
+                Qt.ItemFlag.ItemIsEnabled | 
+                Qt.ItemFlag.ItemIsEditable
+            )
         
         # 展开父节点以显示新添加的子节点
         parent_item.setExpanded(True)
@@ -954,11 +1017,6 @@ class QuickPickPanel(QWidget):
         add_excalidraw_action = QAction("Excalidraw 文件", self)
         add_excalidraw_action.triggered.connect(lambda: self.create_new_child_item(self.quickpick_list.indexFromItem(item), 'excalidraw'))
         add_submenu.addAction(add_excalidraw_action)
-        
-        # 添加文件夹
-        add_folder_action = QAction("文件夹", self)
-        add_folder_action.triggered.connect(lambda: self.create_new_child_folder(self.quickpick_list.indexFromItem(item)))
-        add_submenu.addAction(add_folder_action)
         
         menu.addSeparator()
         
