@@ -693,12 +693,12 @@ class MarkRenderManager:
                 # 获取根节点（parent_id为None或空的记录）
                 records = session.query(MarkRenderData).filter(
                     or_(MarkRenderData.parent_id == None, MarkRenderData.parent_id == '')
-                ).order_by(MarkRenderData.created_at.asc()).all()  # 按创建时间升序排列（创建早的在前）
+                ).order_by(MarkRenderData.created_at.desc()).all()  # 按创建时间倒序排列（最新的在前）
             else:
                 # 获取指定父节点的子节点
                 records = session.query(MarkRenderData).filter_by(
                     parent_id=parent_id
-                ).order_by(MarkRenderData.created_at.asc()).all()  # 按创建时间升序排列（创建早的在前）
+                ).order_by(MarkRenderData.created_at.desc()).all()  # 按创建时间倒序排列（最新的在前）
             
             # 转换为字典列表
             return [
