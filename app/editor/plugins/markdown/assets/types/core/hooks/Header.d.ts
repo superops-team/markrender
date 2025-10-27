@@ -1,13 +1,15 @@
 export default class Header extends ParagraphBase {
-    constructor({ externals, config }?: {
+    constructor({ externals, config, cherry }?: {
         config: any;
         externals: any;
+        cherry: any;
     });
     strict: boolean;
     RULE: any;
     headerIDCache: any[];
     headerIDCounter: {};
     config: any;
+    $cherry: any;
     $parseTitleText(html?: string): string;
     /**
      * refer:

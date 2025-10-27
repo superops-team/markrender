@@ -20,7 +20,7 @@ export default class Toc extends ParagraphBase {
     $makeLevel(num: any): string;
     /**
      * 生成TOC节点HTML
-     * @param {{ level: number; id: string; text: string }} node Toc节点对象
+     * @param {{ level: number; id: string; text: string; isInBlockquote: boolean }} node Toc节点对象
      * @param {boolean} prependWhitespaceIndent 是否在文本前插入缩进空格
      * @param {boolean} [closeTag=true] 是否闭合标签
      * @returns {string}
@@ -29,6 +29,7 @@ export default class Toc extends ParagraphBase {
         level: number;
         id: string;
         text: string;
+        isInBlockquote: boolean;
     }, prependWhitespaceIndent: boolean, closeTag?: boolean): string;
     $makePlainToc(tocNodeList: any): any;
     /**
@@ -36,13 +37,14 @@ export default class Toc extends ParagraphBase {
      * @see https://github.com/vsch/flexmark-java/blob/master/flexmark-ext-toc/
      * src/main/java/com/vladsch/flexmark/ext/toc/TocUtils.java#L140-L227
      *
-     * @param {{ level:number; id:string; text:string }[]} nodeList 节点列表
+     * @param {{ level:number; id:string; text:string; isInBlockquote: boolean }[]} nodeList 节点列表
      * @returns {string}
      */
     $makeNestedToc(nodeList: {
         level: number;
         id: string;
         text: string;
+        isInBlockquote: boolean;
     }[]): string;
     $makeToc(arr: any, dataSign: any, preLinesMatch: any): string;
     test(str: any, flavor: any): any;

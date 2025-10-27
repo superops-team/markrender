@@ -20,6 +20,10 @@ export default class Copy extends MenuBase {
      */
     toggleLoading(): void;
     /**
+     * 显示复制成功状态
+     */
+    showSuccess(): void;
+    /**
      * 响应点击事件
      * 该按钮不会引发编辑区域的内容改动，所以不用处理用户在编辑区域的选中内容
      * @param {Event} e 点击事件

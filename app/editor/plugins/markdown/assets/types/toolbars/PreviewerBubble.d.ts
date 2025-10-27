@@ -47,10 +47,11 @@ export default class PreviewerBubble {
     isCherryCodeBlock(element: HTMLElement): boolean | HTMLElement;
     /**
      * 是否为由cherry生成的表格，且不是简单表格
+     * 现在也支持 HTML 表格语法
      * @param {HTMLElement} element
-     * @returns {boolean}
+     * @returns {boolean|HTMLElement}
      */
-    isCherryTable(element: HTMLElement): boolean;
+    isCherryTable(element: HTMLElement): boolean | HTMLElement;
     /**
      * 是否开启了预览区操作 && 是否有编辑区
      * @returns {boolean}
@@ -73,6 +74,22 @@ export default class PreviewerBubble {
      * @param {string} trigger 移除指定的触发方式，不传默认全部移除
      */
     $removeAllPreviewerBubbles(trigger?: string): void;
+    /**
+     * 检查并重新创建表格处理器
+     * 当表格结构发生变化时，需要重新创建处理器以避免位置异常
+     */
+    $checkAndRecreateTableHandlers(): void;
+    /**
+     * 检查表格处理器是否仍然有效
+     * @param {TableHandler} handler 表格处理器实例
+     * @returns {boolean} 是否有效
+     */
+    $isTableHandlerValid(handler: TableHandler): boolean;
+    /**
+     * 移除指定的预览气泡
+     * @param {string} trigger 触发方式
+     */
+    $removePreviewerBubble(trigger: string): void;
     /**
      * hover到脚注的数字角标时展示悬浮卡片
      * @param {string} trigger 触发方式
@@ -161,3 +178,4 @@ export default class PreviewerBubble {
     $showBorderBubbles(): void;
     $showBtnBubbles(): void;
 }
+import TableHandler from "@/utils/tableContentHandler";

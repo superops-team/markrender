@@ -1,8 +1,9 @@
 export default class CodeBlock extends ParagraphBase {
     static inlineCodeCache: {};
-    constructor({ externals, config }: {
+    constructor({ externals, config, cherry }: {
         externals: any;
         config: any;
+        cherry: any;
     });
     codeCache: {};
     codeCacheList: any[];
@@ -20,6 +21,9 @@ export default class CodeBlock extends ParagraphBase {
     customHighlighter: any;
     failedCleanCacheTimes: number;
     codeTimer: NodeJS.Timeout;
+    $cherry: any;
+    needCleanFlowCursor: any;
+    showInlineColor: any;
     $resetCache(): void;
     $codeReplace($codeSrc: any, $lang: any, sign: any, lines: any): any;
     $codeCache(sign: any, str: any): any;
@@ -61,6 +65,7 @@ export default class CodeBlock extends ParagraphBase {
      * @param {number} lines
      */
     renderCodeBlock($code: string, $lang: string, sign: string, lines: number): string;
+    customWrapperRender(lang: any, code: any, html: any): any;
     /**
      * 获取缩进代码块语法的正则
      * 缩进代码块必须要以连续两个以上的换行符开头

@@ -1,4 +1,4 @@
-/** @typedef {import('../../types/cherry').CherryOptions} CherryOptions */
+/** @typedef {import('~types/cherry').CherryOptions} CherryOptions */
 export default class Cherry extends CherryStatic {
     /**
      * @protected
@@ -23,7 +23,7 @@ export default class Cherry extends CherryStatic {
      * @property
      * @type {CherryOptions}
      */
-    options: Partial<import("../../types/cherry")._CherryOptions<import("../../types/cherry").CherryCustomOptions>>;
+    options: Partial<import("~types/cherry")._CherryOptions<import("~types/cherry").CherryCustomOptions>>;
     /** @type {import('./utils/cm-search-replace').default} SearchBox 实例 */
     searchBoxInstance: import('./utils/cm-search-replace').default;
     /** @type {boolean} 是否初始化SearchBox */
@@ -75,6 +75,9 @@ export default class Cherry extends CherryStatic {
             barTable: string;
             radarTable: string;
             mapTable: string;
+            heatmapTable: string;
+            sankeyTable: string;
+            pieTable: string;
             proTable: string;
             formula: string;
             insertFormula: string;
@@ -83,6 +86,7 @@ export default class Cherry extends CherryStatic {
             insertState: string;
             insertClass: string;
             insertPie: string;
+            scatterTable: string;
             insertGantt: string;
             checklist: string;
             ol: string;
@@ -143,184 +147,8 @@ export default class Cherry extends CherryStatic {
             detailDefaultContent: string;
             inlineCode: string;
             codeBlock: string;
-            shortcutKeySetting: string;
-            editShortcutKeyConfigTip: string;
-            editingShortcutKeyConfigTip: string;
-            staticShortcutTip: string;
-            disabledShortcutTip: string;
-            wordCount: string;
-            wordCountP: string;
-            wordCountW: string;
-            wordCountC: string;
-            deleteColumn: string;
-            deleteRow: string;
-            addRow: string; /**
-             * @property
-             * @type {string} 实例ID
-             */
-            addCol: string;
-            moveRow: string;
-            moveCol: string;
-            shortcutStaticTitle: string;
-            shortcutStatic1: string;
-            shortcutStatic2: string;
-            shortcutStatic3: string;
-            shortcutStatic4: string;
-            shortcutStatic5: string;
-            shortcutStatic6: string;
-            shortcutStatic7: string;
-            shortcutStatic8: string;
-            shortcutStatic9: string;
-            shortcutStatic10: string;
-            shortcutStatic11: string;
-            shortcutStatic12: string; /**
-             * @type {import('./Engine').default}
-             */
-            shortcutStatic13: string;
-            shortcutStatic14: string;
-            shortcutStatic15: string;
-            shortcutStatic16: string;
-            shortcutStatic17: string;
-            shortcutStatic18: string;
-            leftMouseButton: string;
-            disableShortcut: string;
-            enableShortcut: string;
-            recoverShortcut: string;
-            search: string;
-            autoWrap: string;
-            footnoteTitle: string;
-            searchFor: string;
-            replaceWith: string;
-            previousMatch: string;
-            nextMatch: string;
-            replace: string;
-            replaceAll: string;
-            regExpSearch: string;
-            caseSensitiveSearch: string;
-            wholeWordSearch: string;
-            matchesFoundText: string;
-            toggleReplace: string;
-            close: string;
-            border: string;
-            shadow: string;
-            radius: string;
-            customShortcut: string;
-            staticShortcut: string;
-            edit: string;
-            save: string;
-            cancel: string;
-        };
-        en_US: {
-            bold: string;
-            code: string;
-            graph: string;
-            h1: string;
-            h2: string;
-            h3: string;
-            h4: string;
-            h5: string;
-            header: string;
-            insert: string;
-            italic: string;
-            list: string;
-            quickTable: string;
-            quote: string;
-            size: string;
-            color: string;
-            strikethrough: string;
-            sub: string;
-            sup: string;
-            togglePreview: string;
-            fullScreen: string;
-            image: string;
-            audio: string;
-            video: string;
-            link: string;
-            hr: string;
-            br: string;
-            toc: string;
-            pdf: string;
-            word: string;
-            table: string;
-            'line-table': string;
-            'bar-table': string;
-            'radar-table': string;
-            'map-table': string;
-            lineTable: string;
-            barTable: string;
-            radarTable: string;
-            mapTable: string;
-            proTable: string;
-            formula: string;
-            insertFormula: string;
-            insertFlow: string;
-            insertSeq: string;
-            insertState: string;
-            insertClass: string;
-            insertPie: string;
-            insertGantt: string;
-            checklist: string;
-            ol: string;
-            ul: string;
-            undo: string;
-            redo: string;
-            previewClose: string;
-            codeTheme: string;
-            switchModel: string;
-            switchPreview: string;
-            switchEdit: string; /**
-             * @param {CherryOptions} options
-             */
-            classicBr: string;
-            normalBr: string;
-            settings: string;
-            mobilePreview: string;
-            copy: string;
-            export: string;
-            underline: string;
-            pinyin: string;
-            pastePlain: string;
-            pasteMarkdown: string; /**
-             * @property
-             * @type {CherryOptions}
-             */
-            hide: string;
-            exportToPdf: string;
-            exportScreenshot: string;
-            exportMarkdownFile: string; /** @type {import('./utils/cm-search-replace').default} SearchBox 实例 */
-            exportHTMLFile: string;
-            exportWordFile: string;
-            heading1: string;
-            heading2: string;
-            heading3: string;
-            panel: string;
-            detail: string;
-            complement: string;
-            summary: string;
-            justify: string;
-            justifyLeft: string;
-            justifyCenter: string;
-            justifyRight: string;
-            align: string;
-            alignLeft: string;
-            alignCenter: string;
-            alignRight: string;
-            alignJustify: string;
-            alignFloatLeft: string;
-            alignFloatRight: string;
-            publish: string;
-            colorPickerText: string;
-            colorPickerBackground: string;
-            colorPickerClear: string;
-            colorPickerRecentColors: string;
-            colorPickerPresetColors: string;
-            small: string;
-            medium: string;
-            large: string;
-            superLarge: string;
-            detailDefaultContent: string;
-            inlineCode: string;
-            codeBlock: string;
+            inlineMath: string;
+            mathBlock: string;
             shortcutKeySetting: string;
             editShortcutKeyConfigTip: string;
             editingShortcutKeyConfigTip: string;
@@ -382,6 +210,216 @@ export default class Cherry extends CherryStatic {
             edit: string;
             save: string;
             cancel: string;
+            saveAsImage: string;
+            mapChartLoading: string;
+            mapChartLoadingTip: string;
+            mapChartError: string;
+            mapChartErrorTip: string;
+            mapChartRetry: string;
+            chartRenderError: string;
+            chartLibraryNotLoadedTip: string;
+            radarData: string;
+            scatterData: string;
+            pieData: string;
+            heatmapData: string;
+            mapData: string;
+            maxValue: string;
+            minValue: string;
+            high: string;
+            low: string;
+        };
+        en_US: {
+            bold: string;
+            code: string;
+            graph: string;
+            h1: string;
+            h2: string;
+            h3: string;
+            h4: string;
+            h5: string;
+            header: string;
+            insert: string;
+            italic: string;
+            list: string;
+            quickTable: string;
+            quote: string;
+            size: string;
+            color: string;
+            strikethrough: string;
+            sub: string;
+            sup: string;
+            togglePreview: string;
+            fullScreen: string;
+            image: string;
+            audio: string;
+            video: string;
+            link: string;
+            hr: string;
+            br: string;
+            toc: string;
+            pdf: string;
+            word: string;
+            table: string;
+            'line-table': string;
+            'bar-table': string;
+            'radar-table': string;
+            'map-table': string;
+            lineTable: string;
+            barTable: string;
+            radarTable: string;
+            mapTable: string;
+            heatmapTable: string;
+            sankeyTable: string;
+            pieTable: string;
+            proTable: string;
+            formula: string;
+            insertFormula: string;
+            insertFlow: string;
+            insertSeq: string;
+            insertState: string;
+            insertClass: string;
+            insertPie: string;
+            scatterTable: string;
+            insertGantt: string; /**
+             * @protected
+             */
+            checklist: string;
+            ol: string;
+            ul: string;
+            undo: string;
+            redo: string;
+            previewClose: string;
+            codeTheme: string;
+            switchModel: string;
+            switchPreview: string;
+            switchEdit: string;
+            classicBr: string;
+            normalBr: string;
+            settings: string;
+            mobilePreview: string;
+            copy: string;
+            export: string;
+            underline: string;
+            pinyin: string;
+            pastePlain: string;
+            pasteMarkdown: string;
+            hide: string;
+            exportToPdf: string;
+            exportScreenshot: string;
+            exportMarkdownFile: string;
+            exportHTMLFile: string;
+            exportWordFile: string;
+            heading1: string;
+            heading2: string;
+            heading3: string;
+            panel: string;
+            detail: string;
+            complement: string;
+            summary: string;
+            justify: string;
+            justifyLeft: string;
+            justifyCenter: string;
+            justifyRight: string;
+            align: string;
+            alignLeft: string;
+            alignCenter: string;
+            alignRight: string;
+            alignJustify: string;
+            alignFloatLeft: string;
+            alignFloatRight: string;
+            publish: string;
+            colorPickerText: string;
+            colorPickerBackground: string;
+            colorPickerClear: string;
+            colorPickerRecentColors: string;
+            colorPickerPresetColors: string;
+            small: string;
+            medium: string;
+            large: string;
+            superLarge: string;
+            detailDefaultContent: string;
+            inlineCode: string;
+            codeBlock: string;
+            inlineMath: string;
+            mathBlock: string;
+            shortcutKeySetting: string;
+            editShortcutKeyConfigTip: string;
+            editingShortcutKeyConfigTip: string;
+            staticShortcutTip: string;
+            disabledShortcutTip: string;
+            wordCount: string;
+            wordCountP: string;
+            wordCountW: string;
+            wordCountC: string;
+            deleteColumn: string;
+            deleteRow: string;
+            addRow: string;
+            addCol: string;
+            moveRow: string;
+            moveCol: string;
+            shortcutStaticTitle: string;
+            shortcutStatic1: string;
+            shortcutStatic2: string;
+            shortcutStatic3: string;
+            shortcutStatic4: string;
+            shortcutStatic5: string;
+            shortcutStatic6: string;
+            shortcutStatic7: string;
+            shortcutStatic8: string;
+            shortcutStatic9: string;
+            shortcutStatic10: string;
+            shortcutStatic11: string;
+            shortcutStatic12: string;
+            shortcutStatic13: string;
+            shortcutStatic14: string;
+            shortcutStatic15: string;
+            shortcutStatic16: string;
+            shortcutStatic17: string;
+            shortcutStatic18: string;
+            leftMouseButton: string;
+            disableShortcut: string;
+            enableShortcut: string;
+            recoverShortcut: string;
+            search: string;
+            autoWrap: string;
+            footnoteTitle: string;
+            searchFor: string;
+            replaceWith: string;
+            previousMatch: string;
+            nextMatch: string;
+            replace: string;
+            replaceAll: string;
+            regExpSearch: string;
+            caseSensitiveSearch: string;
+            wholeWordSearch: string;
+            matchesFoundText: string;
+            toggleReplace: string;
+            close: string;
+            border: string;
+            shadow: string;
+            radius: string;
+            customShortcut: string;
+            staticShortcut: string;
+            edit: string;
+            save: string;
+            cancel: string;
+            saveAsImage: string;
+            mapChartLoading: string;
+            mapChartLoadingTip: string;
+            mapChartError: string;
+            mapChartErrorTip: string;
+            mapChartRetry: string;
+            chartRenderError: string;
+            chartLibraryNotLoadedTip: string;
+            radarData: string;
+            scatterData: string;
+            pieData: string;
+            heatmapData: string;
+            mapData: string;
+            maxValue: string;
+            minValue: string;
+            high: string;
+            low: string;
         };
         ru_RU: {
             bold: string;
@@ -423,14 +461,18 @@ export default class Cherry extends CherryStatic {
             barTable: string;
             radarTable: string;
             mapTable: string;
+            heatmapTable: string;
+            sankeyTable: string;
+            pieTable: string;
             proTable: string;
             formula: string;
             insertFormula: string;
             insertFlow: string;
-            insertSeq: string; /** @typedef {import('../../types/cherry').CherryOptions} CherryOptions */
+            insertSeq: string;
             insertState: string;
             insertClass: string;
             insertPie: string;
+            scatterTable: string;
             insertGantt: string;
             checklist: string;
             ol: string;
@@ -484,11 +526,16 @@ export default class Cherry extends CherryStatic {
             colorPickerPresetColors: string;
             small: string;
             medium: string;
-            large: string;
+            large: string; /**
+             * @property
+             * @type {string} 实例ID
+             */
             superLarge: string;
             detailDefaultContent: string;
             inlineCode: string;
             codeBlock: string;
+            inlineMath: string;
+            mathBlock: string;
             shortcutKeySetting: string;
             editShortcutKeyConfigTip: string;
             editingShortcutKeyConfigTip: string;
@@ -550,6 +597,23 @@ export default class Cherry extends CherryStatic {
             edit: string;
             save: string;
             cancel: string;
+            saveAsImage: string;
+            mapChartLoading: string;
+            mapChartLoadingTip: string;
+            mapChartError: string;
+            mapChartErrorTip: string;
+            mapChartRetry: string;
+            chartRenderError: string;
+            chartLibraryNotLoadedTip: string;
+            radarData: string;
+            scatterData: string;
+            pieData: string;
+            heatmapData: string;
+            mapData: string;
+            maxValue: string;
+            minValue: string;
+            high: string;
+            low: string;
         };
     };
     locale: any;
@@ -650,6 +714,7 @@ export default class Cherry extends CherryStatic {
      *  level: number;
      * id: string;
      * text: string;
+     * isInBlockquote: boolean;
      * }[]} HeaderList
      * 获取目录，目录由head1~6组成
      * @returns {HeaderList} 标题head数组
@@ -658,6 +723,7 @@ export default class Cherry extends CherryStatic {
         level: number;
         id: string;
         text: string;
+        isInBlockquote: boolean;
     }[];
     /**
      * 覆盖编辑区的内容
@@ -835,7 +901,7 @@ export default class Cherry extends CherryStatic {
      */
     clearFlowSessionCursor(): void;
 }
-export type CherryOptions = import('../../types/cherry').CherryOptions;
+export type CherryOptions = import('~types/cherry').CherryOptions;
 import { CherryStatic } from "./CherryStatic";
 import Event from "./Event";
 import Toc from "./toolbars/Toc";

@@ -11,6 +11,7 @@ export default class Table extends ParagraphBase {
         type: any;
         options: any;
     };
+    $parseProps(str: any): any;
     $parseColumnAlignRules(row: any): {
         textAlignRules: any;
         COLUMN_ALIGN_MAP: {

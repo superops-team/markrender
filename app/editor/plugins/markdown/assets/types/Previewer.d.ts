@@ -7,9 +7,9 @@
 export default class Previewer {
     /**
      *
-     * @param {Partial<import('../../types/previewer').PreviewerOptions>} options 预览区域设置
+     * @param {Partial<import('~types/previewer').PreviewerOptions>} options 预览区域设置
      */
-    constructor(options: Partial<import('../../types/previewer').PreviewerOptions>);
+    constructor(options: Partial<import('~types/previewer').PreviewerOptions>);
     /**
      * @property
      * @private
@@ -30,9 +30,9 @@ export default class Previewer {
     public isMobilePreview: boolean;
     /**
      * @property
-     * @type {import('../../types/previewer').PreviewerOptions}
+     * @type {import('~types/previewer').PreviewerOptions}
      */
-    options: import('../../types/previewer').PreviewerOptions;
+    options: import('~types/previewer').PreviewerOptions;
     $cherry: import("./Cherry").default;
     instanceId: string;
     /**
@@ -106,7 +106,7 @@ export default class Previewer {
     update(html: any): void;
     $dealEditAndPreviewOnly(isEditOnly?: boolean): void;
     previewOnly(): void;
-    editOnly(dealToolbar?: boolean): void;
+    editOnly(): void;
     floatPreviewer(): void;
     recoverFloatPreviewer(): void;
     recoverPreviewer(dealToolbar?: boolean): void;
@@ -167,6 +167,7 @@ export default class Previewer {
      * @param {string} [fileName] 导出文件名
      */
     public export(type?: 'pdf' | 'img' | 'screenShot' | 'markdown' | 'html' | 'word', fileName?: string): void;
+    changePreviewToMobile(isMobile?: boolean): void;
 }
 import LazyLoadImg from "@/utils/lazyLoadImg";
 import PreviewerBubble from "./toolbars/PreviewerBubble";

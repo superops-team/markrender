@@ -87,6 +87,7 @@ declare class SuggesterPanel {
     cursorMove: boolean;
     suggesterConfig: {};
     $cherry: any;
+    panelPosition: string;
     /**
      * 如果没有panel，则尝试初始化一个，在node模式不初始化
      */
@@ -123,7 +124,11 @@ declare class SuggesterPanel {
     renderPanelItem(item: string, selected: boolean): string;
     createDom(string?: string): DocumentFragment;
     template: HTMLDivElement;
-    relocatePanel(codemirror: any): boolean;
+    /**
+     * 面板重定位（滚动时调用，不进行边界判定）
+     * @param {CodeMirror} codemirror
+     */
+    relocatePanel(codemirror: CodeMirror): boolean;
     /**
      * 获取光标位置
      * @param {CodeMirror} codemirror
@@ -136,6 +141,10 @@ declare class SuggesterPanel {
     startRelate(codemirror: any, keyword: any, from: any): void;
     cursorFrom: any;
     keyword: any;
+    /**
+     * 首次显示面板时进行边界判定（在下一帧执行）
+     */
+    relocatePanelWithBoundaryCheck(): boolean;
     stopRelate(): void;
     cursorTo: any;
     /**

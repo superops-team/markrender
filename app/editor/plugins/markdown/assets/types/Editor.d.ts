@@ -1,9 +1,9 @@
 /**
- * @typedef {import('../../types/editor').EditorConfiguration} EditorConfiguration
- * @typedef {import('../../types/editor').EditorEventCallback} EditorEventCallback
+ * @typedef {import('~types/editor').EditorConfiguration} EditorConfiguration
+ * @typedef {import('~types/editor').EditorEventCallback} EditorEventCallback
  * @typedef {import('codemirror')} CodeMirror
  */
-/** @type {import('../../types/editor')} */
+/** @type {import('~types/editor')} */
 export default class Editor {
     /**
      * @constructor
@@ -142,7 +142,7 @@ export default class Editor {
      */
     setValue(value?: string): void;
 }
-export type EditorConfiguration = import('../../types/editor').EditorConfiguration;
-export type EditorEventCallback = import('../../types/editor').EditorEventCallback;
+export type EditorConfiguration = import('~types/editor').EditorConfiguration;
+export type EditorEventCallback = import('~types/editor').EditorEventCallback;
 export type CodeMirror = typeof codemirror;
 import codemirror from "codemirror";

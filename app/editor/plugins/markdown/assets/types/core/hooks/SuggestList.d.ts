@@ -1,4 +1,4 @@
-export function allSuggestList(keyword: any, locales: any): {
+export function allSuggestList(keyword: any, locales: any, suggesterConfig: any): {
     label: any;
     icon: string;
     keyword: string;

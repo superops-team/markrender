@@ -3,19 +3,12 @@
  */
 export default class ProTable extends MenuBase {
     constructor($cherry: any);
+    localeName: any;
     /**
      * 获取子菜单数组
      * @returns {Array} 返回子菜单
      */
     getSubMenuConfig(): any[];
-    /**
-     * 绑定子菜单点击事件
-     * @param {string} type 图表类型
-     * @param {string} selection 编辑区选中的内容
-     * @param {boolean} [async] 是否异步
-     * @param {Function} [callback] 回调函数
-     */
-    bindSubClick(type: string, selection: string, async?: boolean, callback?: Function): string;
     /**
      * 响应点击事件
      * @param {string} selection 被用户选中的文本内容
@@ -47,5 +40,13 @@ export default class ProTable extends MenuBase {
      * 插入饼图表格
      */
     insertPieTable(selection: any): string;
+    /**
+     * 插入散点图表格
+     */
+    insertScatterTable(selection: any): string;
+    /**
+     * 插入桑基图表格
+     */
+    insertSankeyTable(selection: any): string;
 }
 import MenuBase from "@/toolbars/MenuBase";

@@ -27,13 +27,13 @@ export default class HookCenter {
      * @param {any[]} hooksConfig 在hookconfig.js里定义的配置
      * @param {CherryOptions} editorConfig 编辑器配置
      */
-    registerInternalHooks(hooksConfig: any[], editorConfig: Partial<import("../../types/cherry")._CherryOptions<import("../../types/cherry").CherryCustomOptions>>): void;
+    registerInternalHooks(hooksConfig: any[], editorConfig: Partial<import("~types/cherry")._CherryOptions<import("~types/cherry").CherryCustomOptions>>): void;
     /**
      * 注册第三方的语法hook
      * @param {CherryEngineOptions['customSyntax']} customHooks 用户传入的配置
      * @param {CherryOptions} editorConfig 编辑器配置
      */
-    registerCustomHooks(customHooks: CherryEngineOptions['customSyntax'], editorConfig: Partial<import("../../types/cherry")._CherryOptions<import("../../types/cherry").CherryCustomOptions>>): void;
+    registerCustomHooks(customHooks: CherryEngineOptions['customSyntax'], editorConfig: Partial<import("~types/cherry")._CherryOptions<import("~types/cherry").CherryCustomOptions>>): void;
     getHookList(): Record<import("../../types/syntax").HookType, SyntaxBase[]>;
     getHookNameList(): Record<string, {
         type: import('./SyntaxBase').HookType;
@@ -45,11 +45,11 @@ export default class HookCenter {
      * @param {Omit<CustomSyntaxRegConfig, 'syntaxClass'>} [customHookConfig]
      * @returns
      */
-    register(HookClass: typeof SyntaxBase | ((...args: any[]) => any), editorConfig: Partial<import("../../types/cherry")._CherryOptions<import("../../types/cherry").CherryCustomOptions>>, customHookConfig?: Omit<CustomSyntaxRegConfig, 'syntaxClass'>): -1 | -2;
+    register(HookClass: typeof SyntaxBase | ((...args: any[]) => any), editorConfig: Partial<import("~types/cherry")._CherryOptions<import("~types/cherry").CherryCustomOptions>>, customHookConfig?: Omit<CustomSyntaxRegConfig, 'syntaxClass'>): -1 | -2;
 }
-export type CherryOptions = import('../../types/cherry').CherryOptions;
-export type CherryEngineOptions = import('../../types/cherry').CherryEngineOptions;
-export type CustomSyntaxRegConfig = import('../../types/cherry').CustomSyntaxRegConfig;
+export type CherryOptions = import('~types/cherry').CherryOptions;
+export type CherryEngineOptions = import('~types/cherry').CherryEngineOptions;
+export type CustomSyntaxRegConfig = import('~types/cherry').CustomSyntaxRegConfig;
 export type CustomSyntax = (SyntaxBase | ParagraphBase) & {
     Cherry$$CUSTOM: true;
 };

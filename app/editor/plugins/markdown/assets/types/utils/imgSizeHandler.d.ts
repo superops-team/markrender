@@ -159,8 +159,6 @@ declare namespace imgSizeHandler {
     };
     function showBubble(img: any, container: any, previewerDom: any): void;
     function showBubble(img: any, container: any, previewerDom: any): void;
-    function reshowBubble(): void;
-    function reshowBubble(): void;
     function emit(type: any, event?: {}): boolean | void;
     function emit(type: any, event?: {}): boolean | void;
     function previewUpdate(callback: any): void;
