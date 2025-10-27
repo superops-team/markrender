@@ -3,33 +3,6 @@ import os
 import logging
 import sys
 
-# 尝试导入统一的CSS样式常量
-try:
-    from app.preference.css_constants import THEME_STYLES, BASE_CODE_STYLE
-except ImportError:
-    # 如果无法导入，使用简化样式
-    BASE_CODE_STYLE = """
-<style>
-    h1 { text-align: center; color: #333; }
-    pre { background: #f6f8fa; padding: 16px; border-radius: 3px; }
-    code { background: rgba(27,31,35,.05); padding: 0.2em 0.4em; border-radius: 3px; }
-</style>
-"""
-
-# 主题样式 - 使用统一的样式系统
-try:
-    from app.preference.css_constants import THEME_STYLES
-    themes = THEME_STYLES
-except ImportError:
-    # 备用主题样式
-    themes = {
-        "默认样式": BASE_CODE_STYLE + "<style>body { font-family: system-ui; }</style>",
-        "GitHub风格": BASE_CODE_STYLE + "<style>body { font-family: system-ui; } h2 { border-bottom: 1px solid #eee; }</style>",
-        "浅色主题": BASE_CODE_STYLE + "<style>body { background: #f9f9f9; color: #333; }</style>",
-        "深色主题": BASE_CODE_STYLE + "<style>body { background: #2d2d2d; color: #e9e9e9; }</style>",
-        "文档风格": BASE_CODE_STYLE + "<style>body { font-family: serif; max-width: 800px; margin: 0 auto; }</style>",
-    }
-
 _db_path = ""
 
 
@@ -78,8 +51,3 @@ def init_db(db_path):
     Base.metadata.create_all(engine)
     manager = ThemeManager()
     manager.Session.configure(bind=manager.engine)
-    for name, theme_style in themes.items():
-        if manager.theme_exists(name):
-            continue
-        full_style = base_style + theme_style
-        manager.create_theme(name, full_style)
