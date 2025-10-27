@@ -159,6 +159,10 @@ class MarkRenderManager:
                     old_theme_id = getattr(history, 'theme_id', 0)
                     old_page_type = getattr(history, 'page_type', '')
                     
+                    # 用于记录字段变更的字典
+                    old_values = {}
+                    new_values = {}
+                    
                     # 更新字段
                     setattr(history, 'content', content_str)
                     setattr(history, 'content_md5', content_md5)
@@ -166,24 +170,34 @@ class MarkRenderManager:
                     
                     # 更新其他可选字段
                     if title is not None and title != '':
+                        old_values['title'] = getattr(history, 'title', '')
+                        new_values['title'] = title
                         logger.info(f"更新标题: '{title}'")
                         setattr(history, 'title', title)
                     elif title is None:
                         logger.info("标题参数为None，保持原有标题不变")
                     if tags is not None and tags != '':
+                        old_values['tags'] = getattr(history, 'tags', '')
+                        new_values['tags'] = tags
                         logger.info(f"更新标签: {tags}")
                         setattr(history, 'tags', tags)
                     elif tags is None:
                         logger.info("标签参数为None，保持原有标签不变")
                     if render_style is not None:
+                        old_values['render_style'] = getattr(history, 'render_style', '')
+                        new_values['render_style'] = render_style
                         setattr(history, 'render_style', render_style)
                     if file_path is not None:
                         setattr(history, 'file_path', file_path)
                     if converter is not None:
+                        old_values['converter'] = getattr(history, 'converter', '')
+                        new_values['converter'] = converter
                         setattr(history, 'converter', converter)
                     if theme_id is not None:
                         setattr(history, 'theme_id', theme_id)
                     if status is not None:
+                        old_values['status'] = getattr(history, 'status', '')
+                        new_values['status'] = status
                         setattr(history, 'status', status)
                     if converter_start is not None:
                         setattr(history, 'converter_start', converter_start)
@@ -197,26 +211,51 @@ class MarkRenderManager:
                         setattr(history, 'page_engine', page_engine)
                     # 树形结构字段
                     if parent_id is not None:
+                        old_values['parent_id'] = getattr(history, 'parent_id', None)
+                        new_values['parent_id'] = parent_id
                         setattr(history, 'parent_id', parent_id)
                     if order is not None:
+                        old_values['order'] = getattr(history, 'order', 0)
+                        new_values['order'] = order
                         setattr(history, 'order', order)
                     if level is not None:
+                        old_values['level'] = getattr(history, 'level', 0)
+                        new_values['level'] = level
                         setattr(history, 'level', level)
                     if is_folder is not None:
+                        old_values['is_folder'] = getattr(history, 'is_folder', 0)
+                        new_values['is_folder'] = is_folder
                         setattr(history, 'is_folder', is_folder)
                     # 图标和显示字段
                     if icon_type is not None:
+                        old_values['icon_type'] = getattr(history, 'icon_type', None)
+                        new_values['icon_type'] = icon_type
                         setattr(history, 'icon_type', icon_type)
                     if icon_path is not None:
+                        old_values['icon_path'] = getattr(history, 'icon_path', None)
+                        new_values['icon_path'] = icon_path
                         setattr(history, 'icon_path', icon_path)
                     if icon_color is not None:
+                        old_values['icon_color'] = getattr(history, 'icon_color', None)
+                        new_values['icon_color'] = icon_color
                         setattr(history, 'icon_color', icon_color)
                     if display_name is not None:
+                        old_values['display_name'] = getattr(history, 'display_name', None)
+                        new_values['display_name'] = display_name
                         setattr(history, 'display_name', display_name)
                     
                     session.commit()
                     changed = True
                     logger.info(f"记录更新完成，ID: {id}")
+                    
+                    # 记录字段变更历史
+                    if old_values or new_values:
+                        self._save_change_history(
+                            session, id, old_content or '', content_str, 'field_update',
+                            'user_edit', 'user', '127.0.0.1', file_path or '',
+                            theme_id or 0, page_type or '', page_engine or '', page_settings or '',
+                            old_values, new_values
+                        )
                 else:
                     # 记录不存在，创建新记录
                     logger.info(f"记录不存在，创建新记录")
@@ -315,7 +354,7 @@ class MarkRenderManager:
     def _save_change_history(self, session, file_id, old_content, new_content, change_type, 
                            change_reason, change_by, change_ip, change_file_path, 
                            change_theme_id, change_page_type, change_page_engine, 
-                           change_page_settings):
+                           change_page_settings, old_values=None, new_values=None):
         """
         保存变更历史记录
         Args:
@@ -332,6 +371,8 @@ class MarkRenderManager:
             change_page_type: 变更页面类型
             change_page_engine: 变更页面引擎
             change_page_settings: 变更页面设置
+            old_values: 旧字段值字典
+            new_values: 新字段值字典
         """
         try:
             # 确保new_content是字符串类型
@@ -352,6 +393,7 @@ class MarkRenderManager:
             else:
                 old_content_str = old_content
             
+            # 创建变更历史记录
             new_change = MarkRenderChangeHistory(
                 change_content_md5=change_content_md5,
                 change_file_path=change_file_path,
@@ -359,8 +401,82 @@ class MarkRenderManager:
                 change_page_type=change_page_type,
                 change_page_engine=change_page_engine,
                 change_page_settings=change_page_settings,
-                change_page_id=file_id
+                change_page_id=file_id,
+                old_content=old_content_str,
+                new_content=content_str,
+                change_type=change_type,
+                change_reason=change_reason,
+                change_by=change_by,
+                change_ip=change_ip
             )
+            
+            # 如果提供了字段变更信息，则记录所有字段的变更
+            if old_values and new_values:
+                # 标题变更
+                if 'title' in old_values or 'title' in new_values:
+                    new_change.old_title = old_values.get('title')
+                    new_change.new_title = new_values.get('title')
+                
+                # 标签变更
+                if 'tags' in old_values or 'tags' in new_values:
+                    new_change.old_tags = old_values.get('tags')
+                    new_change.new_tags = new_values.get('tags')
+                
+                # 渲染样式变更
+                if 'render_style' in old_values or 'render_style' in new_values:
+                    new_change.old_render_style = old_values.get('render_style')
+                    new_change.new_render_style = new_values.get('render_style')
+                
+                # 转换器变更
+                if 'converter' in old_values or 'converter' in new_values:
+                    new_change.old_converter = old_values.get('converter')
+                    new_change.new_converter = new_values.get('converter')
+                
+                # 状态变更
+                if 'status' in old_values or 'status' in new_values:
+                    new_change.old_status = old_values.get('status')
+                    new_change.new_status = new_values.get('status')
+                
+                # 父节点ID变更
+                if 'parent_id' in old_values or 'parent_id' in new_values:
+                    new_change.old_parent_id = old_values.get('parent_id')
+                    new_change.new_parent_id = new_values.get('parent_id')
+                
+                # 排序变更
+                if 'order' in old_values or 'order' in new_values:
+                    new_change.old_order = old_values.get('order')
+                    new_change.new_order = new_values.get('order')
+                
+                # 层级变更
+                if 'level' in old_values or 'level' in new_values:
+                    new_change.old_level = old_values.get('level')
+                    new_change.new_level = new_values.get('level')
+                
+                # 图标类型变更
+                if 'icon_type' in old_values or 'icon_type' in new_values:
+                    new_change.old_icon_type = old_values.get('icon_type')
+                    new_change.new_icon_type = new_values.get('icon_type')
+                
+                # 图标路径变更
+                if 'icon_path' in old_values or 'icon_path' in new_values:
+                    new_change.old_icon_path = old_values.get('icon_path')
+                    new_change.new_icon_path = new_values.get('icon_path')
+                
+                # 图标颜色变更
+                if 'icon_color' in old_values or 'icon_color' in new_values:
+                    new_change.old_icon_color = old_values.get('icon_color')
+                    new_change.new_icon_color = new_values.get('icon_color')
+                
+                # 显示名称变更
+                if 'display_name' in old_values or 'display_name' in new_values:
+                    new_change.old_display_name = old_values.get('display_name')
+                    new_change.new_display_name = new_values.get('display_name')
+                
+                # 文件夹标识变更
+                if 'is_folder' in old_values or 'is_folder' in new_values:
+                    new_change.old_is_folder = old_values.get('is_folder')
+                    new_change.new_is_folder = new_values.get('is_folder')
+            
             session.add(new_change)
             session.commit()
             return new_change
@@ -432,7 +548,8 @@ class MarkRenderManager:
     def save_change_history(self, file_id, old_content, new_content, change_type='content_update', 
                            change_reason='user_edit', change_by='user', change_ip='127.0.0.1', 
                            change_file_path='', change_theme_id=1, change_page_type='markdown', 
-                           change_page_engine='markdown', change_page_settings='{}', change_page_id=None):
+                           change_page_engine='markdown', change_page_settings='{}', change_page_id=None,
+                           old_values=None, new_values=None):
         """
         保存变更历史记录
         Args:
@@ -449,6 +566,8 @@ class MarkRenderManager:
             change_page_engine: 变更页面引擎
             change_page_settings: 变更页面设置
             change_page_id: 变更页面ID
+            old_values: 旧字段值字典
+            new_values: 新字段值字典
         """
         session = self.Session()
         try:
@@ -474,6 +593,7 @@ class MarkRenderManager:
             else:
                 old_content_str = old_content
             
+            # 创建变更历史记录
             new_change = MarkRenderChangeHistory(
                 file_id=file_id,
                 old_content=old_content_str,
@@ -490,6 +610,74 @@ class MarkRenderManager:
                 change_page_settings=change_page_settings,
                 change_page_id=change_page_id or file_id
             )
+            
+            # 如果提供了字段变更信息，则记录所有字段的变更
+            if old_values and new_values:
+                # 标题变更
+                if 'title' in old_values or 'title' in new_values:
+                    new_change.old_title = old_values.get('title')
+                    new_change.new_title = new_values.get('title')
+                
+                # 标签变更
+                if 'tags' in old_values or 'tags' in new_values:
+                    new_change.old_tags = old_values.get('tags')
+                    new_change.new_tags = new_values.get('tags')
+                
+                # 渲染样式变更
+                if 'render_style' in old_values or 'render_style' in new_values:
+                    new_change.old_render_style = old_values.get('render_style')
+                    new_change.new_render_style = new_values.get('render_style')
+                
+                # 转换器变更
+                if 'converter' in old_values or 'converter' in new_values:
+                    new_change.old_converter = old_values.get('converter')
+                    new_change.new_converter = new_values.get('converter')
+                
+                # 状态变更
+                if 'status' in old_values or 'status' in new_values:
+                    new_change.old_status = old_values.get('status')
+                    new_change.new_status = new_values.get('status')
+                
+                # 父节点ID变更
+                if 'parent_id' in old_values or 'parent_id' in new_values:
+                    new_change.old_parent_id = old_values.get('parent_id')
+                    new_change.new_parent_id = new_values.get('parent_id')
+                
+                # 排序变更
+                if 'order' in old_values or 'order' in new_values:
+                    new_change.old_order = old_values.get('order')
+                    new_change.new_order = new_values.get('order')
+                
+                # 层级变更
+                if 'level' in old_values or 'level' in new_values:
+                    new_change.old_level = old_values.get('level')
+                    new_change.new_level = new_values.get('level')
+                
+                # 图标类型变更
+                if 'icon_type' in old_values or 'icon_type' in new_values:
+                    new_change.old_icon_type = old_values.get('icon_type')
+                    new_change.new_icon_type = new_values.get('icon_type')
+                
+                # 图标路径变更
+                if 'icon_path' in old_values or 'icon_path' in new_values:
+                    new_change.old_icon_path = old_values.get('icon_path')
+                    new_change.new_icon_path = new_values.get('icon_path')
+                
+                # 图标颜色变更
+                if 'icon_color' in old_values or 'icon_color' in new_values:
+                    new_change.old_icon_color = old_values.get('icon_color')
+                    new_change.new_icon_color = new_values.get('icon_color')
+                
+                # 显示名称变更
+                if 'display_name' in old_values or 'display_name' in new_values:
+                    new_change.old_display_name = old_values.get('display_name')
+                    new_change.new_display_name = new_values.get('display_name')
+                
+                # 文件夹标识变更
+                if 'is_folder' in old_values or 'is_folder' in new_values:
+                    new_change.old_is_folder = old_values.get('is_folder')
+                    new_change.new_is_folder = new_values.get('is_folder')
+            
             session.add(new_change)
             session.commit()
             return new_change

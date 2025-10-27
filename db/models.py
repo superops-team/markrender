@@ -75,6 +75,34 @@ class MarkRenderChangeHistory(Base):
     change_page_settings = Column(Text, nullable=True)  # 变更页面定制化配置，JSON格式
     change_page_id = Column(Integer, nullable=True)  # 变更页面id
     
+    # 新增：记录所有字段的变更历史
+    old_title = Column(String, nullable=True)  # 旧标题
+    new_title = Column(String, nullable=True)  # 新标题
+    old_tags = Column(String, nullable=True)  # 旧标签
+    new_tags = Column(String, nullable=True)  # 新标签
+    old_render_style = Column(String, nullable=True)  # 旧渲染样式
+    new_render_style = Column(String, nullable=True)  # 新渲染样式
+    old_converter = Column(String, nullable=True)  # 旧转换器
+    new_converter = Column(String, nullable=True)  # 新转换器
+    old_status = Column(String, nullable=True)  # 旧状态
+    new_status = Column(String, nullable=True)  # 新状态
+    old_parent_id = Column(Integer, nullable=True)  # 旧父节点ID
+    new_parent_id = Column(Integer, nullable=True)  # 新父节点ID
+    old_order = Column(Integer, nullable=True)  # 旧排序
+    new_order = Column(Integer, nullable=True)  # 新排序
+    old_level = Column(Integer, nullable=True)  # 旧层级
+    new_level = Column(Integer, nullable=True)  # 新层级
+    old_icon_type = Column(String, nullable=True)  # 旧图标类型
+    new_icon_type = Column(String, nullable=True)  # 新图标类型
+    old_icon_path = Column(String, nullable=True)  # 旧图标路径
+    new_icon_path = Column(String, nullable=True)  # 新图标路径
+    old_icon_color = Column(String, nullable=True)  # 旧图标颜色
+    new_icon_color = Column(String, nullable=True)  # 新图标颜色
+    old_display_name = Column(String, nullable=True)  # 旧显示名称
+    new_display_name = Column(String, nullable=True)  # 新显示名称
+    old_is_folder = Column(Integer, nullable=True)  # 旧文件夹标识
+    new_is_folder = Column(Integer, nullable=True)  # 新文件夹标识
+    
     # 添加与主数据的关系
     markrender_data = relationship("MarkRenderData", back_populates="change_histories")
 
