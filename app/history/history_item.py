@@ -8,11 +8,10 @@ from PySide6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QSizePo
 from PySide6.QtCore import Qt, QRect
 from PySide6.QtGui import QFont, QPen, QPainter, QColor, QFontMetrics
 from app.preference.style_constants import (
-    NEUTRAL_50, NEUTRAL_100, NEUTRAL_200, NEUTRAL_300, NEUTRAL_500, NEUTRAL_600, NEUTRAL_700, NEUTRAL_900,
-    PRIMARY_50, PRIMARY_100, PRIMARY_200, PRIMARY_300, PRIMARY_500, PRIMARY_600, PRIMARY_700, 
-    SPACING_XS, SPACING_SM, SPACING_MD, SPACING_LG, RADIUS_SM, RADIUS_MD, 
-    FONT_SIZE_SM, FONT_SIZE_XS, FONT_SIZE_MD,
-    LINE_HEIGHT_NORMAL
+    NEUTRAL_200, NEUTRAL_500, NEUTRAL_600, NEUTRAL_700, NEUTRAL_900,
+    PRIMARY_50, PRIMARY_100, PRIMARY_300, PRIMARY_500, PRIMARY_600, PRIMARY_700, 
+    SPACING_SM, SPACING_MD, SPACING_LG, RADIUS_SM, RADIUS_MD, 
+    FONT_SIZE_SM, FONT_SIZE_XS
 )
 from utils.time_utils import get_readable_time
 
@@ -46,23 +45,18 @@ class HistoryItemWidget(QWidget):
         self.time_label.hide()  # 隐藏标签，我们手动绘制
         
         # 设置固定高度
-        self.setFixedHeight(56)  # 增加高度以提供更好的视觉效果
+        self.setFixedHeight(48)
         
         # 更新样式
         self.update_style()
     
     def _get_readable_change_type(self, change_type):
         """将变更类型转换为可读的文本"""
-        # 检查是否为当前版本的特殊标识
-        if change_type == 'current_version':
-            return '当前版本'
-            
         type_map = {
             'content_create': '创建',
             'content_update': '内容更新',
             'title_update': '重命名',
-            'setting_update': '设置更新',
-            'page_engine_update': '引擎更新'
+            'setting_update': '设置更新'
         }
         return type_map.get(change_type.lower(), change_type)
     
@@ -73,20 +67,15 @@ class HistoryItemWidget(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)  # 抗锯齿
         painter.save()
         
-        # 绘制背景 - 应用TDesign设计原则
+        # 绘制背景
         if self.is_selected:
-            # 选中状态：使用更明显的蓝色背景，增强对比度
+            # 选中状态：使用浅蓝色背景
             painter.setBrush(QColor(PRIMARY_100))
             painter.setPen(Qt.PenStyle.NoPen)
             painter.drawRoundedRect(self.rect().adjusted(4, 2, -4, -2), RADIUS_MD, RADIUS_MD)
         elif self.is_hovered:
-            # 悬停状态：使用浅蓝色背景
+            # 悬停状态：使用更浅的蓝色背景
             painter.setBrush(QColor(PRIMARY_50))
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.drawRoundedRect(self.rect().adjusted(4, 2, -4, -2), RADIUS_MD, RADIUS_MD)
-        else:
-            # 默认状态：使用白色背景
-            painter.setBrush(QColor(NEUTRAL_50))
             painter.setPen(Qt.PenStyle.NoPen)
             painter.drawRoundedRect(self.rect().adjusted(4, 2, -4, -2), RADIUS_MD, RADIUS_MD)
         
@@ -94,20 +83,20 @@ class HistoryItemWidget(QWidget):
         type_text = self.type_label.text()
         time_text = self.time_label.text()
         
-        # 设置字体 - 应用TDesign字体系统
-        # 变更类型字体（中等粗体）
+        # 设置字体
+        # 变更类型字体（粗体）
         type_font = QFont()
-        type_font.setWeight(QFont.Weight.Medium)  # 中等粗体
-        type_font.setPointSize(FONT_SIZE_SM)
+        type_font.setBold(True)
+        type_font.setPointSize(FONT_SIZE_XS)
         
         # 时间字体（常规）
         time_font = QFont()
-        time_font.setPointSize(FONT_SIZE_XS)
+        time_font.setPointSize(FONT_SIZE_SM)
         
-        # 设置边距和间距 - 应用Robin Williams设计原则
+        # 设置边距和间距
         horizontal_margin = 16  # 水平边距
-        vertical_margin = 12     # 垂直边距
-        text_spacing = 16       # 文本间距
+        vertical_margin = 8     # 垂直边距
+        text_spacing = 12       # 文本间距
         
         # 计算文本位置（应用Robin Williams设计原则）
         # 1. 亲密性：将相关元素组织在一起
@@ -121,11 +110,11 @@ class HistoryItemWidget(QWidget):
         # 绘制变更类型文本（左侧）
         painter.setFont(type_font)
         if self.is_selected:
-            painter.setPen(QColor(PRIMARY_700))  # 选中时使用更深的蓝色
+            painter.setPen(QColor(PRIMARY_600))  # 选中时使用深蓝色
         else:
-            painter.setPen(QColor(NEUTRAL_900))  # 默认使用深色文本
+            painter.setPen(QColor(PRIMARY_500))  # 默认使用蓝色
         
-        # 应用对比原则：变更类型使用深色强调
+        # 应用对比原则：变更类型使用粗体和蓝色强调
         type_metrics = QFontMetrics(type_font)
         type_width = type_metrics.horizontalAdvance(type_text)
         type_y = center_y + (type_metrics.ascent() - type_metrics.descent()) // 2
@@ -134,7 +123,7 @@ class HistoryItemWidget(QWidget):
         # 绘制时间文本（右侧）
         painter.setFont(time_font)
         if self.is_selected:
-            painter.setPen(QColor(PRIMARY_600))  # 选中时使用深蓝色
+            painter.setPen(QColor(PRIMARY_700))  # 选中时使用更深的蓝色
         else:
             painter.setPen(QColor(NEUTRAL_500))  # 默认使用灰色
         

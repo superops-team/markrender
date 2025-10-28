@@ -1,5 +1,6 @@
 import os
 import threading
+import webbrowser
 from typing import Dict, Optional, Callable, List
 from PySide6.QtWidgets import QStackedWidget
 from PySide6.QtWebEngineWidgets import QWebEngineView
@@ -48,8 +49,8 @@ class PageChannelBinding:
 class CustomWebEnginePage(QWebEnginePage):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.backend_interface = None
-        self.page_type = None
+        self.backend_interface: Optional[QObject] = None
+        self.page_type: Optional[str] = None
     
     def javaScriptConsoleMessage(self, level, message, line_number, source_id):
         """处理JavaScript控制台消息"""
@@ -79,6 +80,24 @@ class CustomWebEnginePage(QWebEnginePage):
             logger.info(log_message)
         else:
             logger.debug(log_message)
+    
+    def acceptNavigationRequest(self, url, navigation_type, is_main_frame):
+        """处理导航请求，将外部链接在系统浏览器中打开"""
+        # 检查是否为链接点击导航
+        if navigation_type == QWebEnginePage.NavigationType.NavigationTypeLinkClicked:
+            # 检查URL是否为外部链接（不是本地文件）
+            if url.scheme() in ['http', 'https']:
+                try:
+                    # 在系统默认浏览器中打开链接
+                    webbrowser.open(url.toString())
+                    logger.info(f"在外部浏览器中打开链接: {url.toString()}")
+                    # 拒绝在当前页面中打开
+                    return False
+                except Exception as e:
+                    logger.error(f"打开外部链接失败: {e}")
+        
+        # 对于其他导航请求，使用默认行为
+        return super().acceptNavigationRequest(url, navigation_type, is_main_frame)
 
 # 更新WebPageManager类中的create_page方法
 class WebPageManager(QStackedWidget):
