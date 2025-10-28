@@ -34,7 +34,7 @@ class MarkRenderItem(QObject):
         self._text = ""
         self.text_changed.emit("")  # 发射清空内容的信号
 
-    text = Property(str, get_text, set_text, notify=text_changed)
+    text = Property(str, get_text, set_text)
 
 
 class MarkRenderEditor(QWidget):
@@ -196,9 +196,13 @@ class MarkRenderEditor(QWidget):
                 # 只有当success为False时才认为获取内容失败
                 error_msg = parsed_data.get('error', '未知错误') if parsed_data else '获取内容失败'
                 logger.error(f"获取编辑器内容失败: {error_msg}")
-                return False
-            content = parsed_data.get("content", "")
-            frontend_item_id = parsed_data.get("item_id", "")
+                # 即使获取内容失败，也要尝试保存（可能是空内容）
+                content = ""
+                frontend_item_id = self.item.item_id
+            else:
+                content = parsed_data.get("content", "")
+                frontend_item_id = parsed_data.get("item_id", "")
+            
             # 验证item_id一致性
             if frontend_item_id and self.item.item_id and frontend_item_id != self.item.item_id:
                 logger.warning(f"保存时发现item_id不一致: 前端={frontend_item_id}, 后端={self.item.item_id}")
@@ -209,20 +213,33 @@ class MarkRenderEditor(QWidget):
             if not item_id:
                 logger.error(f"无法确保有效的item_id，跳过保存, page_type: {self.page_type}")
                 return False
-            success = self.markrender_manager.save_item(
-                id=item_id, 
-                content=content
-            )
             
-            if success:
-                logger.info(f"手动保存成功: {item_id}，内容长度: {len(content)}")
-                # 通知父窗口重新加载快速选择面板中的数据
-                if hasattr(self.parent, 'update_quickpick_list'):
-                    self.parent.update_quickpick_list()
-                return True
+            # 在保存前记录旧内容，用于比较是否真的有变化
+            old_record = self.markrender_manager.get_detail(item_id)
+            old_content = old_record.get('content', '') if old_record else ''
+            
+            # 只有当内容真正发生变化时才保存
+            if content != old_content:
+                success = self.markrender_manager.save_item(
+                    id=item_id, 
+                    content=content
+                )
+                
+                if success:
+                    logger.info(f"手动保存成功: {item_id}，内容长度: {len(content)}")
+                    # 通知父窗口重新加载快速选择面板中的数据
+                    try:
+                        if hasattr(self.parent, 'update_quickpick_list'):
+                            self.parent.update_quickpick_list()
+                    except Exception as e:
+                        logger.error(f"更新快速选择列表失败: {e}")
+                    return True
+                else:
+                    logger.error("保存到数据库失败")
+                    return False
             else:
-                logger.error("保存到数据库失败")
-                return False
+                logger.info(f"内容未发生变化，跳过保存: {item_id}")
+                return True
         except Exception as e:
             logger.error(f"保存文档失败: {str(e)}，但允许继续切换")
             return False
@@ -244,16 +261,26 @@ class MarkRenderEditor(QWidget):
                     if parsed_data.get('success', False):
                         content = parsed_data.get("content", "")
                         item_id = self.item.item_id          
-                        success = self.markrender_manager.save_item(
-                            id=item_id, 
-                            content=content
-                        )
-                        if success:
-                            logger.info(f"手动保存成功: {item_id}，内容长度: {len(content)}")
-                            save_result = True
+                        
+                        # 在保存前记录旧内容，用于比较是否真的有变化
+                        old_record = self.markrender_manager.get_detail(item_id)
+                        old_content = old_record.get('content', '') if old_record else ''
+                        
+                        # 只有当内容真正发生变化时才保存
+                        if content != old_content:
+                            success = self.markrender_manager.save_item(
+                                id=item_id, 
+                                content=content
+                            )
+                            if success:
+                                logger.info(f"手动保存成功: {item_id}，内容长度: {len(content)}")
+                                save_result = True
+                            else:
+                                logger.error("保存到数据库失败")
+                                save_result = False
                         else:
-                            logger.error("保存到数据库失败")
-                            save_result = False
+                            logger.info(f"内容未发生变化，跳过保存: {item_id}")
+                            save_result = True
                     else:
                         # 只有当success为False时才认为获取内容失败
                         error_msg = parsed_data.get('error', '未知错误') if parsed_data else '获取内容失败'

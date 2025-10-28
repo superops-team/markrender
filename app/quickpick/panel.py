@@ -169,19 +169,13 @@ class QuickPickPanel(QWidget):
             new_tags = dialog.get_new_tags()
             logger.info(f"从对话框获取的新标签: '{new_tags}'")
             
-            # 更新item_data
-            item_data['title'] = new_title
-            item_data['tags'] = new_tags
-            logger.info(f"更新后的item_data标题: {item_data['title']}")
-            logger.info(f"更新后的item_data标签: '{item_data['tags']}'")
-            
             # 获取可能更新的字段
             new_icon_type = dialog.get_new_icon_type()
             new_icon_path = dialog.get_new_icon_path()
             new_display_name = dialog.get_new_display_name()
             new_page_type = dialog.get_new_page_type()
             new_icon_color = dialog.get_new_icon_color()
-            
+                    
             # 更新item_data中的字段，只更新非None的值
             if new_icon_type is not None:
                 item_data['icon_type'] = new_icon_type
@@ -193,29 +187,51 @@ class QuickPickPanel(QWidget):
                 item_data['page_type'] = new_page_type
             if new_icon_color is not None:
                 item_data['icon_color'] = new_icon_color
+                    
+            # 更新item_data
+            item_data['title'] = new_title
+            item_data['tags'] = new_tags
+            logger.info(f"更新后的item_data标题: {item_data['title']}")
+            logger.info(f"更新后的item_data标签: '{item_data['tags']}'")
             
             # 调用数据库更新逻辑
             if 'id' in item_data:
                 try:
-                    # 构建更新参数字典，只包含需要更新的字段
-                    update_params = {
-                        'id': item_data['id'],
-                        'title': item_data['title'],  # 使用更新后的标题
-                        'tags': item_data['tags']  # 确保标签正确传递
-                    }
-                    logger.info(f"构建的更新参数字典: {update_params}")
+                    # 执行数据库更新
+                    # 检查是否有图标或显示名称的更新
+                    icon_updated = False
+                    display_name_updated = False
+                    other_fields_updated = False
                     
-                    # 只添加非None的字段到更新参数中
+                    # 构建更新参数
+                    update_params = {
+                        'id': item_data['id']
+                    }
+                    
+                    # 添加标题（如果已更新）
+                    if 'title' in item_data:
+                        update_params['title'] = item_data['title']
+                    
+                    # 添加标签（如果已更新）
+                    if 'tags' in item_data:
+                        update_params['tags'] = item_data['tags']
+                    
+                    # 检查图标相关字段
+                    icon_fields = {}
                     if new_icon_type is not None:
-                        update_params['icon_type'] = new_icon_type
+                        icon_fields['icon_type'] = new_icon_type
                     if new_icon_path is not None:
-                        update_params['icon_path'] = new_icon_path
+                        icon_fields['icon_path'] = new_icon_path
+                    if new_icon_color is not None:
+                        icon_fields['icon_color'] = new_icon_color
+                    
+                    # 检查显示名称
                     if new_display_name is not None:
-                        update_params['display_name'] = new_display_name
+                        display_name_updated = True
+                    
+                    # 检查页面类型
                     if new_page_type is not None:
                         update_params['page_type'] = new_page_type
-                    if new_icon_color is not None:
-                        update_params['icon_color'] = new_icon_color
                     
                     # 添加必要的额外字段，确保树形结构不被破坏
                     update_params['parent_id'] = item_data.get('parent_id')
@@ -226,7 +242,32 @@ class QuickPickPanel(QWidget):
                     logger.info(f"准备保存更新参数: {update_params}")
                     
                     # 执行数据库更新
-                    self.markrender_manager.save_item(**update_params)
+                    if icon_fields or display_name_updated:
+                        # 如果有图标或显示名称更新，使用专门的更新方法
+                        if icon_fields:
+                            self.markrender_manager.update_icon(
+                                item_data['id'],
+                                icon_type=icon_fields.get('icon_type'),
+                                icon_path=icon_fields.get('icon_path'),
+                                icon_color=icon_fields.get('icon_color')
+                            )
+                        
+                        if display_name_updated:
+                            self.markrender_manager.update_display_name(
+                                item_data['id'],
+                                new_display_name
+                            )
+                        
+                        # 更新其他字段
+                        # 移除图标和显示名称字段，因为它们已经通过专门的方法更新了
+                        other_update_params = {k: v for k, v in update_params.items() 
+                                             if k not in ['icon_type', 'icon_path', 'icon_color', 'display_name']}
+                        if len(other_update_params) > 1:  # 至少包含id和其他字段
+                            self.markrender_manager.save_item(**other_update_params)
+                    else:
+                        # 如果没有图标或显示名称更新，使用常规的save_item方法
+                        self.markrender_manager.save_item(**update_params)
+                    
                     logger.info("数据库更新完成")
                     
                     # 更新树中的节点数据，而不是刷新整个树
@@ -440,6 +481,7 @@ class QuickPickPanel(QWidget):
         if self._parent is not None and hasattr(self._parent, 'editor'):
             editor = getattr(self._parent, 'editor', None)
             if editor:
+                # 使用增强版保存方法，确保数据不会丢失
                 success = editor.save_current_item()
                 if not success:
                     logger.error("保存当前文件失败，取消页面切换")
@@ -469,7 +511,9 @@ class QuickPickPanel(QWidget):
         if self._parent is not None and hasattr(self._parent, 'editor'):
             editor = getattr(self._parent, 'editor', None)
             if editor:
-                editor.save_current_item(callback=internal_callback)
+                # 使用增强版保存方法
+                success = editor.save_current_item()
+                internal_callback(success)
     
     def _execute_switch(self):
         """执行页面切换"""
@@ -1048,10 +1092,42 @@ class QuickPickPanel(QWidget):
         if not current_item or 'id' not in current_item:
             logger.warning("传入的 current_item 为空或缺少 id 字段")
             return
-        for i in range(self.quickpick_list.topLevelItemCount()):
-            item = self.quickpick_list.topLevelItem(i)
-            if item:
-                data = item.data(0, Qt.ItemDataRole.UserRole)
-                if data and data.get('id') == current_item['id']:
-                    self.quickpick_list.setCurrentItem(item)
-                    break
+            
+        def find_and_select_item(parent_item):
+            """递归查找并选中项"""
+            if parent_item is None:
+                # 搜索顶层节点
+                for i in range(self.quickpick_list.topLevelItemCount()):
+                    item = self.quickpick_list.topLevelItem(i)
+                    if item:
+                        data = item.data(0, Qt.ItemDataRole.UserRole)
+                        if data and data.get('id') == current_item['id']:
+                            self.quickpick_list.setCurrentItem(item)
+                            # 确保选中项可见
+                            self.quickpick_list.scrollToItem(item, QAbstractItemView.ScrollHint.PositionAtCenter)
+                            # 触发选中信号，确保UI状态同步更新
+                            self.quickpick_item_selected.emit(data)
+                            return True
+                        # 递归搜索子节点
+                        if find_and_select_item(item):
+                            return True
+            else:
+                # 搜索子节点
+                for i in range(parent_item.childCount()):
+                    item = parent_item.child(i)
+                    if item:
+                        data = item.data(0, Qt.ItemDataRole.UserRole)
+                        if data and data.get('id') == current_item['id']:
+                            self.quickpick_list.setCurrentItem(item)
+                            # 确保选中项可见
+                            self.quickpick_list.scrollToItem(item, QAbstractItemView.ScrollHint.PositionAtCenter)
+                            # 触发选中信号，确保UI状态同步更新
+                            self.quickpick_item_selected.emit(data)
+                            return True
+                        # 递归搜索子节点的子节点
+                        if find_and_select_item(item):
+                            return True
+            return False
+            
+        # 开始搜索
+        find_and_select_item(None)

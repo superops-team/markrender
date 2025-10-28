@@ -355,9 +355,7 @@ class ImportThread(QThread):
             # 假设转换过程可分步骤，这里简单模拟
             # step1: 获取文件属性
             size_kb = self.file_size / 1024
-            size_str = f'{
-                size_kb:.2f} KB' if size_kb < 1024 else f'{
-                size_kb / 1024:.2f} MB'
+            size_str = f'{size_kb:.2f} KB' if size_kb < 1024 else f'{size_kb / 1024:.2f} MB'
             title = os.path.splitext(self.file_name)[0]
             self.progress_updated.emit(25)
             last_id = self.markrender_manager.save_item(
@@ -390,9 +388,7 @@ class ImportThread(QThread):
             # step4: 刷新quickpick记录
             self.quickpick_panel.load_quickpick_items()
             process_time = time_utils.get_duration(self.converter_start, self.converter_end).total_seconds()
-            info_text = f"导入成功！\n处理时长: {
-                process_time:.2f} 秒\n文件格式: {
-                self.file_ext}\n文件大小: {size_str}"
+            info_text = f"导入成功！\n处理时长: {process_time:.2f} 秒\n文件格式: {self.file_ext}\n文件大小: {size_str}"
             self.finished.emit(info_text)
             self.progress_updated.emit(100)
         except Exception as e:

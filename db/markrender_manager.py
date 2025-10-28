@@ -163,93 +163,137 @@ class MarkRenderManager:
                     old_values = {}
                     new_values = {}
                     
+                    # 检查内容是否发生变化
+                    content_changed = content_str != old_content
+                    
                     # 更新字段
-                    setattr(history, 'content', content_str)
-                    setattr(history, 'content_md5', content_md5)
-                    setattr(history, 'updated_at', now)
+                    if content_changed:
+                        setattr(history, 'content', content_str)
+                        setattr(history, 'content_md5', content_md5)
+                        setattr(history, 'updated_at', now)
                     
                     # 更新其他可选字段
                     if title is not None and title != '':
-                        old_values['title'] = getattr(history, 'title', '')
-                        new_values['title'] = title
-                        logger.info(f"更新标题: '{title}'")
-                        setattr(history, 'title', title)
+                        old_title = getattr(history, 'title', '')
+                        if old_title != title:
+                            old_values['title'] = old_title
+                            new_values['title'] = title
+                            logger.info(f"更新标题: '{title}'")
+                            setattr(history, 'title', title)
                     elif title is None:
                         logger.info("标题参数为None，保持原有标题不变")
                     if tags is not None and tags != '':
-                        old_values['tags'] = getattr(history, 'tags', '')
-                        new_values['tags'] = tags
-                        logger.info(f"更新标签: {tags}")
-                        setattr(history, 'tags', tags)
+                        old_tags = getattr(history, 'tags', '')
+                        if old_tags != tags:
+                            old_values['tags'] = old_tags
+                            new_values['tags'] = tags
+                            logger.info(f"更新标签: {tags}")
+                            setattr(history, 'tags', tags)
                     elif tags is None:
                         logger.info("标签参数为None，保持原有标签不变")
                     if render_style is not None:
-                        old_values['render_style'] = getattr(history, 'render_style', '')
-                        new_values['render_style'] = render_style
-                        setattr(history, 'render_style', render_style)
+                        old_render_style = getattr(history, 'render_style', '')
+                        if old_render_style != render_style:
+                            old_values['render_style'] = old_render_style
+                            new_values['render_style'] = render_style
+                            setattr(history, 'render_style', render_style)
                     if file_path is not None:
-                        setattr(history, 'file_path', file_path)
+                        old_file_path = getattr(history, 'file_path', '')
+                        if old_file_path != file_path:
+                            setattr(history, 'file_path', file_path)
                     if converter is not None:
-                        old_values['converter'] = getattr(history, 'converter', '')
-                        new_values['converter'] = converter
-                        setattr(history, 'converter', converter)
+                        old_converter = getattr(history, 'converter', '')
+                        if old_converter != converter:
+                            old_values['converter'] = old_converter
+                            new_values['converter'] = converter
+                            setattr(history, 'converter', converter)
                     if theme_id is not None:
-                        setattr(history, 'theme_id', theme_id)
+                        old_theme_id_field = getattr(history, 'theme_id', 0)
+                        if old_theme_id_field != theme_id:
+                            setattr(history, 'theme_id', theme_id)
                     if status is not None:
-                        old_values['status'] = getattr(history, 'status', '')
-                        new_values['status'] = status
-                        setattr(history, 'status', status)
+                        old_status = getattr(history, 'status', '')
+                        if old_status != status:
+                            old_values['status'] = old_status
+                            new_values['status'] = status
+                            setattr(history, 'status', status)
                     if converter_start is not None:
-                        setattr(history, 'converter_start', converter_start)
+                        old_converter_start = getattr(history, 'converter_start', None)
+                        if old_converter_start != converter_start:
+                            setattr(history, 'converter_start', converter_start)
                     if converter_end is not None:
-                        setattr(history, 'converter_end', converter_end)
+                        old_converter_end = getattr(history, 'converter_end', None)
+                        if old_converter_end != converter_end:
+                            setattr(history, 'converter_end', converter_end)
                     if page_type is not None:
-                        setattr(history, 'page_type', page_type)
+                        old_page_type_field = getattr(history, 'page_type', '')
+                        if old_page_type_field != page_type:
+                            setattr(history, 'page_type', page_type)
                     if page_settings is not None:
-                        setattr(history, 'page_settings', page_settings)
+                        old_page_settings = getattr(history, 'page_settings', '')
+                        if old_page_settings != page_settings:
+                            setattr(history, 'page_settings', page_settings)
                     if page_engine is not None:
-                        setattr(history, 'page_engine', page_engine)
+                        old_page_engine = getattr(history, 'page_engine', '')
+                        if old_page_engine != page_engine:
+                            setattr(history, 'page_engine', page_engine)
                     # 树形结构字段
                     if parent_id is not None:
-                        old_values['parent_id'] = getattr(history, 'parent_id', None)
-                        new_values['parent_id'] = parent_id
-                        setattr(history, 'parent_id', parent_id)
+                        old_parent_id = getattr(history, 'parent_id', None)
+                        if old_parent_id != parent_id:
+                            old_values['parent_id'] = old_parent_id
+                            new_values['parent_id'] = parent_id
+                            setattr(history, 'parent_id', parent_id)
                     if order is not None:
-                        old_values['order'] = getattr(history, 'order', 0)
-                        new_values['order'] = order
-                        setattr(history, 'order', order)
+                        old_order = getattr(history, 'order', 0)
+                        if old_order != order:
+                            old_values['order'] = old_order
+                            new_values['order'] = order
+                            setattr(history, 'order', order)
                     if level is not None:
-                        old_values['level'] = getattr(history, 'level', 0)
-                        new_values['level'] = level
-                        setattr(history, 'level', level)
+                        old_level = getattr(history, 'level', 0)
+                        if old_level != level:
+                            old_values['level'] = old_level
+                            new_values['level'] = level
+                            setattr(history, 'level', level)
                     if is_folder is not None:
-                        old_values['is_folder'] = getattr(history, 'is_folder', 0)
-                        new_values['is_folder'] = is_folder
-                        setattr(history, 'is_folder', is_folder)
+                        old_is_folder = getattr(history, 'is_folder', 0)
+                        if old_is_folder != is_folder:
+                            old_values['is_folder'] = old_is_folder
+                            new_values['is_folder'] = is_folder
+                            setattr(history, 'is_folder', is_folder)
                     # 图标和显示字段
                     if icon_type is not None:
-                        old_values['icon_type'] = getattr(history, 'icon_type', None)
-                        new_values['icon_type'] = icon_type
-                        setattr(history, 'icon_type', icon_type)
+                        old_icon_type = getattr(history, 'icon_type', None)
+                        if old_icon_type != icon_type:
+                            old_values['icon_type'] = old_icon_type
+                            new_values['icon_type'] = icon_type
+                            setattr(history, 'icon_type', icon_type)
                     if icon_path is not None:
-                        old_values['icon_path'] = getattr(history, 'icon_path', None)
-                        new_values['icon_path'] = icon_path
-                        setattr(history, 'icon_path', icon_path)
+                        old_icon_path = getattr(history, 'icon_path', None)
+                        if old_icon_path != icon_path:
+                            old_values['icon_path'] = old_icon_path
+                            new_values['icon_path'] = icon_path
+                            setattr(history, 'icon_path', icon_path)
                     if icon_color is not None:
-                        old_values['icon_color'] = getattr(history, 'icon_color', None)
-                        new_values['icon_color'] = icon_color
-                        setattr(history, 'icon_color', icon_color)
+                        old_icon_color = getattr(history, 'icon_color', None)
+                        if old_icon_color != icon_color:
+                            old_values['icon_color'] = old_icon_color
+                            new_values['icon_color'] = icon_color
+                            setattr(history, 'icon_color', icon_color)
                     if display_name is not None:
-                        old_values['display_name'] = getattr(history, 'display_name', None)
-                        new_values['display_name'] = display_name
-                        setattr(history, 'display_name', display_name)
+                        old_display_name = getattr(history, 'display_name', None)
+                        if old_display_name != display_name:
+                            old_values['display_name'] = old_display_name
+                            new_values['display_name'] = display_name
+                            setattr(history, 'display_name', display_name)
                     
                     session.commit()
                     changed = True
                     logger.info(f"记录更新完成，ID: {id}")
                     
-                    # 记录字段变更历史
-                    if old_values or new_values:
+                    # 记录字段变更历史（仅当有字段发生变化时）
+                    if old_values or new_values or content_changed:
                         self._save_change_history(
                             session, id, old_content or '', content_str, 'field_update',
                             'user_edit', 'user', '127.0.0.1', file_path or '',
@@ -288,7 +332,7 @@ class MarkRenderManager:
                         display_name=display_name,
                     )
                     session.add(new_history)
-                    session.commit()
+                    session.flush()  # 确保获取到ID
                     id = getattr(new_history, 'id', 0)
                     changed = True
                     
@@ -298,6 +342,7 @@ class MarkRenderManager:
                         'user_create', 'user', '127.0.0.1', file_path or '',
                         theme_id or 0, page_type or '', page_engine or '', page_settings or ''
                     )
+                    session.commit()
             else:
                 # 创建新记录
                 logger.info(f"创建新记录")
@@ -330,7 +375,7 @@ class MarkRenderManager:
                     display_name=display_name,
                 )
                 session.add(new_history)
-                session.commit()
+                session.flush()  # 确保获取到ID
                 id = getattr(new_history, 'id', 0)
                 changed = True
                 
@@ -340,6 +385,7 @@ class MarkRenderManager:
                     'user_create', 'user', '127.0.0.1', file_path or '',
                     theme_id or 0, page_type or '', page_engine or '', page_settings or ''
                 )
+                session.commit()
         except Exception as e:
             session.rollback()
             logger.error(f"Error saving markdown: {e}")
@@ -375,6 +421,8 @@ class MarkRenderManager:
             new_values: 新字段值字典
         """
         try:
+            logger.info(f"准备保存变更历史记录: file_id={file_id}, change_type={change_type}, change_reason={change_reason}")
+            
             # 确保new_content是字符串类型
             if isinstance(new_content, dict):
                 content_str = json.dumps(new_content, ensure_ascii=False)
@@ -412,6 +460,7 @@ class MarkRenderManager:
             
             # 如果提供了字段变更信息，则记录所有字段的变更
             if old_values and new_values:
+                logger.info(f"记录字段变更: old_values={old_values}, new_values={new_values}")
                 # 标题变更
                 if 'title' in old_values or 'title' in new_values:
                     new_change.old_title = old_values.get('title')
@@ -478,10 +527,11 @@ class MarkRenderManager:
                     new_change.new_is_folder = new_values.get('is_folder')
             
             session.add(new_change)
-            session.commit()
+            logger.info(f"变更历史记录已添加到session: change_id={new_change.id if new_change.id else '未分配'}")
+            # 注意：不在此处commit，由调用方负责commit
             return new_change
         except Exception as e:
-            session.rollback()
+            # 注意：不在此处rollback，由调用方负责rollback
             logger.error(f"Error saving change history: {e}")
             raise e
 
@@ -692,7 +742,7 @@ class MarkRenderManager:
         session = self.Session()
         try:
             return session.query(MarkRenderChangeHistory).filter_by(
-                file_id=file_id).order_by(MarkRenderChangeHistory.change_at.desc()).limit(20).all()
+                change_page_id=file_id).order_by(MarkRenderChangeHistory.change_at.desc()).limit(20).all()
         except Exception as e:
             logger.error(f"Error getting change history: {e}")
             raise e
@@ -749,25 +799,152 @@ class MarkRenderManager:
             record = session.query(MarkRenderData).filter_by(
                 id=id).first()
             if record:
-                pass
-                pass
                 # 保存旧标题用于历史记录
                 old_title = getattr(record, 'title', '')
-                setattr(record, 'title', title)
-                session.commit()
-                
-                # 记录标题变更历史
-                self._save_change_history(
-                    session, id, old_title or '', title or '', 'title_update',
-                    'user_edit', 'user', '127.0.0.1', getattr(record, 'file_path', '') or '',
-                    getattr(record, 'theme_id', 0) or 0, getattr(record, 'page_type', '') or '', 
-                    getattr(record, 'page_engine', '') or '', getattr(record, 'page_settings', '') or ''
-                )
+                if old_title != title:
+                    setattr(record, 'title', title)
+                    logger.info(f"更新标题: {old_title} -> {title}")
+                    
+                    # 记录标题变更历史
+                    old_values = {'title': old_title}
+                    new_values = {'title': title}
+                    logger.info(f"准备记录标题变更历史: old_values={old_values}, new_values={new_values}")
+                    self._save_change_history(
+                        session, id, 
+                        getattr(record, 'content', ''), 
+                        getattr(record, 'content', ''),
+                        'title_update',
+                        'user_edit', 
+                        'user', 
+                        '127.0.0.1', 
+                        getattr(record, 'file_path', '') or '',
+                        getattr(record, 'theme_id', 0) or 0, 
+                        getattr(record, 'page_type', '') or '', 
+                        getattr(record, 'page_engine', '') or '', 
+                        getattr(record, 'page_settings', '') or '',
+                        old_values,
+                        new_values
+                    )
+                    logger.info("标题变更历史记录已保存")
+                    
+                    session.commit()
+                    logger.info("标题更新已提交")
             else:
                 raise ValueError(f"未找到 ID 为 {id} 的记录")
         except Exception as e:
             session.rollback()
             logger.error(f"Error updating title: {e}")
+            raise e
+        finally:
+            session.close()
+    
+    def update_icon(self, id, icon_type=None, icon_path=None, icon_color=None):
+        """更新图标信息"""
+        if not id:
+            return
+        session = self.Session()
+        try:
+            record = session.query(MarkRenderData).filter_by(id=id).first()
+            if record:
+                old_values = {}
+                new_values = {}
+                changed = False
+                
+                # 更新图标类型
+                if icon_type is not None:
+                    old_icon_type = getattr(record, 'icon_type', None)
+                    if old_icon_type != icon_type:
+                        old_values['icon_type'] = old_icon_type
+                        new_values['icon_type'] = icon_type
+                        setattr(record, 'icon_type', icon_type)
+                        changed = True
+                
+                # 更新图标路径
+                if icon_path is not None:
+                    old_icon_path = getattr(record, 'icon_path', None)
+                    if old_icon_path != icon_path:
+                        old_values['icon_path'] = old_icon_path
+                        new_values['icon_path'] = icon_path
+                        setattr(record, 'icon_path', icon_path)
+                        changed = True
+                
+                # 更新图标颜色
+                if icon_color is not None:
+                    old_icon_color = getattr(record, 'icon_color', None)
+                    if old_icon_color != icon_color:
+                        old_values['icon_color'] = old_icon_color
+                        new_values['icon_color'] = icon_color
+                        setattr(record, 'icon_color', icon_color)
+                        changed = True
+                
+                # 只有在有变更时才提交和记录历史
+                if changed:
+                    # 记录图标变更历史
+                    self._save_change_history(
+                        session, id, 
+                        getattr(record, 'content', ''), 
+                        getattr(record, 'content', ''),
+                        'icon_update',
+                        'user_edit', 
+                        'user', 
+                        '127.0.0.1', 
+                        getattr(record, 'file_path', '') or '',
+                        getattr(record, 'theme_id', 0) or 0, 
+                        getattr(record, 'page_type', '') or '', 
+                        getattr(record, 'page_engine', '') or '', 
+                        getattr(record, 'page_settings', '') or '',
+                        old_values,
+                        new_values
+                    )
+                    
+                    session.commit()
+            else:
+                raise ValueError(f"未找到 ID 为 {id} 的记录")
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error updating icon: {e}")
+            raise e
+        finally:
+            session.close()
+    
+    def update_display_name(self, id, display_name):
+        """更新显示名称"""
+        if not id:
+            return
+        session = self.Session()
+        try:
+            record = session.query(MarkRenderData).filter_by(id=id).first()
+            if record:
+                old_display_name = getattr(record, 'display_name', None)
+                if old_display_name != display_name:
+                    setattr(record, 'display_name', display_name)
+                    
+                    # 记录显示名称变更历史
+                    old_values = {'display_name': old_display_name}
+                    new_values = {'display_name': display_name}
+                    self._save_change_history(
+                        session, id, 
+                        getattr(record, 'content', ''), 
+                        getattr(record, 'content', ''),
+                        'display_name_update',
+                        'user_edit', 
+                        'user', 
+                        '127.0.0.1', 
+                        getattr(record, 'file_path', '') or '',
+                        getattr(record, 'theme_id', 0) or 0, 
+                        getattr(record, 'page_type', '') or '', 
+                        getattr(record, 'page_engine', '') or '', 
+                        getattr(record, 'page_settings', '') or '',
+                        old_values,
+                        new_values
+                    )
+                    
+                    session.commit()
+            else:
+                raise ValueError(f"未找到 ID 为 {id} 的记录")
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error updating display name: {e}")
             raise e
         finally:
             session.close()

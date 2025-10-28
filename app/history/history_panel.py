@@ -70,7 +70,7 @@ class HistoryPanel(QWidget):
         # 设置统一的尺寸策略
         self.history_list.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         # 使用统一的样式系统
-        self.history_list.setStyleSheet(self.app_style.get_quickpick_panel())
+        self.history_list.setStyleSheet(self.app_style.get_history_panel())
         self.history_list.setUniformItemSizes(True)  # 确保项大小一致
         
         # 连接信号

@@ -596,6 +596,37 @@ class AppStyle:
     def get_editor_preview(self):
         return EDITOR_PREVIEW
 
+    def get_history_panel(self):
+        # 历史记录面板样式 - 简洁现代风格
+        return f"""
+        QListWidget {{
+            background-color: #ffffff;
+            border: 1px solid #e8e8e8;
+            border-radius: 8px;
+            padding: 4px;
+            font-size: 14px;
+            color: #111827;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }}
+        
+        QListWidget::item {{
+            height: 48px;
+            border-radius: 6px;
+            margin: 2px;
+        }}
+        
+        /* 选中状态 - 使用浅灰色背景，避免过于鲜艳的颜色 */
+        QListWidget::item:selected {{
+            background-color: {NEUTRAL_100};
+            color: {NEUTRAL_700};
+        }}
+        
+        /* 悬停状态 */
+        QListWidget::item:hover {{
+            background-color: {NEUTRAL_50};
+        }}
+        """
+
     def get_quickpick_panel(self):
         # 在打包环境中，需要使用绝对路径
         if hasattr(sys, '_MEIPASS'):

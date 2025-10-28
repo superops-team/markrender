@@ -95,7 +95,8 @@ class MainWindow(QMainWindow):
 
         self.minimize_btn.clicked.connect(self.showMinimized)
         self.maximize_btn.clicked.connect(self.toggle_maximize)
-        self.close_btn.clicked.connect(self.close)
+        # 修改关闭按钮连接，调用自定义方法
+        self.close_btn.clicked.connect(self.handle_close_button)
 
         # 将按钮添加到标题栏左侧
         title_bar_layout.addWidget(self.close_btn)
@@ -323,15 +324,14 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         """在窗口关闭前保存未保存的笔记并清理线程"""
         try:
-            # 快速检查编辑器状态
-            if self.editor:
-                logger.debug("主窗口关闭: 检查编辑器状态")
-                # 直接调用编辑器的保存方法，不再通过事件传递
-                if not self.editor._close_ready:
-                    logger.debug("执行编辑器保存操作")
-                    self.editor._perform_save_on_close()  
-                    # 标记编辑器已准备好关闭
-                    self.editor._close_ready = True
+            # 先最小化窗口
+            self.showMinimized()
+            
+            # 保存当前操作的item数据
+            if self.editor and hasattr(self.editor, 'item') and self.editor.item:
+                logger.debug("主窗口关闭: 保存当前编辑器内容")
+                self._perform_save_on_close()
+            
             logger.debug("主窗口正常关闭")
             # 所有准备工作完成，接受关闭事件
             event.accept()
@@ -345,8 +345,46 @@ class MainWindow(QMainWindow):
         # 调用父类的关闭事件处理
         super().closeEvent(event)
 
-    # 移除on_editor_close_ready方法，不再需要这个回调
-    
+    def _perform_save_on_close(self):
+        """在关闭时执行保存操作，不涉及事件处理"""
+        try:
+            # 退出前同步拉取数据并保存
+            if hasattr(self, 'editor') and self.editor and hasattr(self.editor, 'item') and self.editor.item.item_id:
+                result = self.editor.backend_interface.send_message_sync("getContent", {}, item_id=self.editor.item.item_id, timeout=10000)
+                if result and result.get('success', False): 
+                    content = result.get('content', '') if result else ''
+                    item_id = self.editor.item.item_id
+                    
+                    # 在保存前检查内容是否发生变化
+                    old_record = self.markrender_manager.get_detail(item_id)
+                    old_content = old_record.get('content', '') if old_record else ''
+                    
+                    # 只有当内容真正发生变化时才保存
+                    if content != old_content:
+                        self.markrender_manager.save_item(id=item_id, content=content)
+                        logger.debug(f"文档已保存: {item_id}")
+                    else:
+                        logger.debug(f"内容未发生变化，跳过保存: {item_id}")
+                else:
+                    # 即使获取内容失败，也要尝试保存（可能是空内容）
+                    item_id = self.editor.item.item_id
+                    content = ""
+                    
+                    # 在保存前检查内容是否发生变化
+                    old_record = self.markrender_manager.get_detail(item_id)
+                    old_content = old_record.get('content', '') if old_record else ''
+                    
+                    # 只有当内容真正发生变化时才保存
+                    if content != old_content:
+                        self.markrender_manager.save_item(id=item_id, content=content)
+                        logger.debug(f"文档已保存（空内容）: {item_id}")
+                    else:
+                        logger.debug(f"内容未发生变化，跳过保存: {item_id}")
+            self.editor._close_ready = True
+        except Exception as e:
+            logger.error(f"发送getContent消息时出错: {e}")
+            self.editor._close_ready = True
+
     # 实现窗口拖动功能
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -364,6 +402,19 @@ class MainWindow(QMainWindow):
         # 当双击主窗口时切换最大化状态
         self.toggle_maximize()
         event.accept()
+
+    def handle_close_button(self):
+        """处理关闭按钮点击事件"""
+        # 先最小化窗口
+        self.showMinimized()
+        
+        # 保存当前操作的item数据
+        if self.editor and hasattr(self.editor, 'item') and self.editor.item:
+            logger.debug("关闭按钮: 保存当前编辑器内容")
+            self._perform_save_on_close()
+        
+        # 然后退出应用
+        QApplication.instance().quit()
 
 if __name__ == "__main__":
     logger.info("应用启动")
