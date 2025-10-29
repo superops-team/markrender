@@ -3,6 +3,10 @@ from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from .base import Base
 from enum import Enum
+from sqlalchemy import event
+from utils.hash_utils import calculate_md5
+from utils import time_utils
+import json
 
 
 class Theme(Base):
@@ -115,3 +119,96 @@ class Settings(Base):
     value = Column(Text)  # 配置value, json格式
     created_at = Column(DateTime(timezone=True), server_default=func.now())  # 创建时间
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())  # 更新时间
+
+
+# 添加ORM事件监听器，自动创建历史记录
+@event.listens_for(MarkRenderData, 'before_update')
+def before_update_listener(mapper, connection, target):
+    """在更新MarkRenderData记录之前，创建历史记录"""
+    # 获取旧记录的值
+    old_record = connection.execute(
+        mapper.local_table.select().where(mapper.local_table.c.id == target.id)
+    ).fetchone()
+    
+    if old_record:
+        # 创建变更历史记录
+        change_type = 'content_update'
+        change_reason = 'auto_save'
+        change_by = 'system'
+        change_ip = '127.0.0.1'
+        
+        # 检查内容是否发生变化
+        old_content = old_record.content or ''
+        new_content = target.content or ''
+        
+        # 特别检查空白字符差异
+        old_stripped = old_content.strip()
+        new_stripped = new_content.strip()
+        content_changed = (old_content != new_content) or (old_stripped != new_stripped)
+        
+        # 如果内容发生变化，创建历史记录
+        if content_changed:
+            # 计算新内容的MD5
+            content_md5 = calculate_md5(new_content)
+            
+            # 构造历史记录数据
+            history_data = {
+                'file_id': target.id,
+                'old_content': old_content,
+                'new_content': new_content,
+                'change_type': change_type,
+                'change_reason': change_reason,
+                'change_by': change_by,
+                'change_ip': change_ip,
+                'change_content_md5': content_md5,
+                'change_file_path': target.file_path or '',
+                'change_theme_id': target.theme_id or 0,
+                'change_page_type': target.page_type or '',
+                'change_page_engine': target.page_engine or '',
+                'change_page_settings': target.page_settings or '',
+                'change_page_id': target.id
+            }
+            
+            # 插入历史记录
+            connection.execute(
+                MarkRenderChangeHistory.__table__.insert().values(**history_data)
+            )
+
+
+@event.listens_for(MarkRenderData, 'after_insert')
+def after_insert_listener(mapper, connection, target):
+    """在插入MarkRenderData记录之后，创建历史记录"""
+    # 创建变更历史记录
+    change_type = 'content_create'
+    change_reason = 'auto_save'
+    change_by = 'system'
+    change_ip = '127.0.0.1'
+    
+    # 获取新内容
+    new_content = target.content or ''
+    
+    # 计算新内容的MD5
+    content_md5 = calculate_md5(new_content)
+    
+    # 构造历史记录数据
+    history_data = {
+        'file_id': target.id,
+        'old_content': '',  # 新创建的记录没有旧内容
+        'new_content': new_content,
+        'change_type': change_type,
+        'change_reason': change_reason,
+        'change_by': change_by,
+        'change_ip': change_ip,
+        'change_content_md5': content_md5,
+        'change_file_path': target.file_path or '',
+        'change_theme_id': target.theme_id or 0,
+        'change_page_type': target.page_type or '',
+        'change_page_engine': target.page_engine or '',
+        'change_page_settings': target.page_settings or '',
+        'change_page_id': target.id
+    }
+    
+    # 插入历史记录
+    connection.execute(
+        MarkRenderChangeHistory.__table__.insert().values(**history_data)
+    )

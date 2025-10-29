@@ -41,13 +41,21 @@ class SettingsDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("软件设置")
-        self.setMinimumSize(680, 520)  # 优化尺寸以适应新的布局
-        self.setMaximumSize(800, 600)  # 限制最大尺寸保持紧凑
+        self.setMinimumSize(600, 450)  # 优化尺寸以适应新的布局，提高空间利用率
+        self.setMaximumSize(700, 550)  # 限制最大尺寸保持紧凑
         
         # 设置窗口属性和样式
         from PySide6.QtCore import Qt
         self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.WindowCloseButtonHint)
         self.setStyleSheet(create_dialog_style())
+        
+        # 设置对话框标题栏样式，移除窗口重复标题
+        self.setStyleSheet(self.styleSheet() + """
+            QDialog {
+                border: 1px solid """ + NEUTRAL_200 + """;
+                border-radius: """ + str(RADIUS_LG) + """px;
+            }
+        """)
         
         # 加载设置数据
         self.theme_settings = SettingsManager().get_settings_dict('theme')
@@ -73,8 +81,8 @@ class SettingsDialog(QDialog):
         """初始化UI - 基于Robin Williams四大设计原则优化"""
         # 主布局 - 使用合理的边距（对齐原则）
         main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(SPACING_2XL, SPACING_LG, SPACING_2XL, SPACING_XL)  # 减少顶部边距
-        main_layout.setSpacing(SPACING_LG)
+        main_layout.setContentsMargins(SPACING_XL, SPACING_MD, SPACING_XL, SPACING_LG)  # 优化边距以提高空间利用率
+        main_layout.setSpacing(SPACING_MD)
         
         # 创建和配置Tab控件（重复原则）
         self.tab_widget = QTabWidget()
@@ -97,13 +105,13 @@ class SettingsDialog(QDialog):
         """添加通用设置 tab - 应用亲密性和对齐原则"""
         general_tab = QWidget()
         layout = QVBoxLayout()
-        layout.setContentsMargins(SPACING_XL, SPACING_LG, SPACING_XL, SPACING_LG)
-        layout.setSpacing(SPACING_LG)
+        layout.setContentsMargins(SPACING_MD, SPACING_MD, SPACING_MD, SPACING_MD)
+        layout.setSpacing(SPACING_MD)
         
         # 自动保存设置组（亲密性原则）
         auto_save_group = self._create_group_box("自动保存设置")
         auto_save_layout = QVBoxLayout()
-        auto_save_layout.setSpacing(SPACING_MD)
+        auto_save_layout.setSpacing(SPACING_SM)
         
         # 自动保存复选框
         self.auto_save_checkbox = QCheckBox("启用自动保存")
@@ -137,7 +145,7 @@ class SettingsDialog(QDialog):
         # 搜索设置组（亲密性原则）
         search_group = self._create_group_box("搜索设置")
         search_layout = QVBoxLayout()
-        search_layout.setSpacing(SPACING_MD)
+        search_layout.setSpacing(SPACING_SM)
         
         search_label = QLabel("搜索结果排序条件：")
         search_label.setStyleSheet(self._get_label_style())
@@ -174,13 +182,13 @@ class SettingsDialog(QDialog):
         """添加编辑器设置 tab - 应用对比和重复原则"""
         editor_tab = QWidget()
         layout = QVBoxLayout()
-        layout.setContentsMargins(SPACING_XL, SPACING_LG, SPACING_XL, SPACING_LG)
-        layout.setSpacing(SPACING_LG)
+        layout.setContentsMargins(SPACING_MD, SPACING_MD, SPACING_MD, SPACING_MD)
+        layout.setSpacing(SPACING_MD)
         
         # 字体设置组（亲密性原则）
         font_group = self._create_group_box("字体设置")
         font_layout = QVBoxLayout()
-        font_layout.setSpacing(SPACING_MD)
+        font_layout.setSpacing(SPACING_SM)
         
         # 字体大小设置（对齐原则）
         font_size_container = QHBoxLayout()
@@ -223,13 +231,13 @@ class SettingsDialog(QDialog):
         """添加外观设置 tab - 重点应用对比原则"""
         appearance_tab = QWidget()
         layout = QVBoxLayout()
-        layout.setContentsMargins(SPACING_XL, SPACING_LG, SPACING_XL, SPACING_LG)
-        layout.setSpacing(SPACING_LG)
+        layout.setContentsMargins(SPACING_MD, SPACING_MD, SPACING_MD, SPACING_MD)
+        layout.setSpacing(SPACING_MD)
         
         # 主题设置组（亲密性原则）
         theme_group = self._create_group_box("主题设置")
         theme_layout = QVBoxLayout()
-        theme_layout.setSpacing(SPACING_MD)
+        theme_layout.setSpacing(SPACING_SM)
         
         # 深色模式切换（对比原则 - 突出重要功能）
         self.dark_mode_checkbox = QCheckBox("启用深色模式")
@@ -277,13 +285,13 @@ class SettingsDialog(QDialog):
         """添加导入导出设置 tab - 强调功能性分组"""
         import_export_tab = QWidget()
         layout = QVBoxLayout()
-        layout.setContentsMargins(SPACING_XL, SPACING_LG, SPACING_XL, SPACING_LG)
-        layout.setSpacing(SPACING_LG)
+        layout.setContentsMargins(SPACING_MD, SPACING_MD, SPACING_MD, SPACING_MD)
+        layout.setSpacing(SPACING_MD)
         
         # 导入限制设置组（亲密性原则）
         import_group = self._create_group_box("导入限制设置")
         import_layout = QVBoxLayout()
-        import_layout.setSpacing(SPACING_MD)
+        import_layout.setSpacing(SPACING_SM)
         
         # 最大导入大小设置（对齐原则）
         size_container = QHBoxLayout()
@@ -308,7 +316,7 @@ class SettingsDialog(QDialog):
         # PDF处理设置组（亲密性原则）
         pdf_group = self._create_group_box("PDF处理设置")
         pdf_layout = QVBoxLayout()
-        pdf_layout.setSpacing(SPACING_MD)
+        pdf_layout.setSpacing(SPACING_SM)
         
         pdf_label = QLabel("PDF导入解析方式：")
         pdf_label.setStyleSheet(self._get_label_style())
@@ -428,19 +436,20 @@ class SettingsDialog(QDialog):
                 background-color: {NEUTRAL_0};
                 border-radius: {RADIUS_MD}px;
                 margin-top: {SPACING_XS}px;
+                padding: {SPACING_SM}px;
             }}
             QTabBar::tab {{
-                background-color: {NEUTRAL_100};
+                background-color: {NEUTRAL_50};
                 color: {NEUTRAL_600};
                 border: 1px solid {NEUTRAL_200};
                 border-bottom: none;
-                padding: {SPACING_MD}px {SPACING_XL}px;
+                padding: {SPACING_SM}px {SPACING_MD}px;
                 margin-right: 2px;
                 border-top-left-radius: {RADIUS_SM}px;
                 border-top-right-radius: {RADIUS_SM}px;
-                font-size: {FONT_SIZE_MD}px;
+                font-size: {FONT_SIZE_SM}px;
                 font-weight: 500;
-                min-width: 120px;
+                min-width: 100px;
             }}
             QTabBar::tab:selected {{
                 background-color: {NEUTRAL_0};
@@ -457,7 +466,7 @@ class SettingsDialog(QDialog):
         """)
     
     def _add_button_area(self, layout):
-        """添加按钮区域（对齐原则）- 使用小尺寸按钮保持协调"""
+        """添加按钮区域（对齐原则）- 使用小尺寸按钮保持协调，按钮右对齐"""
         button_layout = QHBoxLayout()
         button_layout.setContentsMargins(0, SPACING_LG, 0, 0)
         
@@ -467,18 +476,20 @@ class SettingsDialog(QDialog):
         # 取消按钮（重复原则 - 统一按钮样式）- 使用小尺寸
         cancel_button = QPushButton("取消")
         cancel_button.clicked.connect(self.reject)
-        cancel_button.setStyleSheet(create_button_style("secondary", "sm"))  # 改为小尺寸
-        cancel_button.setMinimumWidth(60)  # 减小最小宽度
+        cancel_button.setStyleSheet(create_button_style("secondary", "sm"))
+        cancel_button.setMinimumWidth(60)
+        cancel_button.setMinimumHeight(28)  # 确保按钮高度一致
         
         # 保存按钮（对比原则 - 突出主要操作）- 使用小尺寸
         save_button = QPushButton("保存")
         save_button.clicked.connect(self.save_settings)
-        save_button.setStyleSheet(create_button_style("primary", "sm"))  # 改为小尺寸
-        save_button.setMinimumWidth(60)  # 减小最小宽度
-        save_button.setDefault(True)  # 设为默认按钮
+        save_button.setStyleSheet(create_button_style("primary", "sm"))
+        save_button.setMinimumWidth(60)
+        save_button.setMinimumHeight(28)  # 确保按钮高度一致
+        save_button.setDefault(True)
         
         button_layout.addWidget(cancel_button)
-        button_layout.addSpacing(SPACING_SM)  # 减小按钮间距
+        button_layout.addSpacing(SPACING_SM)
         button_layout.addWidget(save_button)
         
         layout.addLayout(button_layout)
@@ -494,7 +505,9 @@ class SettingsDialog(QDialog):
                 border: 1px solid {NEUTRAL_200};
                 border-radius: {RADIUS_SM}px;
                 margin-top: {SPACING_MD}px;
-                padding-top: {SPACING_MD}px;
+                padding-top: {SPACING_LG}px;
+                padding-left: {SPACING_MD}px;
+                padding-right: {SPACING_MD}px;
                 background-color: {NEUTRAL_0};
             }}
             QGroupBox::title {{
