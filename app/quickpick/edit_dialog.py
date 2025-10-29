@@ -23,7 +23,7 @@ from app.preference.style_constants import (
     INFO_500, INFO_600,
     SPACING_SM, SPACING_MD, SPACING_LG, SPACING_XL, SPACING_XS,
     FONT_SIZE_MD, FONT_SIZE_LG, FONT_SIZE_SM,
-    RADIUS_SM, RADIUS_MD, RADIUS_LG,
+    RADIUS_SM, RADIUS_MD, RADIUS_LG, RADIUS_PILL,
     BUTTON_HEIGHT_SM, BUTTON_HEIGHT_MD, BUTTON_HEIGHT_LG
 )
 from utils.logger_utils import logger
@@ -51,7 +51,11 @@ class EditItemDialog(QDialog):
         self.setWindowFlags(Qt.Dialog | Qt.WindowCloseButtonHint)
         
         # 使用统一的样式生成器，确保与应用程序风格一致
-        self.setStyleSheet(create_dialog_style())
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {NEUTRAL_0};
+            }}
+        """)
         self.init_ui()
 
     def init_ui(self):
@@ -61,48 +65,68 @@ class EditItemDialog(QDialog):
 
         # 创建主内容区域，合并原来的编辑和属性内容
         main_content = QWidget()
-        # 确保主内容区域无样式干扰，保持纯净背景
-        main_content.setStyleSheet("""
-            QWidget {
-                background-color: transparent;
-                border: none;
-                border-radius: 0px;
-            }
+        # 确保主内容区域无样式干扰，保持纯净背景，明确设置无圆角
+        main_content.setStyleSheet(f"""
+            QWidget {{
+                background-color: {NEUTRAL_0};
+            }}
         """)
         main_layout = QVBoxLayout(main_content)
-        main_layout.setContentsMargins(24, 24, 24, 24)  # 统一内边距
-        main_layout.setSpacing(24)  # 增大间距，改善元素分组
+        main_layout.setContentsMargins(SPACING_MD, SPACING_MD, SPACING_MD, SPACING_MD)  # 统一内边距
+        main_layout.setSpacing(SPACING_MD)  # 增大间距，改善元素分组
 
-        # 添加编辑区域
+        # 添加编辑区域（不含标题）
         self.add_edit_content(main_layout)
         
-        # 添加分隔线 - 使用更明显的样式区分区域
-        separator = QFrame()
-        separator.setFrameShape(QFrame.HLine)
-        separator.setFrameShadow(QFrame.Plain)
-        separator.setStyleSheet(f"border: 1px solid {NEUTRAL_200};")
-        main_layout.addWidget(separator)
-        
-        # 添加属性区域
+        # 添加属性区域（不含标题）
         self.add_detail_content(main_layout)
 
         # 按钮区域布局 - 确保按钮右对齐且有足够的间距
         button_layout = QHBoxLayout()
-        button_layout.setContentsMargins(24, 0, 24, 24)  # 与主内容区域保持一致的边距
-        button_layout.setSpacing(SPACING_MD)
+        button_layout.setContentsMargins(SPACING_MD, SPACING_MD, SPACING_MD, SPACING_MD)  # 统一内边距
+        button_layout.setSpacing(SPACING_SM)
+        
+        # 添加弹性空间将按钮推到右侧
         button_layout.addStretch()
         
-        # 取消按钮 - 使用次要按钮样式
+        # 取消按钮
         cancel_button = QPushButton("取消")
-        cancel_button.setStyleSheet(create_button_style("secondary", "sm"))
-        cancel_button.setFixedWidth(80)
+        cancel_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {NEUTRAL_50};
+                color: {NEUTRAL_700};
+                border: 1px solid {NEUTRAL_100};
+                border-radius: {RADIUS_MD}px;
+                padding: {SPACING_SM}px {SPACING_MD}px;
+                font-size: {FONT_SIZE_MD}px;
+                font-weight: 500;
+                min-width: 80px;
+            }}
+            QPushButton:hover {{
+                background-color: {NEUTRAL_100};
+            }}
+        """)
         cancel_button.clicked.connect(self.reject)
         button_layout.addWidget(cancel_button)
         
         # 保存按钮 - 使用TDesign风格的按钮样式
         save_button = QPushButton("保存")
-        save_button.setStyleSheet(create_button_style("primary", "sm"))
-        save_button.setFixedWidth(80)  # 调整按钮宽度，与取消按钮保持一致
+        save_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {PRIMARY_500};
+                color: {NEUTRAL_0};
+                border: 1px solid {PRIMARY_500};
+                border-radius: {RADIUS_MD}px;
+                padding: {SPACING_SM}px {SPACING_MD}px;
+                font-size: {FONT_SIZE_MD}px;
+                font-weight: 500;
+                min-width: 80px;
+            }}
+            QPushButton:hover {{
+                background-color: {PRIMARY_600};
+                border-color: {PRIMARY_600};
+            }}
+        """)
         save_button.setAutoDefault(False)  # 防止回车键触发保存，避免tag输入时对话框意外关闭
         save_button.clicked.connect(self.accept)
         
@@ -114,16 +138,6 @@ class EditItemDialog(QDialog):
 
     def add_edit_content(self, parent_layout):
         """添加编辑内容区域"""
-        # 添加标题
-        title_label = QLabel("编辑信息")
-        title_label.setStyleSheet(f"""
-            color: {NEUTRAL_900};
-            font-size: {FONT_SIZE_LG}px;
-            font-weight: 600;
-            margin-bottom: {SPACING_MD}px;
-        """)
-        parent_layout.addWidget(title_label)
-        
         form_layout = QFormLayout()
         form_layout.setContentsMargins(0, 0, 0, 0)
         form_layout.setSpacing(SPACING_LG)  # 增加间距，改善表单元素布局
@@ -136,12 +150,12 @@ class EditItemDialog(QDialog):
         self.title_edit = QLineEdit(self.markdown_data.get('title', ''))
         self.title_edit.setMinimumHeight(40)  # 统一高度
         self.title_edit.setStyleSheet(self.app_style.get_line_edit())
-        # 为标题输入框安装事件过滤器，防止回车触发图标选择对话框
-        self.title_edit.installEventFilter(self)
         title_label = self._make_label('标题')
         form_layout.addRow(title_label, self.title_edit)
+
+        parent_layout.addLayout(form_layout)
         
-        # 优化标签输入框
+        # 优化标签输入框（移到标签容器之前）
         tags_label = self._make_label('标签')
         self.tag_add_edit = QLineEdit()
         self.tag_add_edit.setMinimumHeight(40)
@@ -152,18 +166,25 @@ class EditItemDialog(QDialog):
         self.tag_add_edit.setAttribute(Qt.WA_InputMethodEnabled, True)  # 确保输入法正常工作
         self.tag_add_edit.setAttribute(Qt.WA_MacShowFocusRect, True)  # 在Mac上显示焦点矩形
         # 确保回车键只用于添加标签，不会触发对话框关闭或其他控件
-        self.tag_add_edit.installEventFilter(self)
         # 移除过度的自定义事件处理，使用Qt的默认行为
-        form_layout.addRow(tags_label, self.tag_add_edit)
+        
+        # 创建一个水平布局来放置标签和输入框
+        tag_input_layout = QHBoxLayout()
+        tag_input_layout.setContentsMargins(0, 0, 0, 0)
+        tag_input_layout.setSpacing(SPACING_SM)
+        tag_input_layout.addWidget(tags_label)
+        tag_input_layout.addWidget(self.tag_add_edit)
+        parent_layout.addLayout(tag_input_layout)
 
-        parent_layout.addLayout(form_layout)
+        # 为输入框安装事件过滤器，确保在初始化之后
+        self.title_edit.installEventFilter(self)
+        self.tag_add_edit.installEventFilter(self)
 
-        # 优化标签容器样式 - 使用柔和的边框和圆角
+        # 优化标签容器样式 - 使用柔和的边框和直角（移除圆角）
         self.tags_container = QWidget()
         self.tags_container.setStyleSheet(f'''
             QWidget {{
                 border: 1px solid {NEUTRAL_200};
-                border-radius: {RADIUS_MD}px;
                 background-color: {NEUTRAL_50};
                 padding: {SPACING_MD}px;
             }}
@@ -217,62 +238,75 @@ class EditItemDialog(QDialog):
         return label
 
     def _make_tag_widget(self, tag, with_delete_button=True):
+        # 创建一个水平布局的容器
         container = QWidget()
-        container.setMinimumHeight(36)  # 统一高度
-        container.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
-        # 使用青色系作为用户添加的标签，与列表页面markdown的绿色区分
-        container.setStyleSheet(f'''
-            QWidget {{
-                background-color: {INFO_500};
-                border: 1px solid {INFO_600};
-                border-radius: {RADIUS_LG}px;
+        container.setStyleSheet("background-color: transparent; border: none;")
+        
+        # 使用 QHBoxLayout 来水平排列标签和删除按钮
+        layout = QHBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(2)
+        
+        # 创建标签按钮，使用 QPushButton 实现圆角效果
+        tag_button = QPushButton(tag)
+        tag_button.setStyleSheet(f'''
+            QPushButton {{
+                background-color: {NEUTRAL_100};
+                border: 1px solid {NEUTRAL_200};
+                border-radius: 16px;
+                color: {NEUTRAL_700};
+                padding: 6px 12px;
+                font-size: {FONT_SIZE_SM}px;
+                font-weight: 500;
+                text-align: center;
+                min-height: 20px;
+            }}
+            QPushButton:hover {{
+                background-color: {NEUTRAL_200};
             }}
         ''')
-
-        layout = QHBoxLayout(container)
-        layout.setContentsMargins(16, 8, 12, 8)  # 增加内边距
-        layout.setSpacing(8)
-
-        tag_label = QLabel(tag)
-        tag_label.setStyleSheet('''
-            color: white;
-            background-color: transparent;
-            border: none;
-            padding: 0px;
-            font-weight: 500;
-        ''')
-        tag_label.setAlignment(Qt.AlignCenter)
-        layout.addWidget(tag_label, 1)
-
+        tag_button.setCursor(Qt.PointingHandCursor)
+        tag_button.setFocusPolicy(Qt.NoFocus)
+        
+        # 如果不需要删除按钮，直接返回标签按钮
         if not with_delete_button:
+            layout.addWidget(tag_button)
             return container
 
-        delete_button = QPushButton("×")  # 使用更好的删除符号
-        delete_button.setFixedSize(24, 24)
-        delete_button.setStyleSheet('''
-            QPushButton {
-                color: white;
-                background-color: rgba(255, 255, 255, 0.2);
-                font-size: 16px;
+        # 添加删除按钮
+        delete_button = QPushButton("×")
+        delete_button.setFixedSize(20, 20)
+        delete_button.setStyleSheet(f'''
+            QPushButton {{
+                color: {NEUTRAL_600};
+                background-color: transparent;
+                font-size: 14px;
                 font-weight: bold;
                 border: none;
-                border-radius: 12px;
+                border-radius: 10px;
                 padding: 0px;
-            }
-            QPushButton:hover {
-                background-color: rgba(255, 255, 255, 0.3);
-            }
-            QPushButton:pressed {
-                background-color: rgba(255, 255, 255, 0.4);
-            }
+                text-align: center;
+            }}
+            QPushButton:hover {{
+                color: {NEUTRAL_900};
+                background-color: {NEUTRAL_200};
+            }}
+            QPushButton:pressed {{
+                background-color: {NEUTRAL_300};
+            }}
         ''')
         delete_button.clicked.connect(lambda: self._remove_tag(tag, container))
+        delete_button.setCursor(Qt.PointingHandCursor)
+        delete_button.setFocusPolicy(Qt.NoFocus)
+        
+        # 添加到布局中
+        layout.addWidget(tag_button)
         layout.addWidget(delete_button)
-
-        # 计算容器宽度
-        text_width = tag_label.fontMetrics().boundingRect(tag).width() + 60  # 增加宽度
+        
+        # 设置容器的最小宽度
+        text_width = tag_button.fontMetrics().boundingRect(tag).width() + 60
         container.setMinimumWidth(text_width)
-
+        
         return container
 
     def _make_page_type_widget(self, page_type):
@@ -295,7 +329,6 @@ class EditItemDialog(QDialog):
             QWidget {{
                 background-color: {bg_color};
                 border: 1px solid {border_color};
-                border-radius: {RADIUS_LG}px;
             }}
         ''')
 
@@ -381,8 +414,6 @@ class EditItemDialog(QDialog):
             widget.deleteLater()
             self._refresh_tags()  # Re-render all tags to ensure consistency
 
-
-
     def _add_new_tag(self):
         """处理添加新标签，确保不会意外关闭对话框"""
         try:
@@ -403,17 +434,15 @@ class EditItemDialog(QDialog):
             print(f"添加标签时发生错误: {e}")
             self.tag_add_edit.clear()
     
-
-    
     def eventFilter(self, source, event):
         """事件过滤器，拦截标题和标签输入框的回车事件并阻止其传播"""
         # 处理标签输入框的回车事件
-        if source == self.tag_add_edit:
+        if hasattr(self, 'tag_add_edit') and source == self.tag_add_edit:
             if event.type() == event.Type.KeyPress and (event.key() == Qt.Key_Return or event.key() == Qt.Key_Enter):
                 self._add_new_tag()
                 return True
         # 处理标题输入框的回车事件，防止触发图标选择对话框
-        elif source == self.title_edit:
+        elif hasattr(self, 'title_edit') and source == self.title_edit:
             if event.type() == event.Type.KeyPress and (event.key() == Qt.Key_Return or event.key() == Qt.Key_Enter):
                 # 明确接受此事件，阻止其继续传播
                 return True
@@ -424,16 +453,6 @@ class EditItemDialog(QDialog):
 
     def add_detail_content(self, parent_layout):
         """添加详细信息区域"""
-        # 添加标题
-        detail_title = QLabel("文件属性")
-        detail_title.setStyleSheet(f"""
-            color: {NEUTRAL_900};
-            font-size: {FONT_SIZE_LG}px;
-            font-weight: 600;
-            margin-bottom: {SPACING_MD}px;
-        """)
-        parent_layout.addWidget(detail_title)
-        
         # 使用网格布局实现两列显示
         grid_layout = QGridLayout()
         grid_layout.setSpacing(SPACING_LG)

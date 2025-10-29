@@ -179,10 +179,6 @@ def create_dialog_style():
         background-color: {NEUTRAL_0};
         border: 1px solid {NEUTRAL_200};
         border-radius: {RADIUS_LG}px;
-        border-top-left-radius: {RADIUS_LG}px;
-        border-top-right-radius: {RADIUS_LG}px;
-        border-bottom-left-radius: {RADIUS_LG}px;
-        border-bottom-right-radius: {RADIUS_LG}px;
     }}
     """
 

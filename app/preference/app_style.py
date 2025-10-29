@@ -493,9 +493,11 @@ QTabBar::tab:selected {
 }
 
 /* 对话框统一圆角 */
+/*
 EditItemDialog {
     border-radius: 4px;
 }
+*/
 QPushButton {
     background-color: #0d6efd;
     color: white;

@@ -18,6 +18,7 @@ onefile:
 		--add-data "app/editor/plugins:app/editor/plugins" \
 		--noconfirm \
 		--hidden-import "numpy" \
+		--hidden-import "diff_match_patch" \
 		--exclude-module "PyQt5" \
 		--exclude-module "test" \
 		--exclude-module "tests" \

@@ -95,7 +95,12 @@ class QuickPickItemDelegate(QStyledItemDelegate):
         if isinstance(modified_time, str):
             return modified_time
         # 否则使用 get_readable_time 处理
-        return get_readable_time(modified_time)
+        readable_time = get_readable_time(modified_time)
+        # 同时添加年/月/日格式的时间
+        if hasattr(modified_time, 'strftime'):
+            date_str = modified_time.strftime('%Y/%m/%d')
+            return f"{date_str} {readable_time}"
+        return readable_time
 
     def _get_icon_for_file_type(self, file_type, icon_type=None, icon_path=None):
         """根据文件类型、图标类型或图标路径获取对应的图标"""

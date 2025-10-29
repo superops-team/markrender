@@ -49,15 +49,17 @@ def get_readable_time(modified_time: datetime):
         # 获取当前东八区时间
         now = datetime.now(beijing_tz)
         delta = now - modified_time
-        if delta < timedelta(seconds=60):
+        if delta.seconds < 10:
+            return '刚刚'
+        if 10 < delta.seconds < 60:
             return f'{delta.seconds}秒前'
-        elif delta < timedelta(minutes=60):
+        elif 60 <= delta.seconds < 3600:
             return f'{delta.seconds // 60}分钟前'
-        elif delta < timedelta(hours=24):
+        elif 3600 <= delta.seconds < 86400:
             return f'{delta.seconds // 3600}小时前'
-        elif delta < timedelta(days=30):
+        elif 86400 <= delta.days < 30:
             return f'{delta.days}天前'
-        elif delta < timedelta(days=365):
+        elif 30 <= delta.days < 365:
             return f'{delta.days // 30}个月前'
         else:
             return f'{delta.days // 365}年前'
