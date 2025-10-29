@@ -27,7 +27,7 @@ class IconSelectorDialog(QDialog):
         self.current_icon = current_icon
         self.selected_icon = current_icon
         self.setWindowTitle("选择图标")
-        self.setMinimumSize(700, 500)  # 增大对话框尺寸，提供更好的用户体验
+        self.setMinimumSize(800, 600)  # 增大对话框尺寸，提供更好的用户体验
         # 设置窗口标志，确保对话框行为正确
         self.setWindowFlags(Qt.Dialog | Qt.WindowCloseButtonHint)
         # 使用统一的样式生成器
@@ -104,7 +104,7 @@ class IconSelectorDialog(QDialog):
             QWidget {{
                 background-color: {NEUTRAL_50};
                 border: 1px solid {NEUTRAL_200};
-                border-radius: {RADIUS_MD}px;
+                border-radius: 0px;  /* 对话框内部使用直角，避免小圆角 */
             }}
         """)
         icon_container_layout = QVBoxLayout(icon_container)
@@ -122,7 +122,7 @@ class IconSelectorDialog(QDialog):
         # 图标网格
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)  # 允许水平滚动
         self.scroll_area.setStyleSheet(f"""
             QScrollArea {{
                 background-color: transparent;
@@ -150,6 +150,25 @@ class IconSelectorDialog(QDialog):
                 height: 0px;
                 subcontrol-origin: margin;
             }}
+            QScrollBar:horizontal {{
+                height: 8px;
+                background-color: {NEUTRAL_100};
+                margin: 0px;
+                border-radius: 4px;
+            }}
+            QScrollBar::handle:horizontal {{
+                background-color: {NEUTRAL_300};
+                border-radius: 4px;
+                min-width: 20px;
+            }}
+            QScrollBar::handle:horizontal:hover {{
+                background-color: {NEUTRAL_400};
+            }}
+            QScrollBar::sub-line:horizontal,
+            QScrollBar::add-line:horizontal {{
+                width: 0px;
+                subcontrol-origin: margin;
+            }}
         """)
         
         self.icon_container = QWidget()
@@ -168,20 +187,21 @@ class IconSelectorDialog(QDialog):
         button_layout.setSpacing(SPACING_MD)
         button_layout.addStretch()
         
+        # 取消按钮 - 使用与编辑对话框一致的小型按钮样式
         self.cancel_button = QPushButton("取消")
-        self.cancel_button.setStyleSheet(create_button_style("secondary", "md"))
-        self.cancel_button.setFixedWidth(100)
+        self.cancel_button.setStyleSheet(create_button_style("secondary", "sm"))
+        self.cancel_button.setFixedWidth(80)
+        self.cancel_button.clicked.connect(self.reject)
+        button_layout.addWidget(self.cancel_button)
         
+        # 确定按钮 - 使用与编辑对话框一致的小型按钮样式
         self.ok_button = QPushButton("确定")
-        self.ok_button.setStyleSheet(create_button_style("primary", "md"))
-        self.ok_button.setFixedWidth(100)
+        self.ok_button.setStyleSheet(create_button_style("primary", "sm"))
+        self.ok_button.setFixedWidth(80)
         self.ok_button.setDefault(True)
         self.ok_button.setEnabled(False)
-        
-        self.cancel_button.clicked.connect(self.reject)
         self.ok_button.clicked.connect(self.accept)
         
-        button_layout.addWidget(self.cancel_button)
         button_layout.addWidget(self.ok_button)
         layout.addLayout(button_layout)
         
@@ -229,8 +249,8 @@ class IconSelectorDialog(QDialog):
             
             # 创建图标按钮 - 使用更现代的样式
             icon_button = QPushButton()
-            icon_button.setFixedSize(60, 60)  # 减小按钮尺寸
-            icon_button.setIconSize(QSize(28, 28))  # 减小图标尺寸
+            icon_button.setFixedSize(70, 70)  # 增大按钮尺寸以提供更好的视觉效果
+            icon_button.setIconSize(QSize(32, 32))  # 增大图标尺寸
             
             # 设置按钮样式
             icon_button.setStyleSheet(f"""
@@ -281,9 +301,9 @@ class IconSelectorDialog(QDialog):
             
             self.all_icon_buttons.append(icon_button)
             
-            # 添加到网格布局 - 每行9个图标
-            row = i // 9
-            col = i % 9
+            # 添加到网格布局 - 每行8个图标（增大按钮尺寸后）
+            row = i // 8
+            col = i % 8
             self.icon_layout.addWidget(icon_button, row, col)
             
         # 更新图标数量显示
