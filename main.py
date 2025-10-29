@@ -5,7 +5,7 @@ import traceback
 
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QFrame, QMessageBox)
-from PySide6.QtWidgets import QSplitter
+from PySide6.QtWidgets import QSplitter, QDialog  # 添加QDialog导入
 from PySide6.QtGui import QFont
 
 from app.editor import MarkRenderEditor
@@ -294,21 +294,221 @@ class MainWindow(QMainWindow):
         """当用户选择历史记录时的处理"""
         try:
             logger.info(f"选择了历史记录: {getattr(history_record, 'change_type', '')}")
-            # 这里可以实现恢复到指定历史版本的功能
-            # 暂时只是显示选中的历史记录信息
-            new_content = getattr(history_record, 'new_content', '')
-            if new_content and self.current_item:
-                # 更新编辑器内容为历史版本
-                self.editor.set_current_item(
-                    self.current_item.get('id', ''),
-                    self.current_item.get('page_type', 'markdown'),
-                    new_content
-                )
-                # 更新编辑器显示
-                self.editor.set_text_content(new_content)
+            
+            # 根据变更类型获取历史内容和字段变更信息
+            change_type = getattr(history_record, 'change_type', '')
+            history_content = None
+            field_changes = {}  # 字段变更信息
+            
+            # 对于不同类型的变更，获取相应的内容和字段变更信息
+            if change_type in ['content_create', 'content_update']:
+                # 内容变更，使用new_content字段
+                history_content = getattr(history_record, 'new_content', '')
+            elif change_type == 'title_update':
+                # 标题变更，使用new_title字段
+                history_content = getattr(history_record, 'new_title', '')
+                # 添加字段变更信息
+                old_title = getattr(history_record, 'old_title', '')
+                new_title = getattr(history_record, 'new_title', '')
+                if old_title != new_title:
+                    field_changes['title'] = {'old': old_title, 'new': new_title}
+            elif change_type == 'display_name_update':
+                # 显示名称变更，使用new_display_name字段
+                history_content = getattr(history_record, 'new_display_name', '')
+                # 添加字段变更信息
+                old_display_name = getattr(history_record, 'old_display_name', '')
+                new_display_name = getattr(history_record, 'new_display_name', '')
+                if old_display_name != new_display_name:
+                    field_changes['display_name'] = {'old': old_display_name, 'new': new_display_name}
+            elif change_type == 'icon_update':
+                # 图标变更，这里可能需要特殊处理
+                # 暂时使用new_content字段（文档内容）
+                history_content = getattr(history_record, 'new_content', '')
+                # 添加字段变更信息
+                old_icon_type = getattr(history_record, 'old_icon_type', '')
+                new_icon_type = getattr(history_record, 'new_icon_type', '')
+                if old_icon_type != new_icon_type:
+                    field_changes['icon_type'] = {'old': old_icon_type, 'new': new_icon_type}
+                
+                old_icon_path = getattr(history_record, 'old_icon_path', '')
+                new_icon_path = getattr(history_record, 'new_icon_path', '')
+                if old_icon_path != new_icon_path:
+                    field_changes['icon_path'] = {'old': old_icon_path, 'new': new_icon_path}
+                
+                old_icon_color = getattr(history_record, 'old_icon_color', '')
+                new_icon_color = getattr(history_record, 'new_icon_color', '')
+                if old_icon_color != new_icon_color:
+                    field_changes['icon_color'] = {'old': old_icon_color, 'new': new_icon_color}
+            else:
+                # 其他类型的变更，尝试使用new_content字段
+                history_content = getattr(history_record, 'new_content', '')
+            
+            if history_content is not None and self.current_item:
+                # 获取当前版本内容
+                current_item_id = self.current_item.get('id', '')
+                current_record = self.markrender_manager.get_detail(current_item_id)
+                
+                # 根据变更类型获取当前内容
+                current_content = None
+                if change_type in ['content_create', 'content_update']:
+                    # 内容变更，使用文档内容
+                    current_content = current_record.get('content', '') if current_record else ''
+                elif change_type == 'title_update':
+                    # 标题变更，使用当前标题
+                    current_content = current_record.get('title', '') if current_record else ''
+                elif change_type == 'display_name_update':
+                    # 显示名称变更，使用当前显示名称
+                    current_content = current_record.get('display_name', '') if current_record else ''
+                elif change_type == 'icon_update':
+                    # 图标变更，这里可能需要特殊处理
+                    # 暂时使用文档内容
+                    current_content = current_record.get('content', '') if current_record else ''
+                else:
+                    # 其他类型的变更，使用文档内容
+                    current_content = current_record.get('content', '') if current_record else ''
+                
+                # 显示差异对比对话框，传递字段变更信息
+                from app.history.history_diff_dialog import HistoryDiffDialog
+                from PySide6.QtWidgets import QDialog
+                dialog = HistoryDiffDialog(current_content, history_content, change_type, field_changes, self)
+                result = dialog.exec()
+                
+                # 如果用户选择使用历史版本
+                if result == QDialog.Accepted:
+                    # 在应用历史版本之前，先将当前编辑区的内容保存为一个新的历史版本
+                    self._save_current_content_as_history(current_item_id)
+                    
+                    # 根据变更类型应用不同的更新逻辑
+                    if change_type in ['content_create', 'content_update']:
+                        # 内容变更，更新编辑器内容
+                        self.editor.set_current_item(
+                            current_item_id,
+                            self.current_item.get('page_type', 'markdown'),
+                            history_content
+                        )
+                        # 更新编辑器显示
+                        self.editor.set_text_content(history_content)
+                    elif change_type == 'title_update':
+                        # 标题变更，更新标题
+                        self.markrender_manager.update_title(current_item_id, history_content)
+                        # 更新当前项的标题
+                        if self.current_item:
+                            self.current_item['title'] = history_content
+                        # 更新快速选择面板
+                        self.update_quickpick_list()
+                    elif change_type == 'display_name_update':
+                        # 显示名称变更，更新显示名称
+                        self.markrender_manager.update_display_name(current_item_id, history_content)
+                        # 更新当前项的显示名称
+                        if self.current_item:
+                            self.current_item['display_name'] = history_content
+                        # 更新快速选择面板
+                        self.update_quickpick_list()
+                    
+                    # 应用完历史版本后刷新历史列表
+                    self._refresh_history_list(current_item_id)
         except Exception as e:
             logger.error(f"处理历史记录选择失败: {e}")
     
+    def _save_current_content_as_history(self, item_id):
+        """将当前编辑区的内容保存为一个新的历史版本"""
+        try:
+            logger.info(f"保存当前编辑区内容为历史版本: {item_id}")
+            
+            # 获取当前编辑器的内容
+            if hasattr(self, 'editor') and self.editor and hasattr(self.editor, 'item') and self.editor.item.item_id:
+                result = self.editor.backend_interface.send_message_sync("getContent", {}, item_id=self.editor.item.item_id, timeout=10000)
+                if result and result.get('success', False): 
+                    content = result.get('content', '') if result else ''
+                    
+                    # 获取当前记录的详细信息
+                    current_record = self.markrender_manager.get_detail(item_id)
+                    if current_record:
+                        # 检查内容是否发生变化
+                        old_content = current_record.get('content', '') if current_record else ''
+                        
+                        # 只有当内容真正发生变化时才保存历史记录
+                        if content != old_content:
+                            logger.info(f"内容发生变化，保存新的历史记录")
+                            
+                            # 保存项目，这会自动创建历史记录
+                            self.markrender_manager.save_item(
+                                id=item_id,
+                                content=content,
+                                title=current_record.get('title', ''),
+                                tags=current_record.get('tags', ''),
+                                render_style=current_record.get('render_style', ''),
+                                file_path=current_record.get('file_path', ''),
+                                converter=current_record.get('converter', ''),
+                                theme_id=current_record.get('theme_id', 0),
+                                status=current_record.get('status', ''),
+                                page_type=current_record.get('page_type', ''),
+                                page_settings=current_record.get('page_settings', ''),
+                                page_engine=current_record.get('page_engine', ''),
+                                # 树形结构字段
+                                parent_id=current_record.get('parent_id', None),
+                                order=current_record.get('order', 0),
+                                level=current_record.get('level', 0),
+                                is_folder=current_record.get('is_folder', 0),
+                                # 图标和显示字段
+                                icon_type=current_record.get('icon_type', None),
+                                icon_path=current_record.get('icon_path', None),
+                                icon_color=current_record.get('icon_color', None),
+                                display_name=current_record.get('display_name', None),
+                            )
+                            logger.info(f"新的历史记录已保存: {item_id}")
+                        else:
+                            logger.info(f"内容未发生变化，跳过保存历史记录: {item_id}")
+                else:
+                    logger.warning(f"获取编辑器内容失败，使用空内容")
+                    # 即使获取内容失败，也要尝试保存（可能是空内容）
+                    current_record = self.markrender_manager.get_detail(item_id)
+                    if current_record:
+                        content = ""
+                        old_content = current_record.get('content', '') if current_record else ''
+                        
+                        # 只有当内容真正发生变化时才保存历史记录
+                        if content != old_content:
+                            self.markrender_manager.save_item(
+                                id=item_id,
+                                content=content,
+                                title=current_record.get('title', ''),
+                                tags=current_record.get('tags', ''),
+                                render_style=current_record.get('render_style', ''),
+                                file_path=current_record.get('file_path', ''),
+                                converter=current_record.get('converter', ''),
+                                theme_id=current_record.get('theme_id', 0),
+                                status=current_record.get('status', ''),
+                                page_type=current_record.get('page_type', ''),
+                                page_settings=current_record.get('page_settings', ''),
+                                page_engine=current_record.get('page_engine', ''),
+                                # 树形结构字段
+                                parent_id=current_record.get('parent_id', None),
+                                order=current_record.get('order', 0),
+                                level=current_record.get('level', 0),
+                                is_folder=current_record.get('is_folder', 0),
+                                # 图标和显示字段
+                                icon_type=current_record.get('icon_type', None),
+                                icon_path=current_record.get('icon_path', None),
+                                icon_color=current_record.get('icon_color', None),
+                                display_name=current_record.get('display_name', None),
+                            )
+                            logger.info(f"新的历史记录已保存（空内容）: {item_id}")
+                        else:
+                            logger.info(f"内容未发生变化，跳过保存历史记录: {item_id}")
+        except Exception as e:
+            logger.error(f"保存当前内容为历史版本时出错: {e}")
+    
+    def _refresh_history_list(self, item_id):
+        """刷新历史列表"""
+        try:
+            logger.info(f"刷新历史列表: {item_id}")
+            if hasattr(self, 'history_panel') and self.history_panel:
+                self.history_panel.load_history(item_id)
+                logger.info(f"历史列表已刷新: {item_id}")
+        except Exception as e:
+            logger.error(f"刷新历史列表时出错: {e}")
+
     def update_quickpick_list(self):
         """更新快速选择列表"""
         self.quickpick_panel.load_quickpick_items()
