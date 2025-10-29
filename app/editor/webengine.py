@@ -155,6 +155,9 @@ class WebPageManager(QStackedWidget):
                 view.setPage(page)
                 self._apply_profile(page)
                 
+                # 应用圆角样式
+                self._apply_border_radius_style(view)
+                
                 # 性能优化设置
                 settings = page.settings()
                 if config.performance_mode:
@@ -416,6 +419,21 @@ class WebPageManager(QStackedWidget):
             profile.setSpellCheckEnabled(False)
         except Exception as e:
             logger.warning(f"应用配置文件时出错: {e}")
+    
+    def _apply_border_radius_style(self, view: QWebEngineView):
+        """为WebEngineView应用圆角样式"""
+        try:
+            from app.preference.style_constants import EDITOR_RADIUS, NEUTRAL_300, EDITOR_BORDER_WIDTH
+            # 为WebEngineView设置圆角样式
+            view.setStyleSheet(f"""
+                QWebEngineView {{
+                    border: {EDITOR_BORDER_WIDTH}px solid {NEUTRAL_300};
+                    border-radius: {EDITOR_RADIUS}px;
+                    background-color: transparent;
+                }}
+            """)
+        except Exception as e:
+            logger.warning(f"应用圆角样式时出错: {e}")
 
     def _apply_performance_settings(self, settings):
         """应用性能优化设置"""

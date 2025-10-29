@@ -217,6 +217,7 @@ MACOS_BUTTON_RADIUS = 6             # macOS 按钮圆角
 # 编辑器配置
 EDITOR_BORDER_WIDTH = 1             # 编辑器边框宽度 (减小边框宽度使布局更紧凑)
 EDITOR_PADDING = 0                  # 编辑器内边距
+EDITOR_RADIUS = RADIUS_MD           # 编辑器圆角半径 (保持与整体设计一致)
 
 # 进度条配置
 PROGRESS_BAR_HEIGHT = 6             # 进度条高度 (减小高度使布局更紧凑)

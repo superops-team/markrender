@@ -222,13 +222,14 @@ TOP_MENU_BACKGROUND = f"background: {NEUTRAL_100};"
 
 # 编辑器样式 - 使用设计令牌
 EDITOR_PARENT = f"""
-QWidget {{  /* 父容器样式 */
+QWidget {{
     border: {EDITOR_BORDER_WIDTH}px solid {NEUTRAL_300};
     padding: {EDITOR_PADDING}px;
+    border-radius: {EDITOR_RADIUS}px;
 }}"""
 
 EDITOR_PREVIEW = f"""
-QWebEngineView {{  /* 预览视图样式 */
+QWebEngineView {{
     border: none;
     background-color: transparent;
     margin: 0;
@@ -361,17 +362,18 @@ QPushButton:checked {
 
 NEW_FILE_DIALOG = "QDialog { border-radius: 5px; }"
 
-EDITOR = """
-QWidget {  /* 父容器样式 */
-    border: 2px solid #ddd;
-    padding: 0;
-}
-QWebEngineView {  /* 预览视图样式 */
+EDITOR = f"""
+QWidget {{
+    border: {EDITOR_BORDER_WIDTH}px solid {NEUTRAL_300};
+    padding: {EDITOR_PADDING}px;
+    border-radius: {EDITOR_RADIUS}px;
+}}
+QWebEngineView {{
     border: none;
-    background-color: transparent; /* 设置透明背景 */
-    margin: 0; /* 移除抵消布局的 margin */
-    padding: 0; /* 移除补充的 padding */
-}
+    background-color: transparent;
+    margin: 0;
+    padding: 0;
+}}
 """
 
 MAIN_SPLITTER = """
