@@ -6,7 +6,7 @@ import traceback
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QFrame, QMessageBox)
 from PySide6.QtWidgets import QSplitter, QDialog  # 添加QDialog导入
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QRegion, QPainterPath, QMouseEvent
 
 from app.editor import MarkRenderEditor
 from app.statusbar import StatusBar
@@ -25,28 +25,53 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint)  # 设置无边框窗口
         self.setWindowTitle("MarkRender")
-        self.showMaximized()  # 恢复启动最大化
+        # 设置窗口初始大小，但不固定
+        self.resize(1200, 800)
         self.setup_ui()
         self.current_item = None
         self.backend_interface = None
         # 设置基础样式表
         self.setStyleSheet(AppStyle().get_main_style())
+        # 初始化圆角半径
+        self.window_radius = 10
+        # 应用圆角效果
+        QTimer.singleShot(100, self.apply_rounded_corners)
 
+    def toggle_maximize(self):
+        """切换窗口最大化状态"""
+        if self.isMaximized():
+            self.showNormal()
+            # 恢复圆角效果
+            QTimer.singleShot(50, self.apply_rounded_corners)
+        else:
+            self.showMaximized()
+            # 最大化时也需要重新应用样式
+            QTimer.singleShot(50, self.apply_rounded_corners)
+        
     def showEvent(self, event):
         """窗口显示时根据窗口状态设置样式"""
         super().showEvent(event)
-        if not self.isMaximized():
-            self.setStyleSheet(AppStyle().get_main_style())
-        else:
-            self.setStyleSheet(AppStyle().get_main_style_color())
+        self.setStyleSheet(AppStyle().get_main_style())
+        # 应用圆角效果
+        self.apply_rounded_corners()
 
-    def toggle_maximize(self):
-        if self.isMaximized():
-            self.showNormal()
-        else:
-            self.showMaximized()
-        # 调用 showEvent 更新样式
-        self.showEvent(None)
+    def apply_rounded_corners(self):
+        """应用圆角效果到主窗口"""
+        # 在所有状态下都应用圆角效果
+        # 创建圆角矩形路径
+        path = QPainterPath()
+        rect = self.rect()
+        path.addRoundedRect(rect.x(), rect.y(), rect.width(), rect.height(), self.window_radius, self.window_radius)
+        
+        # 创建区域并应用到窗口
+        region = QRegion(path.toFillPolygon().toPolygon())
+        self.setMask(region)
+
+    def resizeEvent(self, event):
+        """窗口大小改变时重新应用圆角效果"""
+        super().resizeEvent(event)
+        # 在所有状态下都重新应用圆角效果
+        self.apply_rounded_corners()
 
     def setup_ui(self):
         """设置UI界面"""
@@ -586,21 +611,23 @@ class MainWindow(QMainWindow):
             self.editor._close_ready = True
 
     # 实现窗口拖动功能
-    def mousePressEvent(self, event):
+    def mousePressEvent(self, event: QMouseEvent):
         if event.button() == Qt.MouseButton.LeftButton:
             self.drag_start_position = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
             event.accept()
 
-    def mouseMoveEvent(self, event):
+    def mouseMoveEvent(self, event: QMouseEvent):
         if hasattr(self, 'drag_start_position'):
             if event.buttons() & Qt.MouseButton.LeftButton:
                 self.move(event.globalPosition().toPoint() - self.drag_start_position)
                 event.accept()
 
     # 添加双击事件处理方法
-    def mouseDoubleClickEvent(self, event):
-        # 当双击主窗口时切换最大化状态
-        self.toggle_maximize()
+    def mouseDoubleClickEvent(self, event: QMouseEvent):
+        # 只有在标题栏区域双击才切换最大化状态
+        pos = event.position()
+        if pos.y() <= 30:  # 标题栏高度为30
+            self.toggle_maximize()
         event.accept()
 
     def handle_close_button(self):
