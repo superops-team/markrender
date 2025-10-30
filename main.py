@@ -33,7 +33,7 @@ class MainWindow(QMainWindow):
         # 设置基础样式表
         self.setStyleSheet(AppStyle().get_main_style())
         # 初始化圆角半径
-        self.window_radius = 10
+        self.window_radius = 8
         # 应用圆角效果
         QTimer.singleShot(100, self.apply_rounded_corners)
 
