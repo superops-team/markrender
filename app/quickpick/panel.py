@@ -274,6 +274,11 @@ class QuickPickPanel(QWidget):
                     self.find_and_update_item_in_tree(item_data['id'], item_data)
                     logger.info("树节点更新完成")
                     
+                    # 更新状态栏标签显示
+                    if self._parent and hasattr(self._parent, 'status_bar'):
+                        self._parent.status_bar.update_tags(new_tags)
+                        logger.info("状态栏标签已更新")
+                    
                 except Exception as e:
                     logger.error(f"保存项目属性失败: {e}")
                     QMessageBox.warning(self, "保存失败", f"无法保存属性更改: {str(e)}")

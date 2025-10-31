@@ -3,42 +3,23 @@ from PySide6.QtGui import QIcon
 from PySide6.QtCore import Qt
 from app.preference import AppStyle  # 新增导入
 from utils.path import get_icon_path
-from app.preference.style_constants import NEUTRAL_300, SPACING_XS, PRIMARY_100, PRIMARY_200, PRIMARY_600
-
-class TagLabel(QLabel):
-    """自定义标签控件，支持圆角样式"""
-    
-    def __init__(self, text, parent=None):
-        super().__init__(text, parent)
-        self.setStyleSheet(f"""
-            TagLabel {{
-                background-color: {PRIMARY_100};
-                color: {PRIMARY_600};
-                border: 1px solid {PRIMARY_200};
-                border-radius: 12px;
-                padding: 2px 8px;
-                font-size: 11px;
-                min-height: 16px;
-                min-width: 20px;
-                qproperty-alignment: AlignCenter;
-            }}
-        """)
-        # 设置属性以确保样式生效
-        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        # 设置尺寸策略
-        self.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
-        # 设置对象名称以提高样式优先级
-        self.setObjectName("status_tag_label")
+from app.preference.style_constants import (
+    NEUTRAL_300, SPACING_XS, PRIMARY_100, PRIMARY_200, PRIMARY_600,
+    NEUTRAL_100, NEUTRAL_200, NEUTRAL_700, FONT_SIZE_SM
+)
 
 class StatusBar(QStatusBar):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.main_window = parent  # 保存主窗口引用
+        self.current_page_type = None  # 保存当前页面类型
+        self.current_tags = ""  # 保存当前标签
         
         # 创建左侧的标签列表
         self.tags_layout = QHBoxLayout()
         self.tags_layout.setContentsMargins(10, 0, 10, 0)
         self.tags_layout.setSpacing(8)
+        self.tags_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)  # 垂直居中
         self.tags_container = QWidget()
         self.tags_container.setLayout(self.tags_layout)
         
@@ -49,6 +30,7 @@ class StatusBar(QStatusBar):
         self.right_layout = QHBoxLayout(self.right_container)
         self.right_layout.setContentsMargins(0, 0, 10, 0)
         self.right_layout.setSpacing(5)
+        self.right_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)  # 垂直居中
         
         # 创建历史记录按钮
         self.history_btn = QToolButton()
@@ -79,55 +61,143 @@ class StatusBar(QStatusBar):
         # 初始化历史状态
         self.is_history_selected = False
 
+    def set_page_type(self, page_type):
+        """设置页面类型标签
+        
+        Args:
+            page_type: 页面类型字符串
+        """
+        self.current_page_type = page_type
+        # 重新渲染标签以确保page_type标签正确显示
+        self._refresh_display()
+
     def update_tags(self, tags):
         """更新标签列表
         
         Args:
             tags: 标签字符串，用逗号分隔
         """
+        self.current_tags = tags
+        # 重新渲染标签以确保page_type标签正确显示
+        self._refresh_display()
+
+    def _refresh_display(self):
+        """刷新显示内容，包括page_type和tags"""
         # 清除现有标签
-        while self.tags_layout.count() > 0:  # 清除所有标签
+        while self.tags_layout.count() > 0:
             item = self.tags_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
         
-        # 添加新标签
-        if tags:
-            tag_list = [tag.strip() for tag in tags.split(',') if tag.strip()]
-            for tag in tag_list:
-                # 使用QPushButton实现圆角标签
-                tag_button = QPushButton(tag)
-                tag_button.setFlat(True)  # 扁平样式
-                tag_button.setEnabled(False)  # 禁用按钮功能
-                tag_button.setStyleSheet(f"""
-                    QPushButton {{
-                        background-color: {PRIMARY_100};
-                        color: {PRIMARY_600};
-                        border: 1px solid {PRIMARY_200};
-                        border-radius: 12px;
-                        padding: 2px 8px;
-                        font-size: 11px;
-                        min-height: 16px;
-                        min-width: 20px;
-                        qproperty-flat: true;
-                    }}
-                    QPushButton:disabled {{
-                        background-color: {PRIMARY_100};
-                        color: {PRIMARY_600};
-                        border: 1px solid {PRIMARY_200};
-                    }}
-                """)
-                # 设置属性以确保样式生效
-                tag_button.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-                # 设置对象名称以提高样式优先级
-                tag_button.setObjectName("status_tag_button")
-                self.tags_layout.addWidget(tag_button)
-        else:
-            # 如果没有标签，显示"无"消息
-            no_tags_label = QLabel("无")
-            no_tags_label.setStyleSheet("color: #999; font-size: 11px; font-style: italic;")
-            self.tags_layout.addWidget(no_tags_label)
+        # 添加tag标签
+        if self.current_tags:
+            # 如果有tags，先添加page_type作为首个标签（如果存在）
+            if self.current_page_type:
+                page_type_widget = self._create_page_type_widget(self.current_page_type)
+                self.tags_layout.addWidget(page_type_widget)
             
+            # 然后添加tag标签
+            tag_list = [tag.strip() for tag in self.current_tags.split(',') if tag.strip()]
+            for tag in tag_list:
+                tag_button = self._create_tag_widget(tag)
+                self.tags_layout.addWidget(tag_button)
+        elif self.current_page_type and self.current_page_type.strip():
+            # 如果有page_type但没有tags，显示page_type的默认值作为标签
+            display_text = self._get_page_type_display_text(self.current_page_type)
+            page_type_widget = self._create_tag_widget(display_text)
+            self.tags_layout.addWidget(page_type_widget)
+        else:
+            # 如果既没有page_type也没有tags，显示默认的md
+            md_widget = self._create_tag_widget("md")
+            self.tags_layout.addWidget(md_widget)
+
+    def _get_page_type_display_text(self, page_type):
+        """获取页面类型显示文本，根据默认值映射规则"""
+        # 默认值映射规则
+        default_mappings = {
+            'markdown': 'md',
+            'excalidraw': 'board'
+        }
+        return default_mappings.get(page_type.lower(), page_type.lower())
+
+    def _create_page_type_widget(self, page_type):
+        """创建页面类型标签，使用与edit_dialog一致的颜色映射但适应statusbar"""
+        # 导入颜色映射
+        from app.quickpick.item import QuickPickItemDelegate
+        from PySide6.QtGui import QColor
+        
+        delegate = QuickPickItemDelegate()
+        type_color = delegate.tag_color_map.get(page_type.lower(), delegate.default_color)
+        
+        # 确保type_color是QColor对象
+        if isinstance(type_color, QColor):
+            # 将QColor转换为CSS颜色字符串
+            bg_color = f'rgb({type_color.red()}, {type_color.green()}, {type_color.blue()})'
+            # 创建稍深的边框颜色（降低亮度）
+            border_color = f'rgb({max(0, type_color.red()-20)}, {max(0, type_color.green()-20)}, {max(0, type_color.blue()-20)})'
+        else:
+            # 如果不是QColor对象，使用默认颜色
+            bg_color = "#6B7280"  # NEUTRAL_500
+            border_color = "#4B5563"  # NEUTRAL_600
+        
+        # 创建标签按钮
+        type_button = QPushButton(page_type.upper())
+        type_button.setFlat(True)
+        type_button.setEnabled(False)
+        type_button.setStyleSheet(
+            f"QPushButton {{"
+            f"background-color: {bg_color};"
+            f"border: 1px solid {border_color};"
+            f"border-radius: 14px;"  # 与tag标签保持一致的圆角
+            f"color: white;"
+            f"padding: 4px 10px;"  # 与tag标签保持一致的内边距
+            f"font-size: {FONT_SIZE_SM}px;"
+            f"font-weight: 500;"
+            f"text-align: center;"
+            f"min-height: 18px;"  # 与tag标签保持一致的高度
+            f"}}"
+            f"QPushButton:disabled {{"
+            f"background-color: {bg_color};"
+            f"color: white;"
+            f"border: 1px solid {border_color};"
+            f"}}"
+        )
+        # 设置属性以确保样式生效
+        type_button.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        # 设置对象名称以提高样式优先级
+        type_button.setObjectName("status_page_type_button")
+        return type_button
+
+    def _create_tag_widget(self, tag):
+        """创建标签按钮，样式与edit_dialog保持一致但适应statusbar"""
+        tag_button = QPushButton(tag)
+        tag_button.setFlat(True)
+        tag_button.setEnabled(False)
+        # 保持与edit_dialog一致的圆角样式，但调整尺寸以适应statusbar
+        tag_button.setStyleSheet(
+            f"QPushButton {{"
+            f"background-color: {NEUTRAL_100};"
+            f"border: 1px solid {NEUTRAL_200};"
+            f"border-radius: 14px;"  # 保持明显的圆角效果
+            f"color: {NEUTRAL_700};"
+            f"padding: 4px 10px;"  # 适当调整内边距
+            f"font-size: {FONT_SIZE_SM}px;"
+            f"font-weight: 500;"
+            f"text-align: center;"
+            f"min-height: 18px;"  # 适当调整最小高度
+            f"}}"
+            f"QPushButton:disabled {{"
+            f"background-color: {NEUTRAL_100};"
+            f"color: {NEUTRAL_700};"
+            f"border: 1px solid {NEUTRAL_200};"
+            f"}}"
+        )
+        # 设置属性以确保样式生效
+        tag_button.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        # 设置对象名称以提高样式优先级
+        tag_button.setObjectName("status_tag_button")
+        return tag_button
+
     def toggle_history_panel(self):
         """切换历史记录面板显示状态"""
         try:

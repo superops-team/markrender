@@ -167,9 +167,9 @@ class MainWindow(QMainWindow):
             page_type = quickpick_item.get('page_type', 'markdown')
             logger.info(f"页面类型: {page_type}")
             
-            # 获取页面类型，默认为markdown
-            page_type = quickpick_item.get('page_type', 'markdown')
-            logger.info(f"页面类型: {page_type}")
+            # 设置状态栏的页面类型
+            self.status_bar.set_page_type(page_type)
+            
             # 根据页面类型路由到不同的处理逻辑
             if page_type == "markdown":
                 self._handle_page(quickpick_item)
@@ -327,7 +327,7 @@ class MainWindow(QMainWindow):
                 result = dialog.exec()
                 
                 # 如果用户选择使用历史版本
-                if result == QDialog.Accepted:
+                if result == QDialog.DialogCode.Accepted:
                     # 在应用历史版本之前，先将当前编辑区的内容保存为一个新的历史版本
                     self._save_current_content_as_history(current_item_id)
                     
