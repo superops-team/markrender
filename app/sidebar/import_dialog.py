@@ -22,16 +22,25 @@ from app.preference import AppStyle
 from app.preference.style_utils import (
     create_dialog_style,
     secondary_button,
+    primary_button,
+    create_button_style,
 )
 from app.preference.style_constants import (
     PRIMARY_500,
+    NEUTRAL_0,
+    NEUTRAL_50,
     NEUTRAL_100,
     NEUTRAL_200,
     NEUTRAL_500,
     NEUTRAL_700,
     RADIUS_SM,
+    RADIUS_MD,
     FONT_SIZE_MD,
     FONT_SIZE_SM,
+    SPACING_SM,
+    SPACING_MD,
+    SPACING_LG,
+    SPACING_XL,
 )
 
 
@@ -43,72 +52,90 @@ class ImportDialog(QDialog):
         self.quickpick_panel = quickpick_panel
         self.init_ui()
         # 监听键盘事件以处理粘贴操作
-        self.setFocusPolicy(Qt.StrongFocus)
+
         self.import_settings = SettingsManager().get_settings_dict('import') # 导入导出设置
 
 
     def init_ui(self):
-        # 应用统一的对话框样式
-        self.setStyleSheet(create_dialog_style())
+        # 应用统一的对话框样式，参考history面板样式
         self.setWindowTitle("文件导入")
-        self.setFixedSize(500, 300)  # 调整高度以保持宽高比一致性
+        self.setMinimumSize(520, 360)  # 使用最小尺寸而非固定尺寸
+        
+        # 对话框样式参考history面板
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {NEUTRAL_0};
+                border: 1px solid {NEUTRAL_200};
+                border-radius: {RADIUS_MD}px;
+            }}
+        """)
         
         dialog_layout = QVBoxLayout(self)
-        dialog_layout.setContentsMargins(24, 24, 24, 24)  # 优化边距
-        dialog_layout.setSpacing(16)
+        dialog_layout.setContentsMargins(SPACING_XL, SPACING_XL, SPACING_XL, SPACING_XL)
+        dialog_layout.setSpacing(SPACING_LG)
 
-        # 创建导入区域（不带虚线框的纯内容区域）
+        # 创建导入区域（参考history面板样式）
         content_widget = QFrame(self)
-        content_widget.setFixedSize(452, 120)  # 调整尺寸
+        content_widget.setFixedSize(472, 160)
+        # 移除内部圆角，避免与外部对话框圆角产生视觉冲突
         content_widget.setStyleSheet(f"""
             QFrame {{
-                background-color: transparent;
-                border: none;
+                background-color: {NEUTRAL_0};
+                border: 1px dashed {PRIMARY_500};
+            }}
+            QFrame:hover {{
+                background-color: {NEUTRAL_50};
+                border-color: {PRIMARY_500};
             }}
         """)
         
         content_layout = QVBoxLayout(content_widget)
-        content_layout.setAlignment(Qt.AlignCenter)
+        content_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         content_layout.setContentsMargins(0, 0, 0, 0)
-        content_layout.setSpacing(12)
+        content_layout.setSpacing(SPACING_MD)
 
         # 创建遮罩层和加载状态标签，初始状态隐藏
         self.overlay = QFrame(content_widget)
-        self.overlay.setStyleSheet(self.get_overlay_style())
-        self.overlay.setGeometry(0, 0, 452, 120)
+        # 移除遮罩层的圆角
+        self.overlay.setStyleSheet(f"""
+        QFrame {{
+            background-color: {NEUTRAL_0};
+        }}
+        """)
+        self.overlay.setGeometry(0, 0, 472, 160)
         self.overlay.hide()
 
         self.loading_label = QLabel("任务支持后台处理，可关闭此窗口，后台处理中...", self.overlay)
-        self.loading_label.setAlignment(Qt.AlignCenter)
+        self.loading_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.loading_label.setStyleSheet(self.get_loading_label_style())
-        self.loading_label.setGeometry(0, 0, 452, 120)
+        self.loading_label.setGeometry(0, 0, 472, 160)
         self.loading_label.hide()
 
         # 创建垂直布局用于容纳图标和文字
         text_content_layout = QVBoxLayout()
-        text_content_layout.setAlignment(Qt.AlignCenter)
-        text_content_layout.setSpacing(8)
+        text_content_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        text_content_layout.setSpacing(SPACING_SM)
 
         # 上传图标（使用SVG图标）
         self.icon_label = QSvgWidget()
         self.icon_label.load(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "icons", "upload.svg"))
-        self.icon_label.setFixedSize(48, 48)
-        text_content_layout.addWidget(self.icon_label, 0, Qt.AlignCenter)
+        self.icon_label.setFixedSize(56, 56)
+        text_content_layout.addWidget(self.icon_label, 0, Qt.AlignmentFlag.AlignCenter)
 
-        # 导入区域文字提示（不带虚线框）
+        # 导入区域文字提示（参考history面板样式）
         self.import_label = QLabel("点击导入文件", self)
         font = QFont()
-        font.setPointSize(16)  # 增大字体以提高可读性
+        font.setPointSize(16)
         font.setBold(True)
         self.import_label.setFont(font)
-        self.import_label.setAlignment(Qt.AlignCenter)
+        self.import_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.import_label.setStyleSheet(f"""
             QLabel {{
                 color: {NEUTRAL_700};
                 font-weight: 600;
                 background-color: transparent;
                 border: none;
-                padding: 10px;
+                padding: {SPACING_SM}px;
             }}
         """)
         text_content_layout.addWidget(self.import_label)
@@ -116,7 +143,7 @@ class ImportDialog(QDialog):
         content_layout.addLayout(text_content_layout)
 
         self.format_label = QLabel(f"支持格式: {', '.join(supported_formats)}", self)
-        self.format_label.setAlignment(Qt.AlignCenter)
+        self.format_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.format_label.setStyleSheet(f"""
             QLabel {{
                 color: {NEUTRAL_500};
@@ -127,13 +154,14 @@ class ImportDialog(QDialog):
         """)
         content_layout.addWidget(self.format_label)
 
-        dialog_layout.addWidget(content_widget, 0, Qt.AlignCenter)
+        dialog_layout.addWidget(content_widget, 0, Qt.AlignmentFlag.AlignCenter)
 
         # 进度条
         self.progress_bar = QProgressBar(self)
         self.progress_bar.setRange(0, 100)
         self.progress_bar.hide()
         self.progress_bar.setStyleSheet(self.get_progress_bar_style())
+        self.progress_bar.setFixedHeight(8)
         dialog_layout.addWidget(self.progress_bar)
 
         # 文件信息标签
@@ -142,26 +170,11 @@ class ImportDialog(QDialog):
         self.info_label.setStyleSheet(self.get_info_label_style())
         dialog_layout.addWidget(self.info_label)
 
-        # 按钮区域 - 使用水平布局保持对齐
-        button_layout = QHBoxLayout()
-        button_layout.setContentsMargins(0, 0, 0, 0)
-        button_layout.setSpacing(12)
-        
-        # 关闭按钮 - 使用统一的次要按钮样式
-        self.close_button = QPushButton("关闭", self)
-        self.close_button.hide()
-        self.close_button.setStyleSheet(secondary_button())  # 使用统一的次要按钮样式
-        self.close_button.clicked.connect(self.close)
-        self.close_button.setMinimumWidth(80)
-        
-        # 添加弹性空间实现右对齐
-        button_layout.addStretch()
-        button_layout.addWidget(self.close_button)
-        
-        dialog_layout.addLayout(button_layout)
-
+        # 移除按钮区域，导入操作通过点击导入区域完成
         # 为内容区域添加点击事件
         content_widget.mousePressEvent = self.perform_import
+        # 监听键盘事件以处理粘贴操作
+        self.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
 
     def get_import_area_style(self):
         """获取导入区域样式"""
@@ -169,7 +182,7 @@ class ImportDialog(QDialog):
         QFrame {{
             border: 2px dashed {PRIMARY_500};
             background-color: {NEUTRAL_100};
-            border-radius: {RADIUS_SM}px;
+            # 移除 border-radius 属性以避免内部圆角
         }}
         QFrame:hover {{
             border-color: {PRIMARY_500};
@@ -179,11 +192,11 @@ class ImportDialog(QDialog):
 
     def get_overlay_style(self):
         """获取遮罩层样式"""
-        return """
-        QFrame {
-            background-color: rgba(255, 255, 255, 0.9);
-            border-radius: 4px;
-        }
+        return f"""
+        QFrame {{
+            background-color: {NEUTRAL_0};
+            # 移除 border-radius 属性以避免内部圆角
+        }}
         """
 
     def get_loading_label_style(self):
@@ -202,7 +215,7 @@ class ImportDialog(QDialog):
         QProgressBar {{
             border-radius: {RADIUS_SM}px;
             text-align: center;
-            height: 12px;
+            height: 8px;
             background-color: {NEUTRAL_200};
         }}
         QProgressBar::chunk {{
@@ -224,7 +237,7 @@ class ImportDialog(QDialog):
 
     def keyPressEvent(self, event):
         """监听键盘事件，处理粘贴操作"""
-        if event.matches(QKeySequence.Paste):
+        if event.matches(QKeySequence.StandardKey.Paste):
             self.handle_paste_image()
         super().keyPressEvent(event)
 
@@ -284,9 +297,13 @@ class ImportDialog(QDialog):
 
     def do_import(self, file_path):
         # 禁用内容区域而不是导入区域
-        content_widget = self.layout().itemAt(0).widget()  # 获取内容区域
-        if content_widget:
-            content_widget.setEnabled(False)
+        layout = self.layout()
+        if layout is not None:
+            content_item = layout.itemAt(0)
+            if content_item is not None:
+                content_widget = content_item.widget()
+                if content_widget is not None:
+                    content_widget.setEnabled(False)
         self.progress_bar.show()
         self.info_label.show()
         self.progress_bar.setValue(0)
@@ -310,14 +327,20 @@ class ImportDialog(QDialog):
     def import_finished(self, file_info):
         self.info_label.setText(file_info)
         self.progress_bar.setValue(100)
-        self.close_button.show()
+        # 使用 QTimer 延迟关闭对话框，给用户查看结果的时间
+        from PySide6.QtCore import QTimer
+        QTimer.singleShot(2000, self.close)  # 2秒后自动关闭对话框
         # 隐藏遮罩层和加载状态标签
         self.overlay.hide()
         self.loading_label.hide()
         # 重新启用内容区域
-        content_widget = self.layout().itemAt(0).widget()
-        if content_widget:
-            content_widget.setEnabled(True)
+        layout = self.layout()
+        if layout is not None:
+            content_item = layout.itemAt(0)
+            if content_item is not None:
+                content_widget = content_item.widget()
+                if content_widget is not None:
+                    content_widget.setEnabled(True)
 
     def import_error(self, error_msg):
         QMessageBox.warning(self, "导入失败", error_msg)
@@ -325,9 +348,13 @@ class ImportDialog(QDialog):
         self.overlay.hide()
         self.loading_label.hide()
         # 重新启用内容区域
-        content_widget = self.layout().itemAt(0).widget()
-        if content_widget:
-            content_widget.setEnabled(True)
+        layout = self.layout()
+        if layout is not None:
+            content_item = layout.itemAt(0)
+            if content_item is not None:
+                content_widget = content_item.widget()
+                if content_widget is not None:
+                    content_widget.setEnabled(True)
         self.close()
 
 
