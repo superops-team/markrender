@@ -32,14 +32,16 @@ class SidebarManager(QWidget):
         layout.setSpacing(6)  # 按钮间距设置为6px符合设计规范
         layout.setAlignment(Qt.AlignmentFlag.AlignHCenter)  # 设置水平居中对齐
 
-        # 创建首页按钮
-        self.file_browse_btn = QPushButton()
+        # 创建展开折叠quickpick的按钮
+        self.toggle_quickpick_btn = QPushButton()
         self.init_sidebar_button(
-            self.file_browse_btn,
-            "home",
-            self.on_file_browse_toggled
+            self.toggle_quickpick_btn,
+            "sidebar",
+            self.on_toggle_quickpick_toggled
         )
-
+        # 初始为选中状态（显示quickpick面板）
+        self.toggle_quickpick_btn.setChecked(True)
+        
         # 创建导入按钮
         self.import_btn = QPushButton()
         self.init_sidebar_button(
@@ -48,13 +50,8 @@ class SidebarManager(QWidget):
             self.on_import_toggled
         )
 
-        # 连接事件
-        if hasattr(self.parent, 'quickpick_panel'):
-            self.file_browse_btn.clicked.connect(
-                self.parent.quickpick_panel.load_quickpick_items)
-
         # 将顶部按钮添加到布局，使用居中对齐
-        layout.addWidget(self.file_browse_btn, 0, Qt.AlignmentFlag.AlignHCenter)
+        layout.addWidget(self.toggle_quickpick_btn, 0, Qt.AlignmentFlag.AlignHCenter)
         layout.addWidget(self.import_btn, 0, Qt.AlignmentFlag.AlignHCenter)
 
         # 添加弹性空间，使设置按钮位于底部
@@ -74,8 +71,7 @@ class SidebarManager(QWidget):
         )
         layout.addWidget(self.settings_btn, 0, Qt.AlignmentFlag.AlignHCenter)
 
-        # 设置默认选中首页按钮
-        self.file_browse_btn.setChecked(True)
+        # 不需要额外设置默认选中，因为已经在创建按钮时设置了
 
     def handle_import(self):
         self.import_btn.setChecked(True)
@@ -104,14 +100,6 @@ class SidebarManager(QWidget):
     def on_button_toggled(self, button, checked, icon_name, toggle_slot):
         """统一处理按钮切换事件"""
         if checked:
-            # 取消其他按钮的选中状态
-            if button != self.file_browse_btn:
-                self.file_browse_btn.setChecked(False)
-            if button != self.import_btn:
-                self.import_btn.setChecked(False)
-            if button != self.settings_btn:
-                self.settings_btn.setChecked(False)
-            
             # 更新图标为选中状态
             button.setIcon(QIcon(get_icon_path(icon_name, selected=True)))
         else:
@@ -121,11 +109,13 @@ class SidebarManager(QWidget):
         # 调用具体的处理函数
         toggle_slot(checked, icon_name)
 
-    def on_file_browse_toggled(self, checked, icon_name="home"):
-        """处理首页按钮切换"""
-        if checked:
-            if hasattr(self.parent, 'quickpick_panel'):
-                self.parent.quickpick_panel.load_quickpick_items()
+    def on_toggle_quickpick_toggled(self, checked, icon_name="sidebar"):
+        """处理展开折叠quickpick按钮切换"""
+        if hasattr(self.parent, 'quickpick_panel'):
+            if checked:
+                self.parent.quickpick_panel.show()
+            else:
+                self.parent.quickpick_panel.hide()
 
     def on_import_toggled(self, checked, icon_name="plus-square"):
         """处理导入按钮切换"""

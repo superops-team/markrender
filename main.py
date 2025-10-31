@@ -4,9 +4,11 @@ import os
 import traceback
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QFrame, QMessageBox)
+from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QFrame, QMessageBox, 
+                              QToolBar, QSizePolicy)  # 添加QToolBar和QSizePolicy导入
 from PySide6.QtWidgets import QSplitter, QDialog  # 添加QDialog导入
-from PySide6.QtGui import QFont, QRegion, QPainterPath, QMouseEvent
+from PySide6.QtGui import QFont, QAction, QIcon  # 添加QIcon导入
+from PySide6.QtWidgets import QToolButton
 
 from app.editor import MarkRenderEditor
 from app.statusbar import StatusBar
@@ -23,7 +25,7 @@ from utils.logger_utils import logger
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowFlags(Qt.WindowType.FramelessWindowHint)  # 设置无边框窗口
+        # 移除无边框窗口设置，使用系统原生窗口
         self.setWindowTitle("MarkRender")
         # 设置窗口初始大小，但不固定
         self.resize(1200, 800)
@@ -32,46 +34,6 @@ class MainWindow(QMainWindow):
         self.backend_interface = None
         # 设置基础样式表
         self.setStyleSheet(AppStyle().get_main_style())
-        # 初始化圆角半径
-        self.window_radius = 8
-        # 应用圆角效果
-        QTimer.singleShot(100, self.apply_rounded_corners)
-
-    def toggle_maximize(self):
-        """切换窗口最大化状态"""
-        if self.isMaximized():
-            self.showNormal()
-            # 恢复圆角效果
-            QTimer.singleShot(50, self.apply_rounded_corners)
-        else:
-            self.showMaximized()
-            # 最大化时也需要重新应用样式
-            QTimer.singleShot(50, self.apply_rounded_corners)
-        
-    def showEvent(self, event):
-        """窗口显示时根据窗口状态设置样式"""
-        super().showEvent(event)
-        self.setStyleSheet(AppStyle().get_main_style())
-        # 应用圆角效果
-        self.apply_rounded_corners()
-
-    def apply_rounded_corners(self):
-        """应用圆角效果到主窗口"""
-        # 在所有状态下都应用圆角效果
-        # 创建圆角矩形路径
-        path = QPainterPath()
-        rect = self.rect()
-        path.addRoundedRect(rect.x(), rect.y(), rect.width(), rect.height(), self.window_radius, self.window_radius)
-        
-        # 创建区域并应用到窗口
-        region = QRegion(path.toFillPolygon().toPolygon())
-        self.setMask(region)
-
-    def resizeEvent(self, event):
-        """窗口大小改变时重新应用圆角效果"""
-        super().resizeEvent(event)
-        # 在所有状态下都重新应用圆角效果
-        self.apply_rounded_corners()
 
     def setup_ui(self):
         """设置UI界面"""
@@ -90,58 +52,24 @@ class MainWindow(QMainWindow):
             logger.error(f'数据库初始化失败: {e}')
             sys.exit(1)
 
-        # 将顶部组件添加到主窗口
+        # 初始化quickpick面板
+        self.markrender_manager = MarkRenderManager(db_path)
+        self.quickpick_panel = QuickPickPanel(self.markrender_manager, self)
+        # 初始化编辑器
+        self.editor = MarkRenderEditor(parent=self)
+        self.sidebar = SidebarManager(parent=self)
+
+        # 移除toolbar，quickpick按钮功能已经在侧边栏中实现
+        # 创建按钮控制器但不添加到任何工具栏
+        self.button_controller = ButtonController(self, self.quickpick_panel, self.editor)
+
+        # 创建中央部件和主布局
         central_widget = QWidget()
-        # 为中央部件添加圆角样式和统一背景色
+        # 为中央部件添加统一背景色
         central_widget.setStyleSheet(AppStyle().get_central_widget())
         self.main_layout = QVBoxLayout(central_widget)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.setSpacing(0)
-        # 初始化quickpick面板
-        self.markrender_manager = MarkRenderManager(db_path)
-        self.quickpick_panel = QuickPickPanel(self.markrender_manager, self)
-        self.sidebar_manager = SidebarManager(parent=self)
-        # 初始化  编辑器
-        self.editor = MarkRenderEditor(parent=self)
-        self.sidebar = SidebarManager(parent=self)
-
-        # 创建自定义标题栏
-        title_bar = QWidget()
-        title_bar.setFixedHeight(30)  # 固定标题栏高度
-        title_bar.setStyleSheet(AppStyle().get_title_bar())
-        title_bar_layout = QHBoxLayout(title_bar)
-        title_bar_layout.setContentsMargins(10, 5, 10, 5)  # 调整上下边距
-
-
-        # 添加最小化、最大化、关闭按钮
-        self.minimize_btn = MacOSButton("minimize", self)
-        self.maximize_btn = MacOSButton("maximize", self)
-        self.close_btn =  MacOSButton("close", self)
-
-        self.minimize_btn.clicked.connect(self.showMinimized)
-        self.maximize_btn.clicked.connect(self.toggle_maximize)
-        # 修改关闭按钮连接，调用自定义方法
-        self.close_btn.clicked.connect(self.handle_close_button)
-
-        # 将按钮添加到标题栏左侧
-        title_bar_layout.addWidget(self.close_btn)
-        title_bar_layout.addWidget(self.minimize_btn)
-        title_bar_layout.addWidget(self.maximize_btn)
-        title_bar_layout.addStretch()
-
-        # 添加按钮控制区域
-        self.button_controller = ButtonController(self, self.quickpick_panel, self.editor)
-        self.button_controller.setFixedHeight(20)  # 固定按钮区域高度
-        title_bar_layout.addWidget(self.button_controller)
-
-        # 添加边框容器
-        border_frame = QFrame()
-        border_frame.setFixedHeight(1)
-        border_frame.setFixedWidth(59)  # 最终精准调整：8+42+9=59px
-        border_frame.setStyleSheet("background-color: {};".format(AppStyle().get_line_color()))
-        self.main_layout.addWidget(border_frame)
-
-        self.main_layout.addWidget(title_bar)
 
         # 修改为创建主分割器，使用 PySide6 原生的 QSplitter
         main_splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -187,8 +115,8 @@ class MainWindow(QMainWindow):
         self.history_panel.history_selected.connect(
             self.on_history_selected)
 
-        # 设置状态栏
-        self.status_bar = StatusBar()
+        # 设置状态栏，并传递主窗口引用
+        self.status_bar = StatusBar(self)
         self.setStatusBar(self.status_bar)
         self.status_bar.setStyleSheet(AppStyle().get_status_bar())
         
@@ -254,10 +182,10 @@ class MainWindow(QMainWindow):
             if item_id and hasattr(self, 'history_panel'):
                 self.history_panel.load_history(item_id)
             
-            # 更新状态栏
-            content = self.markrender_manager.get_detail(quickpick_item.get('id', ''))['content']
-            self.status_bar.update_file_size(len(content or ''))
-            self.status_bar.update_word_count(len(content or ''))
+            # 更新状态栏的标签显示
+            item_detail = self.markrender_manager.get_detail(quickpick_item.get('id', ''))
+            tags = item_detail.get('tags', '') if item_detail else ''
+            self.status_bar.update_tags(tags)
             logger.info(f"页面更新完成: {quickpick_item.get('title', 'Unknown')}")
         except Exception as e:
             logger.error(f"更新编辑区和预览区失败: {e}", exc_info=True)
@@ -610,38 +538,13 @@ class MainWindow(QMainWindow):
             logger.error(f"发送getContent消息时出错: {e}")
             self.editor._close_ready = True
 
-    # 实现窗口拖动功能
-    def mousePressEvent(self, event: QMouseEvent):
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.drag_start_position = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
-            event.accept()
-
-    def mouseMoveEvent(self, event: QMouseEvent):
-        if hasattr(self, 'drag_start_position'):
-            if event.buttons() & Qt.MouseButton.LeftButton:
-                self.move(event.globalPosition().toPoint() - self.drag_start_position)
-                event.accept()
-
-    # 添加双击事件处理方法
-    def mouseDoubleClickEvent(self, event: QMouseEvent):
-        # 只有在标题栏区域双击才切换最大化状态
-        pos = event.position()
-        if pos.y() <= 30:  # 标题栏高度为30
-            self.toggle_maximize()
-        event.accept()
+    # 移除自定义的窗口拖动功能，使用系统原生的窗口管理
+    # 移除双击事件处理，使用系统原生的最大化/还原功能
 
     def handle_close_button(self):
         """处理关闭按钮点击事件"""
-        # 先最小化窗口
-        self.showMinimized()
-        
-        # 保存当前操作的item数据
-        if self.editor and hasattr(self.editor, 'item') and self.editor.item:
-            logger.debug("关闭按钮: 保存当前编辑器内容")
-            self._perform_save_on_close()
-        
-        # 然后退出应用
-        QApplication.instance().quit()
+        # 使用closeEvent处理关闭逻辑，不再单独实现
+        self.close()
 
 if __name__ == "__main__":
     logger.info("应用启动")
