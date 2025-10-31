@@ -1,9 +1,34 @@
-from PySide6.QtWidgets import QStatusBar, QLabel, QToolButton, QHBoxLayout, QWidget  # 修改导入语句
+from PySide6.QtWidgets import QStatusBar, QLabel, QToolButton, QHBoxLayout, QWidget, QSizePolicy, QPushButton
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import Qt
 from app.preference import AppStyle  # 新增导入
 from utils.path import get_icon_path
-from app.preference.style_constants import NEUTRAL_300, SPACING_XS
+from app.preference.style_constants import NEUTRAL_300, SPACING_XS, PRIMARY_100, PRIMARY_200, PRIMARY_600
+
+class TagLabel(QLabel):
+    """自定义标签控件，支持圆角样式"""
+    
+    def __init__(self, text, parent=None):
+        super().__init__(text, parent)
+        self.setStyleSheet(f"""
+            TagLabel {{
+                background-color: {PRIMARY_100};
+                color: {PRIMARY_600};
+                border: 1px solid {PRIMARY_200};
+                border-radius: 12px;
+                padding: 2px 8px;
+                font-size: 11px;
+                min-height: 16px;
+                min-width: 20px;
+                qproperty-alignment: AlignCenter;
+            }}
+        """)
+        # 设置属性以确保样式生效
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        # 设置尺寸策略
+        self.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
+        # 设置对象名称以提高样式优先级
+        self.setObjectName("status_tag_label")
 
 class StatusBar(QStatusBar):
     def __init__(self, parent=None):
@@ -70,16 +95,33 @@ class StatusBar(QStatusBar):
         if tags:
             tag_list = [tag.strip() for tag in tags.split(',') if tag.strip()]
             for tag in tag_list:
-                tag_label = QLabel(f"{tag}")
-                tag_label.setStyleSheet('''
-                    background-color: #e8f3ff;
-                    color: #1976d2;
-                    padding: 2px 8px;
-                    border-radius: 10px;
-                    font-size: 11px;
-                    border: 1px solid #b3d9ff;
-                ''')
-                self.tags_layout.addWidget(tag_label)
+                # 使用QPushButton实现圆角标签
+                tag_button = QPushButton(tag)
+                tag_button.setFlat(True)  # 扁平样式
+                tag_button.setEnabled(False)  # 禁用按钮功能
+                tag_button.setStyleSheet(f"""
+                    QPushButton {{
+                        background-color: {PRIMARY_100};
+                        color: {PRIMARY_600};
+                        border: 1px solid {PRIMARY_200};
+                        border-radius: 12px;
+                        padding: 2px 8px;
+                        font-size: 11px;
+                        min-height: 16px;
+                        min-width: 20px;
+                        qproperty-flat: true;
+                    }}
+                    QPushButton:disabled {{
+                        background-color: {PRIMARY_100};
+                        color: {PRIMARY_600};
+                        border: 1px solid {PRIMARY_200};
+                    }}
+                """)
+                # 设置属性以确保样式生效
+                tag_button.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+                # 设置对象名称以提高样式优先级
+                tag_button.setObjectName("status_tag_button")
+                self.tags_layout.addWidget(tag_button)
         else:
             # 如果没有标签，显示"无"消息
             no_tags_label = QLabel("无")
@@ -90,7 +132,7 @@ class StatusBar(QStatusBar):
         """切换历史记录面板显示状态"""
         try:
             # 直接通过主窗口引用访问历史面板
-            if hasattr(self.main_window, 'history_panel'):
+            if self.main_window and hasattr(self.main_window, 'history_panel'):
                 history_panel = self.main_window.history_panel
                 if history_panel.isVisible():
                     history_panel.hide()
@@ -103,7 +145,7 @@ class StatusBar(QStatusBar):
                     self.history_btn.setIcon(QIcon(get_icon_path('history', True)))
                     self.is_history_selected = True
                     # 如果当前有选中的项目，加载其历史记录
-                    if hasattr(self.main_window, 'current_item') and self.main_window.current_item:
+                    if self.main_window and hasattr(self.main_window, 'current_item') and self.main_window.current_item:
                         item_id = self.main_window.current_item.get('id')
                         if item_id:
                             history_panel.load_history(item_id)

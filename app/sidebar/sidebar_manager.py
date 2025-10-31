@@ -21,6 +21,8 @@ class SidebarManager(QWidget):
         self.markdown_manager = MarkRenderManager()
         self.parent = parent
         self.app_style = AppStyle()  # 添加样式实例
+        # 初始化按钮组
+        self.button_group = []
         self.init_ui()
         # 设置侧边栏背景色和样式
         self.setStyleSheet(self.app_style.get_sidebar())
@@ -67,14 +69,14 @@ class SidebarManager(QWidget):
         self.init_sidebar_button(
             self.settings_btn,
             "settings",
-            lambda checked, icon_name: self.show_settings_dialog() if checked else None
+            self.on_settings_toggled
         )
         layout.addWidget(self.settings_btn, 0, Qt.AlignmentFlag.AlignHCenter)
 
-        # 不需要额外设置默认选中，因为已经在创建按钮时设置了
+        # 创建按钮组，实现互斥效果
+        self.button_group = [self.toggle_quickpick_btn, self.import_btn, self.settings_btn]
 
     def handle_import(self):
-        self.import_btn.setChecked(True)
         import_dialog = ImportDialog(
             self,
             self.markdown_manager,
@@ -99,12 +101,25 @@ class SidebarManager(QWidget):
 
     def on_button_toggled(self, button, checked, icon_name, toggle_slot):
         """统一处理按钮切换事件"""
-        if checked:
-            # 更新图标为选中状态
-            button.setIcon(QIcon(get_icon_path(icon_name, selected=True)))
+        # 确保button_group已初始化
+        if hasattr(self, 'button_group') and self.button_group:
+            if checked:
+                # 实现按钮互斥效果
+                for other_button in self.button_group:
+                    if other_button != button and other_button.isChecked():
+                        other_button.setChecked(False)
+                
+                # 更新图标为选中状态
+                button.setIcon(QIcon(get_icon_path(icon_name, selected=True)))
+            else:
+                # 更新图标为非选中状态
+                button.setIcon(QIcon(get_icon_path(icon_name, selected=False)))
         else:
-            # 更新图标为非选中状态
-            button.setIcon(QIcon(get_icon_path(icon_name, selected=False)))
+            # 如果button_group未初始化，直接更新图标
+            if checked:
+                button.setIcon(QIcon(get_icon_path(icon_name, selected=True)))
+            else:
+                button.setIcon(QIcon(get_icon_path(icon_name, selected=False)))
         
         # 调用具体的处理函数
         toggle_slot(checked, icon_name)
@@ -121,3 +136,8 @@ class SidebarManager(QWidget):
         """处理导入按钮切换"""
         if checked:
             self.handle_import()
+
+    def on_settings_toggled(self, checked, icon_name="settings"):
+        """处理设置按钮切换"""
+        if checked:
+            self.show_settings_dialog()

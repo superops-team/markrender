@@ -135,11 +135,11 @@ QPushButton:hover::after {
 # 状态栏样式 - 使用设计令牌
 STATUS_STYLE = f'''
 QStatusBar {{
-    border: {EDITOR_BORDER_WIDTH}px solid {NEUTRAL_300};
+    border-top: 1px solid {NEUTRAL_200};
     background-color: {NEUTRAL_50};
     color: {NEUTRAL_500};
     font-size: {FONT_SIZE_XS}px;
-    padding: {SPACING_XS}px {SPACING_XL}px {SPACING_XS}px {SPACING_XL}px;
+    padding: {SPACING_XS}px {SPACING_LG}px;
     height: {STATUSBAR_HEIGHT}px;
 }}
 QLabel {{
@@ -273,10 +273,10 @@ QPushButton {{
     padding: {SPACING_XS}px;
     font-size: {FONT_SIZE_SM}px;
     font-weight: 500;
-    min-width: 28px;
-    min-height: 28px;
-    max-width: 32px;
-    max-height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+    max-width: 36px;
+    max-height: 36px;
 }}
 QPushButton:hover {{
     background-color: {PRIMARY_50};
@@ -293,17 +293,13 @@ QPushButton:checked {{
     border: 1px solid {PRIMARY_300};
     color: {PRIMARY_500};
     font-weight: 600;
-    padding: 2px;
 }}
 QPushButton:checked:hover {{
     background-color: {PRIMARY_50};
     border: 1px solid {PRIMARY_300};
     color: {PRIMARY_600};
-    padding: 2px;
 }}
 """
-
-
 
 # 标题栏样式 - 使用设计令牌
 TITLE_BAR = f"""
@@ -319,7 +315,7 @@ QWidget {{
 SIDEBAR = f"""
 QWidget {{
     background-color: {NEUTRAL_50};
-    border-right: 1px solid {NEUTRAL_300};
+    border-right: 1px solid {NEUTRAL_200};
     width: {SIDEBAR_WIDTH}px;
 }}"""
 

@@ -71,7 +71,7 @@ class MainWindow(QMainWindow):
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.setSpacing(0)
 
-        # 修改为创建主分割器，使用 PySide6 原生的 QSplitter
+        # 创建主分割器，使用 PySide6 原生的 QSplitter
         main_splitter = QSplitter(Qt.Orientation.Horizontal)
         main_splitter.setStyleSheet(AppStyle().get_main_splitter())
         # 创建右侧内容分割器，同样使用 QSplitter
@@ -98,7 +98,7 @@ class MainWindow(QMainWindow):
         main_splitter.addWidget(self.sidebar)
         main_splitter.addWidget(right_splitter)
 
-        # 设置sidebar宽度为52，适配对称边距配置（7+36+2边框+7=52px）
+        # 设置sidebar宽度为59px
         main_splitter.setSizes([59, int(self.width() - 59)])
         self.sidebar.setFixedWidth(59)
 
