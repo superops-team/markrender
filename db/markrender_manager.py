@@ -426,7 +426,7 @@ class MarkRenderManager:
                     new_change.new_is_folder = new_values.get('is_folder')
             
             session.add(new_change)
-            logger.info(f"变更历史记录已添加到session: change_id={new_change.id if new_change.id else '未分配'}")
+            logger.info(f"变更历史记录已添加到session: change_id={new_change.id if new_change.id is not None else '未分配'}")
             # 注意：不在此处commit，由调用方负责commit
             return new_change
         except Exception as e:
@@ -998,23 +998,36 @@ class MarkRenderManager:
     
     def move_item(self, item_id, new_parent_id=None):
         """移动节点到新的父节点"""
+        # 防止节点移动到自身
+        if item_id == new_parent_id:
+            return True
+        
         session = self.Session()
         try:
             record = session.query(MarkRenderData).filter_by(id=item_id).first()
             if record:
-                old_parent_id = getattr(record, 'parent_id', None)
-                setattr(record, 'parent_id', new_parent_id)
-                
                 # 更新层级深度
                 if new_parent_id is None:
                     # 移动到根节点
+                    setattr(record, 'parent_id', None)
                     setattr(record, 'level', 0)
+                    # 更新所有子节点的层级
+                    self._update_children_levels(session, item_id, 0)
                 else:
                     # 获取新父节点的层级深度
                     parent_record = session.query(MarkRenderData).filter_by(id=new_parent_id).first()
                     if parent_record:
+                        setattr(record, 'parent_id', new_parent_id)
                         new_level = getattr(parent_record, 'level', 0) + 1
                         setattr(record, 'level', new_level)
+                        # 更新所有子节点的层级
+                        self._update_children_levels(session, item_id, new_level)
+                    else:
+                        # 父节点不存在，将节点移动到根节点
+                        setattr(record, 'parent_id', None)
+                        setattr(record, 'level', 0)
+                        # 更新所有子节点的层级
+                        self._update_children_levels(session, item_id, 0)
                 
                 session.commit()
                 return True
@@ -1022,6 +1035,43 @@ class MarkRenderManager:
         except Exception as e:
             session.rollback()
             logger.error(f"Error moving item: {e}")
+            raise e
+        finally:
+            session.close()
+    
+    def _update_children_levels(self, session, parent_id, parent_level, visited=None):
+        """递归更新子节点的层级深度"""
+        if visited is None:
+            visited = set()
+        
+        # 防止循环引用导致的无限递归
+        if parent_id in visited:
+            return
+        
+        visited.add(parent_id)
+        
+        # 获取所有直接子节点
+        children = session.query(MarkRenderData).filter_by(parent_id=parent_id).all()
+        for child in children:
+            new_level = parent_level + 1
+            logger.info(f"更新子节点 {child.id} 的层级从 {getattr(child, 'level', 'unknown')} 到 {new_level}")
+            setattr(child, 'level', new_level)
+            # 递归更新子节点的子节点
+            self._update_children_levels(session, child.id, new_level, visited)
+    
+    def update_item_level(self, item_id, new_level):
+        """更新节点的层级深度"""
+        session = self.Session()
+        try:
+            record = session.query(MarkRenderData).filter_by(id=item_id).first()
+            if record:
+                setattr(record, 'level', new_level)
+                session.commit()
+                return True
+            return False
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error updating item level: {e}")
             raise e
         finally:
             session.close()
