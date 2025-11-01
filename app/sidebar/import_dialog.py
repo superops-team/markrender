@@ -26,11 +26,15 @@ from app.preference.style_utils import (
     create_button_style,
 )
 from app.preference.style_constants import (
+    PRIMARY_50,
+    PRIMARY_300,
     PRIMARY_500,
+    PRIMARY_600,
     NEUTRAL_0,
     NEUTRAL_50,
     NEUTRAL_100,
     NEUTRAL_200,
+    NEUTRAL_300,
     NEUTRAL_500,
     NEUTRAL_700,
     RADIUS_SM,
@@ -57,35 +61,38 @@ class ImportDialog(QDialog):
 
 
     def init_ui(self):
-        # 应用统一的对话框样式，参考history面板样式
+        # 应用与EditItemDialog一致的对话框样式
         self.setWindowTitle("文件导入")
-        self.setMinimumSize(520, 360)  # 使用最小尺寸而非固定尺寸
+        self.setMinimumSize(520, 400)  # 适当调整最小尺寸
         
-        # 对话框样式参考history面板
+        # 对话框样式与EditItemDialog保持一致
         self.setStyleSheet(f"""
             QDialog {{
                 background-color: {NEUTRAL_0};
-                border: 1px solid {NEUTRAL_200};
-                border-radius: {RADIUS_MD}px;
             }}
         """)
         
+        # 主布局 - 与EditItemDialog保持一致的边距和间距
         dialog_layout = QVBoxLayout(self)
-        dialog_layout.setContentsMargins(SPACING_XL, SPACING_XL, SPACING_XL, SPACING_XL)
-        dialog_layout.setSpacing(SPACING_LG)
+        dialog_layout.setContentsMargins(SPACING_MD, SPACING_MD, SPACING_MD, SPACING_MD)  # 与EditItemDialog一致
+        dialog_layout.setSpacing(SPACING_MD)  # 与EditItemDialog一致
 
-        # 创建导入区域（参考history面板样式）
+        # 创建导入区域 - 优化样式使其更现代
         content_widget = QFrame(self)
-        content_widget.setFixedSize(472, 160)
-        # 移除内部圆角，避免与外部对话框圆角产生视觉冲突
+        content_widget.setMinimumHeight(200)  # 使用最小高度而不是固定尺寸
         content_widget.setStyleSheet(f"""
             QFrame {{
-                background-color: {NEUTRAL_0};
-                border: 1px dashed {PRIMARY_500};
+                background-color: {NEUTRAL_50};
+                border: 2px dashed {PRIMARY_300};
+                border-radius: {RADIUS_MD}px;
             }}
             QFrame:hover {{
-                background-color: {NEUTRAL_50};
+                background-color: {PRIMARY_50};
                 border-color: {PRIMARY_500};
+            }}
+            QFrame:disabled {{
+                border-color: {NEUTRAL_300};
+                background-color: {NEUTRAL_50};
             }}
         """)
         
@@ -156,7 +163,7 @@ class ImportDialog(QDialog):
 
         dialog_layout.addWidget(content_widget, 0, Qt.AlignmentFlag.AlignCenter)
 
-        # 进度条
+        # 进度条 - 优化样式
         self.progress_bar = QProgressBar(self)
         self.progress_bar.setRange(0, 100)
         self.progress_bar.hide()
@@ -170,11 +177,64 @@ class ImportDialog(QDialog):
         self.info_label.setStyleSheet(self.get_info_label_style())
         dialog_layout.addWidget(self.info_label)
 
-        # 移除按钮区域，导入操作通过点击导入区域完成
         # 为内容区域添加点击事件
         content_widget.mousePressEvent = self.perform_import
         # 监听键盘事件以处理粘贴操作
         self.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
+        
+        # 添加标准的底部按钮区域，与EditItemDialog保持一致
+        button_layout = QHBoxLayout()
+        button_layout.setContentsMargins(SPACING_MD, SPACING_MD, SPACING_MD, SPACING_MD)
+        button_layout.setSpacing(SPACING_SM)
+        
+        # 添加弹性空间将按钮推到右侧
+        button_layout.addStretch()
+        
+        # 取消按钮 - 与EditItemDialog完全一致的样式
+        cancel_button = QPushButton("取消")
+        cancel_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {NEUTRAL_50};
+                color: {NEUTRAL_700};
+                border: 1px solid {NEUTRAL_100};
+                border-radius: {RADIUS_MD}px;
+                padding: {SPACING_SM}px {SPACING_MD}px;
+                font-size: {FONT_SIZE_MD}px;
+                font-weight: 500;
+                min-width: 80px;
+            }}
+            QPushButton:hover {{
+                background-color: {NEUTRAL_100};
+            }}
+        """)
+        cancel_button.clicked.connect(self.reject)
+        
+        # 导入按钮 - 与EditItemDialog的保存按钮样式一致
+        import_button = QPushButton("导入文件")
+        import_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {PRIMARY_500};
+                color: {NEUTRAL_0};
+                border: 1px solid {PRIMARY_500};
+                border-radius: {RADIUS_MD}px;
+                padding: {SPACING_SM}px {SPACING_MD}px;
+                font-size: {FONT_SIZE_MD}px;
+                font-weight: 500;
+                min-width: 80px;
+            }}
+            QPushButton:hover {{
+                background-color: {PRIMARY_600};
+                border-color: {PRIMARY_600};
+            }}
+        """)
+        import_button.setAutoDefault(False)
+        import_button.setDefault(True)
+        import_button.clicked.connect(self.perform_import)
+        
+        button_layout.addWidget(cancel_button)
+        button_layout.addWidget(import_button)
+        
+        dialog_layout.addLayout(button_layout)
 
     def get_import_area_style(self):
         """获取导入区域样式"""
@@ -210,7 +270,7 @@ class ImportDialog(QDialog):
         """
 
     def get_progress_bar_style(self):
-        """获取进度条样式"""
+        """获取进度条样式 - 优化为更现代的设计"""
         return f"""
         QProgressBar {{
             border-radius: {RADIUS_SM}px;
@@ -225,13 +285,16 @@ class ImportDialog(QDialog):
         """
 
     def get_info_label_style(self):
-        """获取信息标签样式"""
+        """获取信息标签样式 - 优化为更现代的设计"""
         return f"""
         QLabel {{
-            color: {PRIMARY_500};
-            font-size: {FONT_SIZE_SM}px;
+            color: {NEUTRAL_700};
+            font-size: {FONT_SIZE_MD}px;
             font-weight: 500;
             text-align: center;
+            padding: {SPACING_SM}px;
+            background-color: {NEUTRAL_50};
+            border-radius: {RADIUS_SM}px;
         }}
         """
 
