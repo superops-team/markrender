@@ -6,6 +6,9 @@ MarkRender 样式工具模块
 
 from .style_constants import *
 
+# Import QLayout and QPushButton for dialog button layout
+from PySide6.QtWidgets import QHBoxLayout, QPushButton
+
 # ============================================================================
 # 🎨 样式生成器函数 (Style Generator Functions)
 # ============================================================================
@@ -254,6 +257,71 @@ def large_button():
 def ghost_button():
     """幽灵按钮快捷样式"""
     return create_button_style("ghost", "md")
+
+
+def get_dialog_button_layout(parent_layout):
+    """
+    创建标准对话框按钮布局，全局统一风格
+    与EditItemDialog保持完全一致的按钮样式和布局
+    
+    :param parent_layout: 父布局对象
+    :return: (button_layout, cancel_button, save_button) 元组
+    """
+    # 按钮布局 - 与EditItemDialog完全一致
+    button_layout = QHBoxLayout()
+    button_layout.setContentsMargins(SPACING_MD, SPACING_MD, SPACING_MD, SPACING_MD)
+    button_layout.setSpacing(SPACING_SM)
+    
+    # 添加弹性空间将按钮推到右侧
+    button_layout.addStretch()
+    
+    # 取消按钮 - 完全复制EditItemDialog的样式
+    cancel_button = QPushButton("取消")
+    cancel_button.setStyleSheet(f"""
+        QPushButton {{
+            background-color: {NEUTRAL_50};
+            color: {NEUTRAL_700};
+            border: 1px solid {NEUTRAL_100};
+            border-radius: {RADIUS_MD}px;
+            padding: {SPACING_SM}px {SPACING_MD}px;
+            font-size: {FONT_SIZE_MD}px;
+            font-weight: 500;
+            min-width: 80px;
+        }}
+        QPushButton:hover {{
+            background-color: {NEUTRAL_100};
+        }}
+    """)
+    
+    # 保存按钮 - 完全复制EditItemDialog的样式
+    save_button = QPushButton("保存")
+    save_button.setStyleSheet(f"""
+        QPushButton {{
+            background-color: {PRIMARY_500};
+            color: {NEUTRAL_0};
+            border: 1px solid {PRIMARY_500};
+            border-radius: {RADIUS_MD}px;
+            padding: {SPACING_SM}px {SPACING_MD}px;
+            font-size: {FONT_SIZE_MD}px;
+            font-weight: 500;
+            min-width: 80px;
+        }}
+        QPushButton:hover {{
+            background-color: {PRIMARY_600};
+            border-color: {PRIMARY_600};
+        }}
+    """)
+    save_button.setAutoDefault(False)
+    save_button.setDefault(True)
+    
+    # 添加按钮到布局
+    button_layout.addWidget(cancel_button)
+    button_layout.addWidget(save_button)
+    
+    # 将按钮布局添加到父布局
+    parent_layout.addLayout(button_layout)
+    
+    return button_layout, cancel_button, save_button
 
 # 在文件末尾添加
 

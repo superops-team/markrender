@@ -80,7 +80,7 @@ class SettingsDialog(QDialog):
         """初始化UI - 基于Robin Williams四大设计原则优化"""
         # 主布局 - 使用合理的边距（对齐原则）
         main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(SPACING_XL, SPACING_MD, SPACING_XL, SPACING_LG)  # 优化边距以提高空间利用率
+        main_layout.setContentsMargins(SPACING_LG, SPACING_MD, SPACING_LG, SPACING_LG)  # 优化边距，减少不必要的留白
         main_layout.setSpacing(SPACING_MD)
         
         # 创建和配置Tab控件（重复原则）
@@ -431,17 +431,17 @@ class SettingsDialog(QDialog):
         """配置Tab控件样式（重复和对齐原则）- 简化样式，符合TDesign设计风格"""
         self.tab_widget.setStyleSheet(f"""
             QTabWidget::pane {{
-                border: 1px solid {NEUTRAL_200};
+                border: none;  # 移除面板边框，减少线条数量
                 background-color: {NEUTRAL_0};
-                margin-top: {SPACING_XS}px;
-                padding: {SPACING_MD}px;
+                margin-top: {SPACING_SM}px;
+                padding: {SPACING_LG}px;
             }}
             QTabBar::tab {{
                 background-color: transparent;
                 color: {NEUTRAL_700};
                 border: none;
-                padding: {SPACING_SM}px {SPACING_MD}px;
-                margin-right: 2px;
+                padding: {SPACING_SM}px {SPACING_LG}px;
+                margin-right: 4px;
                 font-size: {FONT_SIZE_MD}px;
                 font-weight: 500;
                 min-width: 90px;
@@ -459,17 +459,17 @@ class SettingsDialog(QDialog):
         """)
     
     def _add_button_area(self, layout):
-        """添加按钮区域（对齐原则）- 使用与EditItemDialog一致的按钮样式"""
+        """添加按钮区域（对齐原则）- 直接实现与EditItemDialog完全一致的按钮样式"""
+        # 按钮布局 - 与EditItemDialog完全一致
         button_layout = QHBoxLayout()
-        button_layout.setContentsMargins(SPACING_MD, SPACING_MD, SPACING_MD, SPACING_MD)  # 统一内边距
+        button_layout.setContentsMargins(SPACING_MD, SPACING_MD, SPACING_MD, SPACING_MD)
         button_layout.setSpacing(SPACING_SM)
         
         # 添加弹性空间将按钮推到右侧
         button_layout.addStretch()
         
-        # 取消按钮 - 使用与EditItemDialog一致的样式
+        # 取消按钮 - 完全复制EditItemDialog的样式
         cancel_button = QPushButton("取消")
-        cancel_button.clicked.connect(self.reject)
         cancel_button.setStyleSheet(f"""
             QPushButton {{
                 background-color: {NEUTRAL_50};
@@ -485,10 +485,10 @@ class SettingsDialog(QDialog):
                 background-color: {NEUTRAL_100};
             }}
         """)
+        cancel_button.clicked.connect(self.reject)
         
-        # 保存按钮 - 使用与EditItemDialog一致的样式
+        # 保存按钮 - 完全复制EditItemDialog的样式
         save_button = QPushButton("保存")
-        save_button.clicked.connect(self.save_settings)
         save_button.setStyleSheet(f"""
             QPushButton {{
                 background-color: {PRIMARY_500};
@@ -505,49 +505,61 @@ class SettingsDialog(QDialog):
                 border-color: {PRIMARY_600};
             }}
         """)
-        save_button.setAutoDefault(False)  # 防止回车键触发保存
+        save_button.setAutoDefault(False)
         save_button.setDefault(True)
+        save_button.clicked.connect(self.save_settings)
         
+        # 添加按钮到布局
         button_layout.addWidget(cancel_button)
         button_layout.addWidget(save_button)
         
+        # 将按钮布局添加到父布局
         layout.addLayout(button_layout)
     
     def _create_group_box(self, title):
-        """创建统一样式的分组框（亲密性原则）- 简化样式，符合TDesign设计风格"""
-        # 直接使用QGroupBox但简化其样式
-        group_box = QGroupBox()
-        group_box.setStyleSheet(f"""
-            QGroupBox {{
-                border: 1px solid {NEUTRAL_200};
-                background-color: {NEUTRAL_50};
-                margin-top: {SPACING_SM}px;
-                padding: {SPACING_MD}px;
+        """创建统一样式的分组框（亲密性原则）- 简化样式，符合TDesign设计风格，减少线条"""
+        # 创建容器widget作为分组区域
+        container = QWidget()
+        container.setStyleSheet(f"""
+            QWidget {{
+                background-color: transparent;
+                border-radius: {RADIUS_MD}px;
             }}
         """)
         
-        # 创建标题标签并将其放置在QGroupBox外部
+        # 使用QVBoxLayout作为主布局
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(SPACING_SM)
+        
+        # 创建标题标签
         title_label = QLabel(title)
         title_label.setStyleSheet(f"""
             QLabel {{
                 font-size: {FONT_SIZE_MD}px;
                 font-weight: 600;
                 color: {NEUTRAL_700};
+                padding: {SPACING_XS}px 0;
+            }}
+        """)
+        layout.addWidget(title_label)
+        
+        # 创建内容区域，使用背景色和圆角代替边框
+        content_widget = QWidget()
+        content_widget.setStyleSheet(f"""
+            QWidget {{
+                background-color: {NEUTRAL_50};
+                border-radius: {RADIUS_MD}px;
+                padding: {SPACING_LG}px;
             }}
         """)
         
-        # 创建一个容器widget包含标题和QGroupBox
-        container = QWidget()
-        layout = QVBoxLayout(container)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(SPACING_XS)
-        layout.addWidget(title_label)
-        layout.addWidget(group_box)
+        # 将content_widget作为可设置布局的对象
+        container.group_box = content_widget
         
-        # 返回容器widget而不是group_box本身
-        # 这样可以确保整个widget层次结构都被正确引用和管理
-        # 同时，我们需要确保调用者能正确访问group_box来设置其布局
-        container.group_box = group_box  # 保存对group_box的引用
+        # 添加到主布局
+        layout.addWidget(content_widget)
+        
         return container
     
     def _get_label_style(self):
