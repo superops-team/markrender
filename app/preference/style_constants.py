@@ -194,7 +194,7 @@ INPUT_HEIGHT_SM = 24        # 小输入框高度 (减小高度使布局更紧凑
 INPUT_HEIGHT_MD = 32        # 中等输入框高度 (减小高度使布局更紧凑)
 INPUT_HEIGHT_LG = 40        # 大输入框高度 (减小高度使布局更紧凑)
 
-SIDEBAR_WIDTH = 56          # 侧边栏宽度 (数据驱动优化后，减小宽度使布局更紧凑)
+SIDEBAR_WIDTH = 48          # 侧边栏宽度 (符合TDesign设计体系的标准宽度，更紧凑现代)
 TITLEBAR_HEIGHT = 32        # 标题栏高度 (增加高度使布局更平衡)
 STATUSBAR_HEIGHT = 20       # 状态栏高度 (减小高度使布局更紧凑)
 
