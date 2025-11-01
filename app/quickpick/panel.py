@@ -591,7 +591,7 @@ class QuickPickPanel(QWidget):
                 
                 find_parent_item_by_id(None)
             
-            if self._is_descendant(dragged_item, target_parent_item):
+            if self._is_descendant(target_parent_item, dragged_item):
                 logger.warning("验证失败：不能将节点拖入其子节点")
                 return False
             
@@ -947,19 +947,21 @@ class QuickPickPanel(QWidget):
         return None
     
     def _is_descendant(self, parent_item, child_item):
-        """检查parent_item是否是child_item的后代"""
+        """检查parent_item是否是child_item的后代，即child_item是否是parent_item的祖先"""
         if not child_item or not parent_item:
             return False
         
-        # 检查child_item是否是parent_item的祖先
-        def check_ancestor(current_item):
-            if current_item == parent_item:
+        # 检查parent_item是否是child_item的后代
+        def check_descendant(current_item):
+            if current_item == child_item:
                 return True
-            if current_item.parent():
-                return check_ancestor(current_item.parent())
+            for i in range(current_item.childCount()):
+                child = current_item.child(i)
+                if child and check_descendant(child):
+                    return True
             return False
         
-        return check_ancestor(child_item)
+        return check_descendant(parent_item)
 
     def load_quickpick_items(self):
         """加载所有历史记录"""

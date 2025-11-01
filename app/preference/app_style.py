@@ -387,6 +387,10 @@ QSplitter::handle {{
     background: transparent;
     width: 2px;
 }}
+QSplitter::handle:hover {{
+    background: #0052d9;  /* 鼠标悬停时蓝色高亮 */
+    width: 2px;
+}}
 QSplitter {{
     padding: 2px;
     background-color: {};
@@ -722,6 +726,56 @@ class AppStyle:
         QTreeWidget::branch:has-children {{
             background-color: transparent;
             border: none;
+        }}
+        
+        /* 优化滚动条样式 - 更细的滚动条 */
+        QScrollBar:vertical {{
+            background: transparent;
+            width: 4px;
+            margin: 0px;
+            border-radius: 2px;
+        }}
+        
+        QScrollBar::handle:vertical {{
+            background: #d0d0d0;
+            min-height: 20px;
+            border-radius: 2px;
+        }}
+        
+        QScrollBar::handle:vertical:hover {{
+            background: #0052d9;  /* 蓝色高亮效果 */
+        }}
+        
+        QScrollBar::add-line:vertical,
+        QScrollBar::sub-line:vertical,
+        QScrollBar::add-page:vertical,
+        QScrollBar::sub-page:vertical {{
+            background: transparent;
+        }}
+        
+        /* 水平滚动条样式 */
+        QScrollBar:horizontal {{
+            background: transparent;
+            height: 4px;
+            margin: 0px;
+            border-radius: 2px;
+        }}
+        
+        QScrollBar::handle:horizontal {{
+            background: #d0d0d0;
+            min-width: 20px;
+            border-radius: 2px;
+        }}
+        
+        QScrollBar::handle:horizontal:hover {{
+            background: #0052d9;  /* 蓝色高亮效果 */
+        }}
+        
+        QScrollBar::add-line:horizontal,
+        QScrollBar::sub-line:horizontal,
+        QScrollBar::add-page:horizontal,
+        QScrollBar::sub-page:horizontal {{
+            background: transparent;
         }}
         """
 
