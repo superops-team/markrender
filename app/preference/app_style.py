@@ -475,6 +475,59 @@ QTreeWidget::branch:has-children {{
     border: none;
 }}
 """
+# 通用滚动条样式 - 适用于整个应用程序
+SCROLLBAR_STYLE = """
+/* 优化滚动条样式 - 更细的滚动条 */
+QScrollBar:vertical {
+    background: transparent;
+    width: 4px;
+    margin: 0px;
+    border-radius: 2px;
+}
+
+QScrollBar::handle:vertical {
+    background: #d0d0d0;
+    min-height: 20px;
+    border-radius: 2px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: #0052d9;  /* 蓝色高亮效果 */
+}
+
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical,
+QScrollBar::add-page:vertical,
+QScrollBar::sub-page:vertical {
+    background: transparent;
+}
+
+/* 水平滚动条样式 */
+QScrollBar:horizontal {
+    background: transparent;
+    height: 4px;
+    margin: 0px;
+    border-radius: 2px;
+}
+
+QScrollBar::handle:horizontal {
+    background: #d0d0d0;
+    min-width: 20px;
+    border-radius: 2px;
+}
+
+QScrollBar::handle:horizontal:hover {
+    background: #0052d9;  /* 蓝色高亮效果 */
+}
+
+QScrollBar::add-line:horizontal,
+QScrollBar::sub-line:horizontal,
+QScrollBar::add-page:horizontal,
+QScrollBar::sub-page:horizontal {
+    background: transparent;
+}
+"""
+
 TAB_STYLE = """
 /* 去掉 tab 页边框 */
 QTabWidget::pane {
@@ -602,6 +655,7 @@ class AppStyle:
 
     def get_history_panel(self):
         # 历史记录面板样式 - 简洁现代风格
+        # 复用全局滚动条样式，确保应用内一致性
         return f"""
         QListWidget {{
             background-color: #ffffff;
@@ -629,6 +683,9 @@ class AppStyle:
         QListWidget::item:hover {{
             background-color: {NEUTRAL_50};
         }}
+        
+        /* 复用全局滚动条样式 */
+        {SCROLLBAR_STYLE}
         """
 
     def get_quickpick_panel(self):
@@ -641,6 +698,7 @@ class AppStyle:
             chevron_down_path = 'icons/chevron-down.svg'
         
         # TDesign风格的树形导航面板样式
+        # 复用全局滚动条样式，确保应用内一致性
         return f"""
         QTreeWidget {{
             background-color: #ffffff;
@@ -728,55 +786,8 @@ class AppStyle:
             border: none;
         }}
         
-        /* 优化滚动条样式 - 更细的滚动条 */
-        QScrollBar:vertical {{
-            background: transparent;
-            width: 4px;
-            margin: 0px;
-            border-radius: 2px;
-        }}
-        
-        QScrollBar::handle:vertical {{
-            background: #d0d0d0;
-            min-height: 20px;
-            border-radius: 2px;
-        }}
-        
-        QScrollBar::handle:vertical:hover {{
-            background: #0052d9;  /* 蓝色高亮效果 */
-        }}
-        
-        QScrollBar::add-line:vertical,
-        QScrollBar::sub-line:vertical,
-        QScrollBar::add-page:vertical,
-        QScrollBar::sub-page:vertical {{
-            background: transparent;
-        }}
-        
-        /* 水平滚动条样式 */
-        QScrollBar:horizontal {{
-            background: transparent;
-            height: 4px;
-            margin: 0px;
-            border-radius: 2px;
-        }}
-        
-        QScrollBar::handle:horizontal {{
-            background: #d0d0d0;
-            min-width: 20px;
-            border-radius: 2px;
-        }}
-        
-        QScrollBar::handle:horizontal:hover {{
-            background: #0052d9;  /* 蓝色高亮效果 */
-        }}
-        
-        QScrollBar::add-line:horizontal,
-        QScrollBar::sub-line:horizontal,
-        QScrollBar::add-page:horizontal,
-        QScrollBar::sub-page:horizontal {{
-            background: transparent;
-        }}
+        /* 复用全局滚动条样式 */
+        {SCROLLBAR_STYLE}
         """
 
     def get_format_label(self):
