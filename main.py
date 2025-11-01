@@ -120,6 +120,9 @@ class MainWindow(QMainWindow):
         self.setStatusBar(self.status_bar)
         self.status_bar.setStyleSheet(AppStyle().get_status_bar())
         
+        # 连接状态栏的标签选择信号到quickpick面板的过滤方法
+        self.status_bar.tag_selected.connect(self.quickpick_panel.filter_by_tag)
+        
         # 移除默认的Landing欢迎页面显示
         # 改为加载最后更新的项目
         # 延迟显示，确保所有组件初始化完成
@@ -180,6 +183,14 @@ class MainWindow(QMainWindow):
         """更新编辑区和预览区内容，支持多页面类型路由"""
         try:            
             logger.info(f"开始更新编辑器页面: {quickpick_item.get('title', 'Unknown')}")
+            # 核心改进：当用户点击item时，自动取消选中的tag
+            # 这确保了用户在查看不同项目时不会被之前的过滤限制
+            if hasattr(self, 'status_bar') and hasattr(self.status_bar, 'selected_tag'):
+                # 如果有选中的tag，清除它
+                if self.status_bar.selected_tag:
+                    logger.info(f"清除选中的tag: {self.status_bar.selected_tag}")
+                    # 调用_on_tag_clicked方法来清除选中状态并发送信号
+                    self.status_bar._on_tag_clicked(self.status_bar.selected_tag)
             # 没有修改或没有当前项，直接切换
             self._continue_update_editor_and_previewer(quickpick_item)
         except Exception as e:

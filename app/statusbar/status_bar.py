@@ -1,19 +1,24 @@
 from PySide6.QtWidgets import QStatusBar, QLabel, QToolButton, QHBoxLayout, QWidget, QSizePolicy, QPushButton
 from PySide6.QtGui import QIcon
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from app.preference import AppStyle  # 新增导入
 from utils.path import get_icon_path
 from app.preference.style_constants import (
-    NEUTRAL_300, SPACING_XS, PRIMARY_100, PRIMARY_200, PRIMARY_600,
+    NEUTRAL_300, SPACING_XS, PRIMARY_100, PRIMARY_200, PRIMARY_400, PRIMARY_500, PRIMARY_600,
     NEUTRAL_100, NEUTRAL_200, NEUTRAL_700, FONT_SIZE_SM
 )
 
 class StatusBar(QStatusBar):
+    # 新增信号，用于通知quickpick面板进行标签过滤
+    tag_selected = Signal(str)  # 发送选中的标签文本
+    
     def __init__(self, parent=None):
         super().__init__(parent)
         self.main_window = parent  # 保存主窗口引用
         self.current_page_type = None  # 保存当前页面类型
         self.current_tags = ""  # 保存当前标签
+        self.selected_tag = None  # 保存当前选中的标签
+        self.tag_buttons = []  # 保存所有标签按钮的引用
         
         # 创建左侧的标签列表
         self.tags_layout = QHBoxLayout()
@@ -82,121 +87,118 @@ class StatusBar(QStatusBar):
         self._refresh_display()
 
     def _refresh_display(self):
-        """刷新显示内容，包括page_type和tags"""
+        """刷新显示内容，包括page_type和tags，所有标签统一使用灰色，支持点击互斥选中"""
         # 清除现有标签
         while self.tags_layout.count() > 0:
             item = self.tags_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
         
+        # 清空标签按钮列表
+        self.tag_buttons = []
+        
         # 添加tag标签
+        all_tags = []
+        
+        # 始终将page_type作为第一个标签（如果存在）
+        if self.current_page_type and self.current_page_type.strip():
+            all_tags.append(self.current_page_type.lower())
+        
+        # 添加用户自定义的tags
         if self.current_tags:
-            # 如果有tags，先添加page_type作为首个标签（如果存在）
-            if self.current_page_type:
-                page_type_widget = self._create_page_type_widget(self.current_page_type)
-                self.tags_layout.addWidget(page_type_widget)
-            
-            # 然后添加tag标签
-            tag_list = [tag.strip() for tag in self.current_tags.split(',') if tag.strip()]
-            for tag in tag_list:
-                tag_button = self._create_tag_widget(tag)
-                self.tags_layout.addWidget(tag_button)
-        elif self.current_page_type and self.current_page_type.strip():
-            # 如果有page_type但没有tags，显示page_type的默认值作为标签
-            display_text = self._get_page_type_display_text(self.current_page_type)
-            page_type_widget = self._create_tag_widget(display_text)
-            self.tags_layout.addWidget(page_type_widget)
-        else:
-            # 如果既没有page_type也没有tags，显示默认的md
-            md_widget = self._create_tag_widget("md")
-            self.tags_layout.addWidget(md_widget)
-
-    def _get_page_type_display_text(self, page_type):
-        """获取页面类型显示文本，根据默认值映射规则"""
-        # 默认值映射规则
-        default_mappings = {
-            'markdown': 'md',
-            'excalidraw': 'board'
-        }
-        return default_mappings.get(page_type.lower(), page_type.lower())
-
-    def _create_page_type_widget(self, page_type):
-        """创建页面类型标签，使用与edit_dialog一致的颜色映射但适应statusbar"""
-        # 导入颜色映射
-        from app.quickpick.item import QuickPickItemDelegate
-        from PySide6.QtGui import QColor
+            user_tags = [tag.strip() for tag in self.current_tags.split(',') if tag.strip()]
+            all_tags.extend(user_tags)
         
-        delegate = QuickPickItemDelegate()
-        type_color = delegate.tag_color_map.get(page_type.lower(), delegate.default_color)
+        # 如果没有任何标签，显示默认的markdown
+        if not all_tags:
+            all_tags.append("markdown")
         
-        # 确保type_color是QColor对象
-        if isinstance(type_color, QColor):
-            # 将QColor转换为CSS颜色字符串
-            bg_color = f'rgb({type_color.red()}, {type_color.green()}, {type_color.blue()})'
-            # 创建稍深的边框颜色（降低亮度）
-            border_color = f'rgb({max(0, type_color.red()-20)}, {max(0, type_color.green()-20)}, {max(0, type_color.blue()-20)})'
-        else:
-            # 如果不是QColor对象，使用默认颜色
-            bg_color = "#6B7280"  # NEUTRAL_500
-            border_color = "#4B5563"  # NEUTRAL_600
-        
-        # 创建标签按钮
-        type_button = QPushButton(page_type.upper())
-        type_button.setFlat(True)
-        type_button.setEnabled(False)
-        type_button.setStyleSheet(
-            f"QPushButton {{"
-            f"background-color: {bg_color};"
-            f"border: 1px solid {border_color};"
-            f"border-radius: 14px;"  # 与tag标签保持一致的圆角
-            f"color: white;"
-            f"padding: 4px 10px;"  # 与tag标签保持一致的内边距
-            f"font-size: {FONT_SIZE_SM}px;"
-            f"font-weight: 500;"
-            f"text-align: center;"
-            f"min-height: 18px;"  # 与tag标签保持一致的高度
-            f"}}"
-            f"QPushButton:disabled {{"
-            f"background-color: {bg_color};"
-            f"color: white;"
-            f"border: 1px solid {border_color};"
-            f"}}"
-        )
-        # 设置属性以确保样式生效
-        type_button.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        # 设置对象名称以提高样式优先级
-        type_button.setObjectName("status_page_type_button")
-        return type_button
-
-    def _create_tag_widget(self, tag):
-        """创建标签按钮，样式与edit_dialog保持一致但适应statusbar"""
+        # 为所有标签创建按钮，统一使用灰色样式，支持点击
+        for tag in all_tags:
+            # 创建可点击的标签按钮
+            tag_button = self._create_clickable_tag_widget(tag)
+            self.tags_layout.addWidget(tag_button)
+            self.tag_buttons.append((tag, tag_button))
+    
+    def _create_clickable_tag_widget(self, tag):
+        """创建可点击的标签按钮，支持点击选中/取消选中，互斥关系，选中时显示蓝色"""
         tag_button = QPushButton(tag)
         tag_button.setFlat(True)
-        tag_button.setEnabled(False)
-        # 保持与edit_dialog一致的圆角样式，但调整尺寸以适应statusbar
-        tag_button.setStyleSheet(
-            f"QPushButton {{"
-            f"background-color: {NEUTRAL_100};"
-            f"border: 1px solid {NEUTRAL_200};"
-            f"border-radius: 14px;"  # 保持明显的圆角效果
-            f"color: {NEUTRAL_700};"
-            f"padding: 4px 10px;"  # 适当调整内边距
-            f"font-size: {FONT_SIZE_SM}px;"
-            f"font-weight: 500;"
-            f"text-align: center;"
-            f"min-height: 18px;"  # 适当调整最小高度
-            f"}}"
-            f"QPushButton:disabled {{"
-            f"background-color: {NEUTRAL_100};"
-            f"color: {NEUTRAL_700};"
-            f"border: 1px solid {NEUTRAL_200};"
-            f"}}"
-        )
+        tag_button.setEnabled(True)  # 启用按钮以支持点击
+        
+        # 连接点击信号
+        tag_button.clicked.connect(lambda checked=False, t=tag: self._on_tag_clicked(t))
+        
+        # 初始样式设置为灰色
+        is_selected = (tag == self.selected_tag)
+        self._update_tag_button_style(tag_button, is_selected)
+        
         # 设置属性以确保样式生效
         tag_button.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         # 设置对象名称以提高样式优先级
         tag_button.setObjectName("status_tag_button")
         return tag_button
+    
+    def _update_tag_button_style(self, button, is_selected):
+        """更新标签按钮样式，选中时显示蓝色，未选中时显示灰色"""
+        if is_selected:
+            # 选中状态：蓝色背景，白色文字
+            bg_color = PRIMARY_500
+            border_color = PRIMARY_600
+            text_color = "white"
+        else:
+            # 未选中状态：灰色背景，灰色文字
+            bg_color = NEUTRAL_100
+            border_color = NEUTRAL_200
+            text_color = NEUTRAL_700
+        
+        button.setStyleSheet(
+            "QPushButton {" +
+            f"background-color: {bg_color}; " +
+            f"border: 1px solid {border_color}; " +
+            "border-radius: 14px; " +
+            f"color: {text_color}; " +
+            "padding: 4px 10px; " +
+            f"font-size: {FONT_SIZE_SM}px; " +
+            "font-weight: 500; " +
+            "text-align: center; " +
+            "min-height: 18px; " +
+            "}" +
+            "QPushButton:hover {" +
+            (f"background-color: {PRIMARY_400}; " +
+             f"border-color: {PRIMARY_500}; " if is_selected else
+             f"background-color: {NEUTRAL_200}; " +
+             f"border-color: {NEUTRAL_300}; " ) +
+            "}"
+        )
+    
+    def _on_tag_clicked(self, tag):
+        """处理标签点击事件，实现互斥选中，发送过滤信号"""
+        # 如果点击的是当前选中的标签，则取消选中
+        if tag == self.selected_tag:
+            self.selected_tag = None
+            # 发送空信号表示清除过滤
+            self.tag_selected.emit("")
+        else:
+            # 选中新标签，取消之前的选中状态
+            self.selected_tag = tag
+            # 发送选中的标签文本作为过滤条件
+            self.tag_selected.emit(tag)
+        
+        # 更新所有标签按钮的样式
+        for t, button in self.tag_buttons:
+            self._update_tag_button_style(button, t == self.selected_tag)
+        
+        # 如果主窗口存在quickpick面板，通知它进行过滤
+        if self.main_window and hasattr(self.main_window, 'quickpick_panel'):
+            try:
+                # 调用quickpick面板的过滤方法
+                # 这里假设quickpick_panel有一个filter_by_tag方法
+                # 如果方法不存在，我们静默失败，因为这是一个优雅降级
+                if hasattr(self.main_window.quickpick_panel, 'filter_by_tag'):
+                    self.main_window.quickpick_panel.filter_by_tag(self.selected_tag)
+            except Exception as e:
+                print(f"过滤标签时出错: {e}")
 
     def toggle_history_panel(self):
         """切换历史记录面板显示状态"""

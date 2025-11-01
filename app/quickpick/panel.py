@@ -42,6 +42,8 @@ class QuickPickPanel(QWidget):
         self.markrender_manager = markrender_manager
         # 替换 QListWidget 为 QTreeWidget
         self.quickpick_list = QTreeWidget()
+        # 添加标签过滤支持
+        self.current_tag_filter = None
         # 设置 sizePolicy 为 Expanding
         self.quickpick_list.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         # 禁用水平滚动条
@@ -973,7 +975,7 @@ class QuickPickPanel(QWidget):
             logger.error(f"加载记录失败: {e}", exc_info=True)
 
     def filter_quickpick(self):
-        """根据搜索框过滤记录"""
+        """根据搜索框和标签过滤记录"""
         try:
             logger.debug("开始过滤记录...")
             # 清除当前列表中的数据
@@ -982,6 +984,7 @@ class QuickPickPanel(QWidget):
             # 获取搜索文本
             search_text = self.search_input.text().strip().lower()
             logger.debug(f"搜索关键字: {search_text}")
+            logger.debug(f"标签过滤: {self.current_tag_filter}")
             
             # 确保拖拽支持已设置
             self._setup_drag_drop_support()
@@ -1014,10 +1017,25 @@ class QuickPickPanel(QWidget):
                     if 'children' in item and item['children']:
                         add_tree_items(tree_item, item['children'])
                     
-                    # 根据搜索条件决定是否添加到显示列表
+                    # 根据搜索条件和标签过滤条件决定是否添加到显示列表
                     # 确保即使title为空也能正确处理
                     title_lower = item.get('title', '').lower()
-                    if not search_text or search_text in title_lower:
+                    
+                    # 检查标签过滤条件
+                    tag_match = True
+                    if self.current_tag_filter:
+                        # 获取项目的标签
+                        item_tags = item.get('tags', '').lower()
+                        # 获取项目的页面类型，也作为标签的一部分进行匹配
+                        item_page_type = item.get('page_type', '').lower()
+                        # 检查是否匹配标签过滤条件
+                        tag_match = (self.current_tag_filter in item_tags) or (self.current_tag_filter == item_page_type)
+                    
+                    # 搜索文本匹配
+                    search_match = (not search_text) or (search_text in title_lower)
+                    
+                    # 只有同时满足标签过滤和搜索过滤的项目才显示
+                    if tag_match and search_match:
                         if parent_item is None:
                             # 如果没有父节点，则添加到顶层
                             self.quickpick_list.addTopLevelItem(tree_item)
@@ -1027,8 +1045,18 @@ class QuickPickPanel(QWidget):
                         if 'children' in item and item['children']:
                             def check_children(children):
                                 for child in children:
+                                    # 检查子节点是否满足过滤条件
                                     child_title_lower = child.get('title', '').lower()
-                                    if search_text in child_title_lower:
+                                    child_search_match = (not search_text) or (search_text in child_title_lower)
+                                    
+                                    # 检查子节点的标签
+                                    child_tag_match = True
+                                    if self.current_tag_filter:
+                                        child_tags = child.get('tags', '').lower()
+                                        child_page_type = child.get('page_type', '').lower()
+                                        child_tag_match = (self.current_tag_filter in child_tags) or (self.current_tag_filter == child_page_type)
+                                    
+                                    if child_search_match and child_tag_match:
                                         return True
                                     if 'children' in child and child['children']:
                                         if check_children(child['children']):
@@ -1039,6 +1067,8 @@ class QuickPickPanel(QWidget):
                         # 如果有匹配的子节点，也添加到显示列表
                         if has_matching_children:
                             self.quickpick_list.addTopLevelItem(tree_item)
+            # 展开所有匹配的节点，以便用户可以看到完整的过滤结果
+            self.quickpick_list.expandAll()
             
             # 添加树形结构数据
             add_tree_items(None, self.all_quickpick_items)
@@ -1053,6 +1083,27 @@ class QuickPickPanel(QWidget):
         finally:
             # 确保在任何情况下都能保持UI响应性
             self.quickpick_list.viewport().update()
+    
+    def filter_by_tag(self, tag):
+        """根据标签过滤quickpick项目
+        
+        Args:
+            tag: 要过滤的标签，如果为空则清除过滤
+        """
+        try:
+            logger.info(f"开始按标签过滤: {tag}")
+            # 设置当前标签过滤器
+            self.current_tag_filter = tag
+            # 重新过滤quickpick列表
+            self.filter_quickpick()
+            logger.info(f"标签过滤完成，当前过滤标签: {tag}")
+        except Exception as e:
+            logger.error(f"按标签过滤时出错: {e}", exc_info=True)
+    
+    def clear_tag_filter(self):
+        """清除标签过滤"""
+        self.current_tag_filter = None
+        self.filter_quickpick()
     
     def save_current_item(self):
         """保存当前文件并执行页面切换 - 修复版本"""
