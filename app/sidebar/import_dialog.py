@@ -35,8 +35,10 @@ from app.preference.style_constants import (
     NEUTRAL_100,
     NEUTRAL_200,
     NEUTRAL_300,
+    NEUTRAL_400,
     NEUTRAL_500,
     NEUTRAL_700,
+    SUCCESS_500,
     RADIUS_SM,
     RADIUS_MD,
     FONT_SIZE_MD,
@@ -163,19 +165,25 @@ class ImportDialog(QDialog):
 
         dialog_layout.addWidget(content_widget, 0, Qt.AlignmentFlag.AlignCenter)
 
-        # 进度条 - 优化样式
-        self.progress_bar = QProgressBar(self)
-        self.progress_bar.setRange(0, 100)
-        self.progress_bar.hide()
-        self.progress_bar.setStyleSheet(self.get_progress_bar_style())
-        self.progress_bar.setFixedHeight(8)
-        dialog_layout.addWidget(self.progress_bar)
-
         # 文件信息标签
         self.info_label = QLabel(self)
         self.info_label.hide()
         self.info_label.setStyleSheet(self.get_info_label_style())
         dialog_layout.addWidget(self.info_label)
+
+        # 进度条 - 移到按钮上方，符合TDesign设计规范
+        self.progress_bar = QProgressBar(self)
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.hide()
+        # 隐藏进度条文本，使用更现代的样式
+        self.progress_bar.setTextVisible(False)
+        self.progress_bar.setStyleSheet(self.get_progress_bar_style())
+        self.progress_bar.setFixedHeight(6)
+        # 添加适当的边距
+        progress_layout = QHBoxLayout()
+        progress_layout.setContentsMargins(SPACING_MD, SPACING_SM, SPACING_MD, 0)
+        progress_layout.addWidget(self.progress_bar)
+        dialog_layout.addLayout(progress_layout)
 
         # 为内容区域添加点击事件
         content_widget.mousePressEvent = self.perform_import
@@ -210,8 +218,8 @@ class ImportDialog(QDialog):
         cancel_button.clicked.connect(self.reject)
         
         # 导入按钮 - 与EditItemDialog的保存按钮样式一致
-        import_button = QPushButton("导入文件")
-        import_button.setStyleSheet(f"""
+        self.import_button = QPushButton("导入文件")
+        self.import_button.setStyleSheet(f"""
             QPushButton {{
                 background-color: {PRIMARY_500};
                 color: {NEUTRAL_0};
@@ -222,17 +230,23 @@ class ImportDialog(QDialog):
                 font-weight: 500;
                 min-width: 80px;
             }}
-            QPushButton:hover {{
+            QPushButton:hover:enabled {{
                 background-color: {PRIMARY_600};
                 border-color: {PRIMARY_600};
             }}
+            QPushButton:disabled {{
+                background-color: {NEUTRAL_200};
+                color: {NEUTRAL_400};
+                border-color: {NEUTRAL_300};
+                font-weight: normal;
+            }}
         """)
-        import_button.setAutoDefault(False)
-        import_button.setDefault(True)
-        import_button.clicked.connect(self.perform_import)
+        self.import_button.setAutoDefault(False)
+        self.import_button.setDefault(True)
+        self.import_button.clicked.connect(self.perform_import)
         
         button_layout.addWidget(cancel_button)
-        button_layout.addWidget(import_button)
+        button_layout.addWidget(self.import_button)
         
         dialog_layout.addLayout(button_layout)
 
@@ -270,17 +284,18 @@ class ImportDialog(QDialog):
         """
 
     def get_progress_bar_style(self):
-        """获取进度条样式 - 优化为更现代的设计"""
+        """获取进度条样式 - 符合TDesign设计规范"""
         return f"""
         QProgressBar {{
             border-radius: {RADIUS_SM}px;
-            text-align: center;
-            height: 8px;
             background-color: {NEUTRAL_200};
+            border: none;
+            padding: 0px;
         }}
         QProgressBar::chunk {{
             background-color: {PRIMARY_500};
             border-radius: {RADIUS_SM}px;
+            transition: width 0.2s ease-in-out;
         }}
         """
 
@@ -359,7 +374,7 @@ class ImportDialog(QDialog):
        
 
     def do_import(self, file_path):
-        # 禁用内容区域而不是导入区域
+        # 禁用内容区域和导入按钮
         layout = self.layout()
         if layout is not None:
             content_item = layout.itemAt(0)
@@ -367,6 +382,12 @@ class ImportDialog(QDialog):
                 content_widget = content_item.widget()
                 if content_widget is not None:
                     content_widget.setEnabled(False)
+        
+        # 禁用导入按钮防止重复点击
+        if hasattr(self, 'import_button'):
+            self.import_button.setEnabled(False)
+            self.import_button.setText("导入中...")
+        
         self.progress_bar.show()
         self.info_label.show()
         self.progress_bar.setValue(0)
@@ -390,6 +411,31 @@ class ImportDialog(QDialog):
     def import_finished(self, file_info):
         self.info_label.setText(file_info)
         self.progress_bar.setValue(100)
+        
+        # 更新导入按钮状态为成功
+        if hasattr(self, 'import_button'):
+            self.import_button.setEnabled(False)
+            self.import_button.setText("导入成功")
+            # 添加成功状态样式
+            self.import_button.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {SUCCESS_500};
+                    color: {NEUTRAL_0};
+                    border: 1px solid {SUCCESS_500};
+                    border-radius: {RADIUS_MD}px;
+                    padding: {SPACING_SM}px {SPACING_MD}px;
+                    font-size: {FONT_SIZE_MD}px;
+                    font-weight: 500;
+                    min-width: 80px;
+                }}
+                QPushButton:disabled {{
+                    background-color: {SUCCESS_500};
+                    color: {NEUTRAL_0};
+                    border-color: {SUCCESS_500};
+                    opacity: 0.9;
+                }}
+            """)
+        
         # 使用 QTimer 延迟关闭对话框，给用户查看结果的时间
         from PySide6.QtCore import QTimer
         QTimer.singleShot(2000, self.close)  # 2秒后自动关闭对话框
@@ -406,6 +452,34 @@ class ImportDialog(QDialog):
                     content_widget.setEnabled(True)
 
     def import_error(self, error_msg):
+        # 恢复导入按钮状态
+        if hasattr(self, 'import_button'):
+            self.import_button.setEnabled(True)
+            self.import_button.setText("导入文件")
+            # 恢复原始样式
+            self.import_button.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {PRIMARY_500};
+                    color: {NEUTRAL_0};
+                    border: 1px solid {PRIMARY_500};
+                    border-radius: {RADIUS_MD}px;
+                    padding: {SPACING_SM}px {SPACING_MD}px;
+                    font-size: {FONT_SIZE_MD}px;
+                    font-weight: 500;
+                    min-width: 80px;
+                }}
+                QPushButton:hover:enabled {{
+                    background-color: {PRIMARY_600};
+                    border-color: {PRIMARY_600};
+                }}
+                QPushButton:disabled {{
+                    background-color: {NEUTRAL_200};
+                    color: {NEUTRAL_400};
+                    border-color: {NEUTRAL_300};
+                    font-weight: normal;
+                }}
+            """)
+        
         QMessageBox.warning(self, "导入失败", error_msg)
         # 隐藏遮罩层和加载状态标签
         self.overlay.hide()
@@ -418,7 +492,6 @@ class ImportDialog(QDialog):
                 content_widget = content_item.widget()
                 if content_widget is not None:
                     content_widget.setEnabled(True)
-        self.close()
 
 
 class ImportThread(QThread):
