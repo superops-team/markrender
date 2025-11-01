@@ -416,9 +416,74 @@ class QuickPickPanel(QWidget):
         return super().eventFilter(source, event)
     
     def _handle_drag_drop(self, event):
-        """处理拖放操作，专注于正确更新父子关系 - 简化高效版"""
+        """处理拖放操作，专注于正确更新父子关系 - 简化高效版，增加数据保存功能"""
         try:
             logger.info("===== 开始处理拖放操作 =====")
+            
+            # 核心改进：在拖拽操作前先保存编辑器数据，避免内容丢失
+            logger.info("【核心操作】在拖拽前保存当前编辑器数据")
+            
+            # 定义一个安全保存编辑器数据的方法
+            def safe_save_editor_content():
+                main_window = None
+                try:
+                    # 1. 先检查self是否有main_window属性
+                    if hasattr(self, 'main_window') and self.main_window:
+                        main_window = self.main_window
+                        logger.info("通过self.main_window找到主窗口")
+                    # 2. 否则尝试通过self._parent访问
+                    elif hasattr(self, '_parent') and self._parent:
+                        logger.info("尝试通过self._parent访问主窗口")
+                        # 如果_parent已经是main_window
+                        if hasattr(self._parent, 'editor'):
+                            main_window = self._parent
+                            logger.info("self._parent是主窗口")
+                        # 否则尝试通过_parent的parent访问
+                        elif hasattr(self._parent, 'parent') and self._parent.parent():
+                            logger.info("尝试通过self._parent.parent()访问主窗口")
+                            if hasattr(self._parent.parent(), 'editor'):
+                                main_window = self._parent.parent()
+                                logger.info("self._parent.parent()是主窗口")
+                    
+                    # 如果找到了main_window，尝试保存编辑器数据
+                    if main_window:
+                        logger.info(f"成功找到主窗口: {main_window.__class__.__name__}")
+                        if hasattr(main_window, 'editor') and main_window.editor:
+                            logger.info(f"成功找到编辑器: {main_window.editor.__class__.__name__}")
+                            try:
+                                # 检查save_current_content方法是否存在
+                                if hasattr(main_window.editor, 'save_current_content'):
+                                    save_result = main_window.editor.save_current_content()
+                                    logger.info(f"编辑器数据保存成功，结果: {save_result}")
+                                    return True
+                                else:
+                                    logger.warning("编辑器组件没有save_current_content方法")
+                                    # 尝试调用其他可能的保存方法
+                                    if hasattr(main_window.editor, 'save_content'):
+                                        logger.info("尝试调用save_content方法")
+                                        save_result = main_window.editor.save_content()
+                                        logger.info(f"编辑器数据保存成功，结果: {save_result}")
+                                        return True
+                                    elif hasattr(main_window.editor, 'save'):
+                                        logger.info("尝试调用save方法")
+                                        save_result = main_window.editor.save()
+                                        logger.info(f"编辑器数据保存成功，结果: {save_result}")
+                                        return True
+                            except Exception as e:
+                                logger.error(f"调用保存方法时出错: {e}", exc_info=True)
+                        else:
+                            logger.warning("找到主窗口但无法访问编辑器组件")
+                    else:
+                        logger.warning("无法访问主窗口组件")
+                except Exception as e:
+                    logger.error(f"寻找和保存编辑器数据过程中出错: {e}", exc_info=True)
+                return False
+            
+            # 执行安全保存
+            save_succeeded = safe_save_editor_content()
+            if not save_succeeded:
+                logger.warning("编辑器数据保存失败，但继续执行拖拽操作")
+            # 注意：无论保存是否成功，都继续执行拖拽操作，因为保存失败不应该阻止用户调整结构
             
             # 获取拖拽源项
             selected_items = self.quickpick_list.selectedItems()
@@ -543,44 +608,171 @@ class QuickPickPanel(QWidget):
             logger.info("【核心操作】设置为最后一个子节点")
             self._set_as_last_child(dragged_id, new_parent_id)
             
-            # 核心操作3: 强制重新加载树以反映更改
-            logger.info("【核心操作】重新加载树以反映更改")
-            self.load_quickpick_items()
+            # 核心操作3: 直接在当前树中移动节点，而不是重新加载整个树
+            logger.info("【核心操作】直接在当前树中移动节点")
             
-            # 核心操作4: 如果是拖放到文件夹内部，展开该文件夹
-            if is_dropping_inside_folder and target_folder_title:
-                logger.info(f"【核心操作】尝试展开目标文件夹: {target_folder_title}")
-                # 查找并展开文件夹
-                def find_and_expand_folder(parent_item):
-                    if parent_item is None:
-                        # 搜索顶层节点
-                        for i in range(self.quickpick_list.topLevelItemCount()):
-                            item = self.quickpick_list.topLevelItem(i)
-                            if item:
-                                data = item.data(0, Qt.ItemDataRole.UserRole)
-                                if data and data.get('id') == new_parent_id:
-                                    logger.info(f"找到并展开文件夹: {data.get('title')}")
-                                    self.quickpick_list.expandItem(item)
-                                    return True
-                                # 递归搜索子节点
-                                if find_and_expand_folder(item):
-                                    return True
-                    else:
-                        # 搜索子节点
-                        for i in range(parent_item.childCount()):
-                            item = parent_item.child(i)
-                            if item is not None:
-                                data = item.data(0, Qt.ItemDataRole.UserRole)
-                                if data and data.get('id') == new_parent_id:
-                                    logger.info(f"找到并展开文件夹: {data.get('title')}")
-                                    self.quickpick_list.expandItem(item)
-                                    return True
-                                # 递归搜索子节点
-                                if find_and_expand_folder(item):
-                                    return True
-                    return False
+            # 查找并移除拖拽的源节点
+            def find_and_remove_item(parent_item):
+                if parent_item is None:
+                    # 搜索顶层节点
+                    for i in range(self.quickpick_list.topLevelItemCount()):
+                        item = self.quickpick_list.takeTopLevelItem(0)
+                        if item:
+                            data = item.data(0, Qt.ItemDataRole.UserRole)
+                            if data and data.get('id') == dragged_id:
+                                logger.info(f"找到并移除拖拽源节点: {dragged_title}")
+                                return item
+                            else:
+                                # 如果不是要找的节点，重新添加回去
+                                self.quickpick_list.addTopLevelItem(item)
+                else:
+                    # 搜索子节点
+                    for i in range(parent_item.childCount()):
+                        item = parent_item.takeChild(0)
+                        if item:
+                            data = item.data(0, Qt.ItemDataRole.UserRole)
+                            if data and data.get('id') == dragged_id:
+                                logger.info(f"找到并移除拖拽源节点: {dragged_title}")
+                                return item
+                            else:
+                                # 如果不是要找的节点，重新添加回去
+                                parent_item.addChild(item)
+                return None
+            
+            # 移除拖拽的源节点
+            removed_item = find_and_remove_item(None)
+            
+            if removed_item:
+                # 更新节点数据中的父ID
+                item_data = removed_item.data(0, Qt.ItemDataRole.UserRole)
+                if item_data:
+                    item_data['parent_id'] = new_parent_id
+                    removed_item.setData(0, Qt.ItemDataRole.UserRole, item_data)
                 
-                find_and_expand_folder(None)
+                # 根据新的父ID确定添加位置
+                if new_parent_id is None:
+                    # 添加到顶层
+                    logger.info(f"将节点添加到顶层")
+                    self.quickpick_list.addTopLevelItem(removed_item)
+                else:
+                    # 找到目标父节点并添加为子节点
+                    def find_and_add_child(parent_item):
+                        if parent_item is None:
+                            # 搜索顶层节点
+                            for i in range(self.quickpick_list.topLevelItemCount()):
+                                item = self.quickpick_list.topLevelItem(i)
+                                if item:
+                                    data = item.data(0, Qt.ItemDataRole.UserRole)
+                                    if data and data.get('id') == new_parent_id:
+                                        logger.info(f"找到目标父节点并添加子节点")
+                                        item.addChild(removed_item)
+                                        # 展开目标父节点
+                                        self.quickpick_list.expandItem(item)
+                                        return True
+                                # 递归搜索子节点
+                                if find_and_add_child(item):
+                                    return True
+                        else:
+                            # 搜索子节点
+                            for i in range(parent_item.childCount()):
+                                item = parent_item.child(i)
+                                if item:
+                                    data = item.data(0, Qt.ItemDataRole.UserRole)
+                                    if data and data.get('id') == new_parent_id:
+                                        logger.info(f"找到目标父节点并添加子节点")
+                                        item.addChild(removed_item)
+                                        # 展开目标父节点
+                                        self.quickpick_list.expandItem(item)
+                                        return True
+                                # 递归搜索子节点的子节点
+                                if find_and_add_child(item):
+                                    return True
+                        return False
+                    
+                    find_and_add_child(None)
+                
+                # 确保拖拽的节点可见
+                self.quickpick_list.scrollToItem(removed_item, QAbstractItemView.ScrollHint.PositionAtCenter)
+                
+                # 确保被拖拽的节点本身处于展开状态（如果有子节点）
+                if removed_item.childCount() > 0:
+                    logger.info(f"展开被拖拽的节点: {dragged_title}")
+                    self.quickpick_list.expandItem(removed_item)
+                    # 同时更新节点数据中的展开状态
+                    if item_data:
+                        item_data['expanded'] = True
+                        removed_item.setData(0, Qt.ItemDataRole.UserRole, item_data)
+                
+                # 确保父级节点和所有祖先节点都处于展开状态，让用户能看到拖拽结果
+                # 使用一个更健壮的递归函数来处理展开逻辑
+                def expand_all_ancestors(item):
+                    """递归展开指定节点及其所有祖先节点"""
+                    if not item:
+                        return
+                    
+                    # 先展开当前节点
+                    logger.info(f"展开节点: {item.text(0)}")
+                    self.quickpick_list.expandItem(item)
+                    
+                    # 更新节点数据中的展开状态
+                    item_data = item.data(0, Qt.ItemDataRole.UserRole)
+                    if item_data:
+                        item_data['expanded'] = True
+                        item.setData(0, Qt.ItemDataRole.UserRole, item_data)
+                    
+                    # 递归展开父节点
+                    parent = item.parent()
+                    if parent:
+                        logger.info(f"递归展开父节点: {parent.text(0)}")
+                        expand_all_ancestors(parent)
+                
+                # 获取被拖拽节点的父节点并展开其所有祖先
+                parent_item = removed_item.parent()
+                if parent_item:
+                    # 首先确保直接父节点已展开
+                    expand_all_ancestors(parent_item)
+                
+                # 额外检查：确保新父节点结构（通过ID查找）也被正确展开
+                if new_parent_id:
+                    # 从树的根开始查找新父节点并展开
+                    def find_and_expand_new_parent(parent_item):
+                        """从指定父节点开始查找新父节点并展开"""
+                        if parent_item is None:
+                            # 搜索顶层节点
+                            for i in range(self.quickpick_list.topLevelItemCount()):
+                                item = self.quickpick_list.topLevelItem(i)
+                                if item:
+                                    data = item.data(0, Qt.ItemDataRole.UserRole)
+                                    if data and data.get('id') == new_parent_id:
+                                        logger.info(f"找到并展开新父节点: {item.text(0)}")
+                                        expand_all_ancestors(item)
+                                        return True
+                                    # 递归搜索子节点
+                                    if find_and_expand_new_parent(item):
+                                        return True
+                        else:
+                            # 搜索子节点
+                            for i in range(parent_item.childCount()):
+                                item = parent_item.child(i)
+                                if item:
+                                    data = item.data(0, Qt.ItemDataRole.UserRole)
+                                    if data and data.get('id') == new_parent_id:
+                                        logger.info(f"找到并展开新父节点: {item.text(0)}")
+                                        expand_all_ancestors(item)
+                                        return True
+                                    # 递归搜索子节点
+                                    if find_and_expand_new_parent(item):
+                                        return True
+                        return False
+                    
+                    # 执行新父节点的查找和展开
+                    find_and_expand_new_parent(None)
+            else:
+                logger.warning("未能找到拖拽的源节点")
+                # 如果找不到节点，才重新加载树作为兜底方案
+                self.load_quickpick_items()
+            
+            # 注：展开节点的逻辑已整合到直接移动节点的操作中，不再需要单独处理
             
             # 接受拖放操作
             event.setDropAction(Qt.DropAction.MoveAction)
@@ -1455,11 +1647,12 @@ class QuickPickPanel(QWidget):
             tree_item.setData(0, Qt.ItemDataRole.UserRole, updated_data)
             tree_item.setText(0, updated_data.get('title', ''))
             
-            # 确保节点标志正确设置
+            # 确保节点标志正确设置，添加ItemIsDragEnabled以支持拖拽
             tree_item.setFlags(
                 Qt.ItemFlag.ItemIsSelectable | 
                 Qt.ItemFlag.ItemIsEnabled | 
-                Qt.ItemFlag.ItemIsEditable
+                Qt.ItemFlag.ItemIsEditable |
+                Qt.ItemFlag.ItemIsDragEnabled
             )
             
             # 同时更新内部数据结构 all_quickpick_items

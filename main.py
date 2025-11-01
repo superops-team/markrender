@@ -134,18 +134,45 @@ class MainWindow(QMainWindow):
     def load_last_updated_item(self):
         """加载最后更新的项目"""
         try:
-            # 从数据库加载项目，按更新时间排序
-            items = self.markrender_manager.load_items(limit=1)
-            if items:
-                # 获取最后更新的项目
-                last_updated_item = items[0]
-                logger.info(f"加载最后更新的项目: {last_updated_item.get('title', 'Unknown')}")
-                # 更新编辑器和预览器
-                self.update_editor_and_previewer(last_updated_item)
-                # 在quickpick面板中选中该项目
-                self.quickpick_panel.select_quickpick_item(last_updated_item)
-            else:
-                logger.info("没有找到任何项目，保持空状态")
+            # 核心改进：直接从数据库获取最后更新的项目，而不使用load_items方法
+            # 这样可以确保始终按更新时间排序，不受用户设置影响
+            session = self.markrender_manager.Session()
+            try:
+                from db.models import MarkRenderData
+                # 直接查询数据库，按更新时间降序排序，获取最新的一条记录
+                last_updated_record = session.query(MarkRenderData).order_by(MarkRenderData.updated_at.desc()).first()
+                
+                if last_updated_record:
+                    # 构建项目数据字典
+                    last_updated_item = {
+                        'title': getattr(last_updated_record, 'title', 'Unknown'),
+                        'id': getattr(last_updated_record, 'id', 0),
+                        'tags': getattr(last_updated_record, 'tags', ''),
+                        'page_type': getattr(last_updated_record, 'page_type', 'markdown'),
+                        'updated_at': getattr(last_updated_record, 'updated_at', None),
+                        'parent_id': getattr(last_updated_record, 'parent_id', None),
+                        'order': getattr(last_updated_record, 'order', 0),
+                        'level': getattr(last_updated_record, 'level', 0),
+                        'is_folder': getattr(last_updated_record, 'is_folder', 0)
+                    }
+                    logger.info(f"加载最后更新的项目: {last_updated_item.get('title', 'Unknown')}")
+                    # 更新编辑器和预览器
+                    self.update_editor_and_previewer(last_updated_item)
+                    # 在quickpick面板中选中该项目
+                    self.quickpick_panel.select_quickpick_item(last_updated_item)
+                else:
+                    logger.info("没有找到任何项目，保持空状态")
+            except Exception as e:
+                logger.error(f"直接查询数据库失败: {e}", exc_info=True)
+                # 失败时回退到使用load_items方法
+                items = self.markrender_manager.load_items(limit=1)
+                if items:
+                    last_updated_item = items[0]
+                    logger.info(f"回退到使用load_items方法加载项目: {last_updated_item.get('title', 'Unknown')}")
+                    self.update_editor_and_previewer(last_updated_item)
+                    self.quickpick_panel.select_quickpick_item(last_updated_item)
+            finally:
+                session.close()
         except Exception as e:
             logger.error(f"加载最后更新的项目失败: {e}", exc_info=True)
 
