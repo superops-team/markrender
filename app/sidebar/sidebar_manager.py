@@ -101,13 +101,32 @@ class SidebarManager(QWidget):
 
     def on_button_toggled(self, button, checked, icon_name, toggle_slot):
         """统一处理按钮切换事件"""
+        # 核心改进：设置按钮和导入按钮都不参与互斥逻辑，避免影响quickpick的展开折叠状态
+        # 使用icon_name来识别特殊按钮，因为它在button初始化时就已经知道，而对应的属性可能还未初始化
+        is_settings_button = (icon_name == "settings")
+        is_import_button = (icon_name == "plus-square")
+        is_special_button = is_settings_button or is_import_button
+        
         # 确保button_group已初始化
         if hasattr(self, 'button_group') and self.button_group:
             if checked:
-                # 实现按钮互斥效果
-                for other_button in self.button_group:
-                    if other_button != button and other_button.isChecked():
-                        other_button.setChecked(False)
+                # 只有非特殊按钮才执行互斥逻辑
+                if not is_special_button:
+                    # 实现按钮互斥效果，但只影响其他非特殊按钮
+                    for other_button in self.button_group:
+                        # 同样使用icon_name来识别其他按钮，而不是直接比较对象
+                        other_icon_name = None
+                        # 通过遍历按钮和对应的图标名称来找到当前按钮的图标
+                        if hasattr(self, 'toggle_quickpick_btn') and other_button == self.toggle_quickpick_btn:
+                            other_icon_name = "sidebar"
+                        elif hasattr(self, 'import_btn') and other_button == self.import_btn:
+                            other_icon_name = "plus-square"
+                        elif hasattr(self, 'settings_btn') and other_button == self.settings_btn:
+                            other_icon_name = "settings"
+                        
+                        # 如果不是特殊按钮且已选中，则取消选中
+                        if other_button != button and other_icon_name not in ["settings", "plus-square"] and other_button.isChecked():
+                            other_button.setChecked(False)
                 
                 # 更新图标为选中状态
                 button.setIcon(QIcon(get_icon_path(icon_name, selected=True)))
@@ -133,11 +152,23 @@ class SidebarManager(QWidget):
                 self.parent.quickpick_panel.hide()
 
     def on_import_toggled(self, checked, icon_name="plus-square"):
-        """处理导入按钮切换"""
+        """处理导入按钮切换，确保不影响quickpick的展开折叠状态"""
         if checked:
+            # 显示导入对话框
             self.handle_import()
+            
+            # 取消导入按钮的选中状态，因为它不是一个持久的选中状态
+            # 这样用户再次点击时还能正常显示导入对话框
+            # 注意：由于导入按钮不再参与互斥逻辑，这里不会影响quickpick按钮的状态
+            self.import_btn.setChecked(False)
 
     def on_settings_toggled(self, checked, icon_name="settings"):
-        """处理设置按钮切换"""
+        """处理设置按钮切换，确保不影响quickpick的展开折叠状态"""
         if checked:
+            # 显示设置对话框
             self.show_settings_dialog()
+            
+            # 取消设置按钮的选中状态，因为它不是一个持久的选中状态
+            # 这样用户再次点击时还能正常显示设置对话框
+            # 注意：由于设置按钮不再参与互斥逻辑，这里不会影响quickpick按钮的状态
+            self.settings_btn.setChecked(False)
