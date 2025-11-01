@@ -149,110 +149,80 @@ class MarkRenderEditor(QWidget):
         logger.debug(f"自动保存历史记录开始，content_changed: {self.content_changed}, item_id: {self.item.item_id}")
         if self.content_changed and self.item.item_id:
             logger.info("检测到内容变更，自动保存历史记录")
-            try:
-                # 获取当前编辑器内容
-                result = self.backend_interface.send_message_sync('getContent', {}, item_id=self.item.item_id, timeout=5000)
-                if result is not None and result.get('success', False):
-                    content = result.get("content", "")
-                    logger.debug(f"从编辑器获取到的内容长度: {len(content)}")
+            
+            # 使用闭包来处理异步获取的内容
+            def handle_content_response(parsed_data):
+                try:
+                    # 确保回调在UI线程中执行
+                    from PySide6.QtWidgets import QApplication
+                    QApplication.processEvents()
                     
-                    # 获取当前记录的详细信息
-                    current_record = self.markrender_manager.get_detail(self.item.item_id)
-                    if current_record:
-                        # 检查内容是否真正发生变化
-                        old_content = current_record.get('content', '') if current_record else ''
-                        logger.debug(f"从数据库获取到的旧内容长度: {len(old_content)}")
+                    if parsed_data.get('success', False) and 'content' in parsed_data:
+                        content = parsed_data.get('content', '')
+                        logger.info(f"成功获取内容用于自动保存，长度: {len(content)}")
                         
-                        # 打印调试信息，帮助诊断问题
-                        logger.debug(f"旧内容: '{old_content[:100]}{'...' if len(old_content) > 100 else ''}'")
-                        logger.debug(f"新内容: '{content[:100]}{'...' if len(content) > 100 else ''}'")
-                        logger.debug(f"内容比较结果: {content != old_content}")
-                        
-                        # 特别检查空白字符差异
-                        old_stripped = old_content.strip()
-                        new_stripped = content.strip()
-                        logger.debug(f"旧内容(去除空白): '{old_stripped[:100]}{'...' if len(old_stripped) > 100 else ''}'")
-                        logger.debug(f"新内容(去除空白): '{new_stripped[:100]}{'...' if len(new_stripped) > 100 else ''}'")
-                        logger.debug(f"去除空白后比较结果: {old_stripped != new_stripped}")
-                        
-                        # 检查字符编码问题
-                        logger.debug(f"旧内容编码: {type(old_content)}, 新内容编码: {type(content)}")
-                        
-                        # 使用repr显示内容，可以看到隐藏字符
-                        logger.debug(f"旧内容repr: {repr(old_content[:100])}")
-                        logger.debug(f"新内容repr: {repr(content[:100])}")
-                        
-                        # 只有当内容真正发生变化时才保存
-                        # 修复逻辑：检查去除空白后的内容是否不同，或者原始内容是否不同
-                        content_changed = (content != old_content) or (old_stripped != new_stripped)
-                        if content_changed:
-                            logger.info("内容发生变化，保存新的历史记录")
-                            
-                            # 保存项目，历史记录会由ORM监听器自动生成
-                            self.markrender_manager.save_item(
-                                id=self.item.item_id,
-                                content=content,
-                                title=current_record.get('title', ''),
-                                tags=current_record.get('tags', ''),
-                                render_style=current_record.get('render_style', ''),
-                                file_path=current_record.get('file_path', ''),
-                                converter=current_record.get('converter', ''),
-                                theme_id=current_record.get('theme_id', 0),
-                                status=current_record.get('status', ''),
-                                page_type=current_record.get('page_type', ''),
-                                page_settings=current_record.get('page_settings', ''),
-                                page_engine=current_record.get('page_engine', ''),
-                                # 树形结构字段
-                                parent_id=current_record.get('parent_id', None),
-                                order=current_record.get('order', 0),
-                                level=current_record.get('level', 0),
-                                is_folder=current_record.get('is_folder', 0),
-                                # 图标和显示字段
-                                icon_type=current_record.get('icon_type', None),
-                                icon_path=current_record.get('icon_path', None),
-                                icon_color=current_record.get('icon_color', None),
-                                display_name=current_record.get('display_name', None),
-                            )
-                            logger.info(f"新的历史记录已保存: {self.item.item_id}")
+                        # 获取当前记录的详细信息
+                        current_record = self.markrender_manager.get_detail(self.item.item_id)
+                        if current_record:
+                            try:
+                                # 检查内容是否真正发生变化
+                                old_content = current_record.get('content', '') if current_record else ''
+                                logger.debug(f"从数据库获取到的旧内容长度: {len(old_content)}")
+                                
+                                # 安全地比较内容
+                                content_changed = (content != old_content) or \
+                                                (content.strip() != old_content.strip())
+                                
+                                if content_changed:
+                                    logger.info("内容发生变化，保存新的历史记录")
+                                    
+                                    # 简化保存逻辑，只保存必要的字段
+                                    try:
+                                        save_result = self.markrender_manager.save_item(
+                                            id=self.item.item_id,
+                                            content=content
+                                        )
+                                        if save_result:
+                                            logger.info(f"新的历史记录已保存: {self.item.item_id}")
+                                        else:
+                                            logger.error("保存历史记录失败，但继续执行")
+                                    except Exception as save_error:
+                                        logger.error(f"保存历史记录时出错: {save_error}")
+                                else:
+                                    logger.info("内容未发生变化，跳过保存历史记录")
+                            except Exception as compare_error:
+                                logger.error(f"处理内容比较时出错: {compare_error}")
                         else:
-                            logger.info("内容未发生变化，跳过保存历史记录")
+                            logger.warning(f"未找到ID为 {self.item.item_id} 的记录，跳过保存")
                     else:
-                        # 如果没有找到当前记录，说明是新内容，应该保存
-                        logger.info("未找到当前记录，保存为新历史记录")
-                        self.markrender_manager.save_item(
-                            id=self.item.item_id,
-                            content=content,
-                            title='',
-                            tags='',
-                            render_style='',
-                            file_path='',
-                            converter='',
-                            theme_id=0,
-                            status='',
-                            page_type=self.item.page_type,
-                            page_settings='',
-                            page_engine='markdown',
-                            # 树形结构字段
-                            parent_id=None,
-                            order=0,
-                            level=0,
-                            is_folder=0,
-                            # 图标和显示字段
-                            icon_type=None,
-                            icon_path=None,
-                            icon_color=None,
-                            display_name=None,
-                        )
-                        logger.info(f"新历史记录已保存: {self.item.item_id}")
-                    
-                else:
-                    logger.warning("获取编辑器内容失败，跳过自动保存历史记录")
-            except Exception as e:
-                logger.error(f"自动保存历史记录时出错: {e}")
-            finally:
-                # 无论成功还是失败，都重置变更标记，避免重复尝试
+                        logger.warning("获取内容失败，跳过自动保存历史记录")
+                except Exception as e:
+                    logger.error(f"处理自动保存内容时出错: {e}")
+                finally:
+                    # 无论成功还是失败，都重置变更标记
+                    self.content_changed = False
+                    logger.debug(f"自动保存完成，内容变更标记已重置: {self.content_changed}")
+            
+            try:
+                # 使用get_content方法替代send_message_sync，避免unhashable type错误
+                # get_content使用异步回调方式，不会阻塞UI线程
+                logger.info("使用get_content方法异步获取编辑器内容")
+                self.get_content(handle_content_response)
+                
+                # 不等待回调完成，让它在后台执行
+                logger.debug("异步获取内容请求已发送")
+                
+                # 立即重置变更标记，因为我们已经开始处理保存
+                # 实际的重置会在回调中再次执行，确保安全
                 self.content_changed = False
-                logger.debug(f"内容变更标记已重置: {self.content_changed}")
+                logger.debug("自动保存历史记录请求已发送，重置变更标记")
+                
+            except Exception as e:
+                logger.error(f"启动自动保存历史记录时出错: {e}")
+                import traceback
+                logger.error(f"自动保存启动错误详细信息: {traceback.format_exc()}")
+                # 确保重置变更标记，避免死锁
+                self.content_changed = False
         else:
             # 即使没有内容变更或item_id不存在，也重置标记
             self.content_changed = False

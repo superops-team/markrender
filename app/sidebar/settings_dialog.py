@@ -40,6 +40,7 @@ class SettingsDialog(QDialog):
     
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.app_style = AppStyle()
         self.setWindowTitle("软件设置")
         self.setMinimumSize(600, 450)  # 优化尺寸以适应新的布局，提高空间利用率
         self.setMaximumSize(700, 550)  # 限制最大尺寸保持紧凑
@@ -47,14 +48,12 @@ class SettingsDialog(QDialog):
         # 设置窗口属性和样式
         from PySide6.QtCore import Qt
         self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.WindowCloseButtonHint)
-        self.setStyleSheet(create_dialog_style())
         
-        # 设置对话框标题栏样式，移除窗口重复标题
-        self.setStyleSheet(self.styleSheet() + """
-            QDialog {
-                border: 1px solid """ + NEUTRAL_200 + """;
-                border-radius: """ + str(RADIUS_LG) + """px;
-            }
+        # 使用与EditItemDialog一致的对话框样式
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {NEUTRAL_0};
+            }}
         """)
         
         # 加载设置数据
@@ -139,7 +138,7 @@ class SettingsDialog(QDialog):
         interval_container.addStretch()
         
         auto_save_layout.addLayout(interval_container)
-        auto_save_group.setLayout(auto_save_layout)
+        auto_save_group.group_box.setLayout(auto_save_layout)
         layout.addWidget(auto_save_group)
         
         # 搜索设置组（亲密性原则）
@@ -171,7 +170,7 @@ class SettingsDialog(QDialog):
             self.search_sort_group.addButton(radio)
             search_layout.addWidget(radio)
         
-        search_group.setLayout(search_layout)
+        search_group.group_box.setLayout(search_layout)
         layout.addWidget(search_group)
         
         layout.addStretch()
@@ -220,7 +219,7 @@ class SettingsDialog(QDialog):
         font_family_container.addWidget(self.font_family_edit)
         font_layout.addLayout(font_family_container)
         
-        font_group.setLayout(font_layout)
+        font_group.group_box.setLayout(font_layout)
         layout.addWidget(font_group)
         
         layout.addStretch()
@@ -274,7 +273,7 @@ class SettingsDialog(QDialog):
         theme_hint.setWordWrap(True)
         theme_layout.addWidget(theme_hint)
         
-        theme_group.setLayout(theme_layout)
+        theme_group.group_box.setLayout(theme_layout)
         layout.addWidget(theme_group)
         
         layout.addStretch()
@@ -310,7 +309,7 @@ class SettingsDialog(QDialog):
         size_container.addStretch()
         import_layout.addLayout(size_container)
         
-        import_group.setLayout(import_layout)
+        import_group.group_box.setLayout(import_layout)
         layout.addWidget(import_group)
         
         # PDF处理设置组（亲密性原则）
@@ -346,7 +345,7 @@ class SettingsDialog(QDialog):
         """)
         pdf_layout.addWidget(pdf_hint)
         
-        pdf_group.setLayout(pdf_layout)
+        pdf_group.group_box.setLayout(pdf_layout)
         layout.addWidget(pdf_group)
         
         layout.addStretch()
@@ -429,97 +428,127 @@ class SettingsDialog(QDialog):
     # ========== 私有辅助方法 - 实现Robin Williams设计原则 ==========
     
     def _configure_tab_widget(self):
-        """配置Tab控件样式（重复和对齐原则）"""
+        """配置Tab控件样式（重复和对齐原则）- 简化样式，符合TDesign设计风格"""
         self.tab_widget.setStyleSheet(f"""
             QTabWidget::pane {{
                 border: 1px solid {NEUTRAL_200};
                 background-color: {NEUTRAL_0};
-                border-radius: {RADIUS_MD}px;
                 margin-top: {SPACING_XS}px;
-                padding: {SPACING_SM}px;
+                padding: {SPACING_MD}px;
             }}
             QTabBar::tab {{
-                background-color: {NEUTRAL_50};
-                color: {NEUTRAL_600};
-                border: 1px solid {NEUTRAL_200};
-                border-bottom: none;
+                background-color: transparent;
+                color: {NEUTRAL_700};
+                border: none;
                 padding: {SPACING_SM}px {SPACING_MD}px;
                 margin-right: 2px;
-                border-top-left-radius: {RADIUS_SM}px;
-                border-top-right-radius: {RADIUS_SM}px;
-                font-size: {FONT_SIZE_SM}px;
+                font-size: {FONT_SIZE_MD}px;
                 font-weight: 500;
-                min-width: 100px;
+                min-width: 90px;
             }}
             QTabBar::tab:selected {{
-                background-color: {NEUTRAL_0};
-                color: {PRIMARY_600};
-                border-color: {NEUTRAL_200};
-                border-bottom: 1px solid {NEUTRAL_0};
+                background-color: transparent;
+                color: {PRIMARY_500};
                 font-weight: 600;
+                border-bottom: 2px solid {PRIMARY_500};
             }}
             QTabBar::tab:hover:!selected {{
-                background-color: {PRIMARY_50};
+                background-color: {NEUTRAL_50};
                 color: {PRIMARY_500};
-                border-color: {PRIMARY_200};
             }}
         """)
     
     def _add_button_area(self, layout):
-        """添加按钮区域（对齐原则）- 使用小尺寸按钮保持协调，按钮右对齐"""
+        """添加按钮区域（对齐原则）- 使用与EditItemDialog一致的按钮样式"""
         button_layout = QHBoxLayout()
-        button_layout.setContentsMargins(0, SPACING_LG, 0, 0)
+        button_layout.setContentsMargins(SPACING_MD, SPACING_MD, SPACING_MD, SPACING_MD)  # 统一内边距
+        button_layout.setSpacing(SPACING_SM)
         
-        # 添加弹性空间实现右对齐
+        # 添加弹性空间将按钮推到右侧
         button_layout.addStretch()
         
-        # 取消按钮（重复原则 - 统一按钮样式）- 使用小尺寸
+        # 取消按钮 - 使用与EditItemDialog一致的样式
         cancel_button = QPushButton("取消")
         cancel_button.clicked.connect(self.reject)
-        cancel_button.setStyleSheet(create_button_style("secondary", "sm"))
-        cancel_button.setMinimumWidth(60)
-        cancel_button.setMinimumHeight(28)  # 确保按钮高度一致
+        cancel_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {NEUTRAL_50};
+                color: {NEUTRAL_700};
+                border: 1px solid {NEUTRAL_100};
+                border-radius: {RADIUS_MD}px;
+                padding: {SPACING_SM}px {SPACING_MD}px;
+                font-size: {FONT_SIZE_MD}px;
+                font-weight: 500;
+                min-width: 80px;
+            }}
+            QPushButton:hover {{
+                background-color: {NEUTRAL_100};
+            }}
+        """)
         
-        # 保存按钮（对比原则 - 突出主要操作）- 使用小尺寸
+        # 保存按钮 - 使用与EditItemDialog一致的样式
         save_button = QPushButton("保存")
         save_button.clicked.connect(self.save_settings)
-        save_button.setStyleSheet(create_button_style("primary", "sm"))
-        save_button.setMinimumWidth(60)
-        save_button.setMinimumHeight(28)  # 确保按钮高度一致
+        save_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {PRIMARY_500};
+                color: {NEUTRAL_0};
+                border: 1px solid {PRIMARY_500};
+                border-radius: {RADIUS_MD}px;
+                padding: {SPACING_SM}px {SPACING_MD}px;
+                font-size: {FONT_SIZE_MD}px;
+                font-weight: 500;
+                min-width: 80px;
+            }}
+            QPushButton:hover {{
+                background-color: {PRIMARY_600};
+                border-color: {PRIMARY_600};
+            }}
+        """)
+        save_button.setAutoDefault(False)  # 防止回车键触发保存
         save_button.setDefault(True)
         
         button_layout.addWidget(cancel_button)
-        button_layout.addSpacing(SPACING_SM)
         button_layout.addWidget(save_button)
         
         layout.addLayout(button_layout)
     
     def _create_group_box(self, title):
-        """创建统一样式的分组框（亲密性原则）"""
-        group_box = QGroupBox(title)
+        """创建统一样式的分组框（亲密性原则）- 简化样式，符合TDesign设计风格"""
+        # 直接使用QGroupBox但简化其样式
+        group_box = QGroupBox()
         group_box.setStyleSheet(f"""
             QGroupBox {{
+                border: 1px solid {NEUTRAL_200};
+                background-color: {NEUTRAL_50};
+                margin-top: {SPACING_SM}px;
+                padding: {SPACING_MD}px;
+            }}
+        """)
+        
+        # 创建标题标签并将其放置在QGroupBox外部
+        title_label = QLabel(title)
+        title_label.setStyleSheet(f"""
+            QLabel {{
                 font-size: {FONT_SIZE_MD}px;
                 font-weight: 600;
                 color: {NEUTRAL_700};
-                border: 1px solid {NEUTRAL_200};
-                border-radius: {RADIUS_SM}px;
-                margin-top: {SPACING_MD}px;
-                padding-top: {SPACING_LG}px;
-                padding-left: {SPACING_MD}px;
-                padding-right: {SPACING_MD}px;
-                background-color: {NEUTRAL_0};
-            }}
-            QGroupBox::title {{
-                subcontrol-origin: margin;
-                subcontrol-position: top left;
-                left: {SPACING_MD}px;
-                padding: 0 {SPACING_SM}px;
-                background-color: {NEUTRAL_0};
-                color: {NEUTRAL_700};
             }}
         """)
-        return group_box
+        
+        # 创建一个容器widget包含标题和QGroupBox
+        container = QWidget()
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(SPACING_XS)
+        layout.addWidget(title_label)
+        layout.addWidget(group_box)
+        
+        # 返回容器widget而不是group_box本身
+        # 这样可以确保整个widget层次结构都被正确引用和管理
+        # 同时，我们需要确保调用者能正确访问group_box来设置其布局
+        container.group_box = group_box  # 保存对group_box的引用
+        return container
     
     def _get_label_style(self):
         """获取标签样式（重复原则）"""
