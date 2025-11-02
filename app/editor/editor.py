@@ -161,6 +161,11 @@ class MarkRenderEditor(QWidget):
                         content = parsed_data.get('content', '')
                         logger.info(f"成功获取内容用于自动保存，长度: {len(content)}")
                         
+                        # 检查内容长度，避免过大的内容导致正则表达式问题
+                        if len(content) > 5000000:  # 5MB限制
+                            logger.warning(f"内容过大({len(content)}字节)，跳过自动保存以避免性能问题")
+                            return
+                        
                         # 获取当前记录的详细信息
                         current_record = self.markrender_manager.get_detail(self.item.item_id)
                         if current_record:
@@ -169,9 +174,15 @@ class MarkRenderEditor(QWidget):
                                 old_content = current_record.get('content', '') if current_record else ''
                                 logger.debug(f"从数据库获取到的旧内容长度: {len(old_content)}")
                                 
-                                # 安全地比较内容
-                                content_changed = (content != old_content) or \
-                                                (content.strip() != old_content.strip())
+                                # 对于大内容，只比较长度和前1000个字符
+                                if len(content) > 100000 or len(old_content) > 100000:
+                                    # 大内容只比较长度和前1000个字符
+                                    content_changed = (len(content) != len(old_content)) or \
+                                                    (content[:1000] != old_content[:1000])
+                                else:
+                                    # 小内容正常比较
+                                    content_changed = (content != old_content) or \
+                                                    (content.strip() != old_content.strip())
                                 
                                 if content_changed:
                                     logger.info("内容发生变化，保存新的历史记录")
@@ -303,6 +314,11 @@ class MarkRenderEditor(QWidget):
                 content = parsed_data.get("content", "")
                 frontend_item_id = parsed_data.get("item_id", "")
             
+            # 检查内容长度，避免过大的内容导致正则表达式问题
+            if len(content) > 5000000:  # 5MB限制
+                logger.warning(f"内容过大({len(content)}字节)，跳过保存以避免性能问题")
+                return True
+            
             # 验证item_id一致性
             if frontend_item_id and self.item.item_id and frontend_item_id != self.item.item_id:
                 logger.warning(f"保存时发现item_id不一致: 前端={frontend_item_id}, 后端={self.item.item_id}")
@@ -318,8 +334,17 @@ class MarkRenderEditor(QWidget):
             old_record = self.markrender_manager.get_detail(item_id)
             old_content = old_record.get('content', '') if old_record else ''
             
+            # 对于大内容，只比较长度和前1000个字符
+            if len(content) > 100000 or len(old_content) > 100000:
+                # 大内容只比较长度和前1000个字符
+                content_changed = (len(content) != len(old_content)) or \
+                                (content[:1000] != old_content[:1000])
+            else:
+                # 小内容正常比较
+                content_changed = (content != old_content)
+            
             # 只有当内容真正发生变化时才保存
-            if content != old_content:
+            if content_changed:
                 success = self.markrender_manager.save_item(
                     id=item_id, 
                     content=content
@@ -329,8 +354,12 @@ class MarkRenderEditor(QWidget):
                     logger.info(f"手动保存成功: {item_id}，内容长度: {len(content)}")
                     # 通知父窗口重新加载快速选择面板中的数据
                     try:
-                        if hasattr(self.parent, 'update_quickpick_list'):
-                            self.parent.update_quickpick_list()
+                        # 使用getattr安全调用父窗口方法
+                        parent = getattr(self, 'parent', None)
+                        if parent and hasattr(parent, 'update_quickpick_list'):
+                            update_method = getattr(parent, 'update_quickpick_list', None)
+                            if callable(update_method):
+                                update_method()
                     except Exception as e:
                         logger.error(f"更新快速选择列表失败: {e}")
                     return True
@@ -536,18 +565,35 @@ class MarkRenderEditor(QWidget):
             self.initial_content = text_content
             return False
     
-        # 直接设置内容和item_id
-        success = self.backend_interface.send_message("setValue", {
-            "content": text_content,
-            "item_id": self.item.item_id
-        }, item_id=self.item.item_id)
+        # 添加递归保护，防止无限调用
+        if hasattr(self, '_setting_content') and self._setting_content:
+            logger.warning("正在设置内容，跳过递归调用")
+            return False
+        self._setting_content = True
         
-        if success:
-            logger.debug(f"内容已成功设置到前端，item_id: {self.item.item_id}")
-        else:
-            logger.error(f"设置内容失败，item_id: {self.item.item_id}")
-        
-        return success
+        try:
+            # 清理内容，避免特殊字符导致正则表达式问题
+            safe_content = text_content or ''
+            
+            # 如果内容过长，记录警告
+            if len(safe_content) > 100000:
+                logger.warning(f"内容过长，可能影响性能: {len(safe_content)} 字符")
+            
+            # 直接设置内容和item_id
+            success = self.backend_interface.send_message("setValue", {
+                "content": safe_content,
+                "item_id": self.item.item_id
+            }, item_id=self.item.item_id)
+            
+            if success:
+                logger.debug(f"内容已成功设置到前端，item_id: {self.item.item_id}, 内容长度: {len(safe_content)}")
+            else:
+                logger.error(f"设置内容失败，item_id: {self.item.item_id}")
+            
+            return success
+        finally:
+            # 重置递归保护标志
+            self._setting_content = False
 
     def set_text_content_with_retry(self, text_content, retry_count=3):
         """带重试机制的内容设置方法"""

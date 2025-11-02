@@ -7,11 +7,11 @@ from utils.path import get_icon_path
 from PySide6.QtWidgets import QMenu  # 新增导入
 
 class ButtonController(QWidget):
-    def __init__(self, parent, quickpick_panel, markdown_editor):
+    def __init__(self, parent, quickpick_panel, editor_component):
         super().__init__(parent)
         self.main_window = parent  # 保存主窗口引用
         self.quickpick_panel = quickpick_panel
-        self.markdown_editor = markdown_editor
+        self.editor_component = editor_component  # 可能是单个编辑器或标签页管理器
         # 添加选中状态标志，默认进入页面后为选中状态
         self.is_quickpick_selected = True
         self.is_history_selected = False  # 历史面板选中状态
@@ -99,3 +99,11 @@ class ButtonController(QWidget):
                 print("错误：未找到历史面板组件")
         except Exception as e:
             print(f"切换历史面板时出错: {e}")
+
+    def get_current_editor(self):
+        """获取当前编辑器实例"""
+        # 如果是标签页管理器，返回当前标签页的编辑器
+        if hasattr(self.editor_component, 'get_current_editor'):
+            return self.editor_component.get_current_editor()
+        # 如果是单个编辑器，直接返回
+        return self.editor_component

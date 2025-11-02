@@ -29,13 +29,21 @@
                 window.excalidrawAppRef.updateScene({ elements: [] });
             }
             
-            // 清空localStorage中的Excalidraw数据
+            // 安全地清空localStorage中的Excalidraw数据
             if (typeof localStorage !== 'undefined') {
-                for (let key in localStorage) {
-                    if (key.startsWith('excalidraw-') || key.includes('excalidraw')) {
-                        localStorage.removeItem(key);
+                // 创建要删除的键的副本，避免在迭代时修改对象
+                const keysToRemove = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && (key.startsWith('excalidraw-') || key.includes('excalidraw'))) {
+                        keysToRemove.push(key);
                     }
                 }
+                
+                // 删除收集到的键
+                keysToRemove.forEach(key => {
+                    localStorage.removeItem(key);
+                });
             }
             
             console.log('Excalidraw特定状态已重置');

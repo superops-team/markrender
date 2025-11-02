@@ -532,39 +532,52 @@ TAB_STYLE = """
 /* 去掉 tab 页边框 */
 QTabWidget::pane {
     border: none;
+    background-color: #ffffff;
 }
-/* 标签栏文字 + 指示器 */
-QTabBar::tab {
-    border: none;
-    padding: 6px 12px;
-    margin: 0px 1px;
-}
-QTabBar::tab:selected {
-    color: white;
-    background-color: #0d6efd;
-    border-radius: 4px;
-}
-
-/* 对话框统一圆角 */
-/*
-EditItemDialog {
-    border-radius: 4px;
-}
-*/
-QPushButton {
-    background-color: #0d6efd;
-    color: white;
-    border-radius: 4px;
-    padding: 8px 16px;
-    font-size: 14px;
-}
-QPushButton:hover {
-    background-color: #0b5ed7;
-    border-radius: 4px;
-}
+/* 标签栏背景 */
 QTabWidget::tab-bar {
     background: transparent;
     border: none;
+}
+/* 标签栏文字 + 指示器 */
+QTabBar::tab {
+    background-color: #f5f5f5;
+    border: 1px solid #e0e0e0;
+    border-bottom: none;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    padding: 8px 16px;
+    margin: 2px 2px 0 2px;
+    color: #666666;
+    font-size: 13px;
+}
+QTabBar::tab:selected {
+    background-color: #ffffff;
+    color: #333333;
+    border-bottom: 2px solid #3B82F6;
+    font-weight: 500;
+}
+QTabBar::tab:hover {
+    background-color: #e8f3ff;
+    color: #333333;
+}
+/* 关闭按钮 */
+QTabBar::close-button {
+    image: url(icons/x.svg);
+    subcontrol-position: right;
+}
+QTabBar::close-button:hover {
+    image: url(icons/x.svg);
+}
+/* 滚动按钮 */
+QTabBar QToolButton {
+    border: 1px solid #e0e0e0;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+}
+QTabBar QToolButton:hover {
+    background-color: #e8f3ff;
+    border-color: #b3d9ff;
 }
 """
 

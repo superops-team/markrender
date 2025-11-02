@@ -75,6 +75,8 @@ class QuickPickPanel(QWidget):
         self.load_quickpick_items()
         self.switch_pending = None  # 存储待切换的项数据
         self.save_complete.connect(self._complete_item_switch)
+        # 添加防止递归更新的标志
+        self._updating_item = False
 
     def init_ui(self):
         main_layout = QVBoxLayout()
@@ -198,98 +200,87 @@ class QuickPickPanel(QWidget):
             # 更新item_data
             item_data['title'] = new_title
             item_data['tags'] = new_tags
-            logger.info(f"更新后的item_data标题: {item_data['title']}")
-            logger.info(f"更新后的item_data标签: '{item_data['tags']}'")
             
-            # 调用数据库更新逻辑
-            if 'id' in item_data:
-                try:
-                    # 执行数据库更新
-                    # 检查是否有图标或显示名称的更新
-                    icon_updated = False
-                    display_name_updated = False
-                    other_fields_updated = False
-                    
-                    # 构建更新参数
-                    update_params = {
-                        'id': item_data['id']
-                    }
-                    
-                    # 添加标题（如果已更新）
-                    if 'title' in item_data:
-                        update_params['title'] = item_data['title']
-                    
-                    # 添加标签（如果已更新）
-                    if 'tags' in item_data:
-                        update_params['tags'] = item_data['tags']
-                    
-                    # 检查图标相关字段
-                    icon_fields = {}
-                    if new_icon_type is not None:
-                        icon_fields['icon_type'] = new_icon_type
-                    if new_icon_path is not None:
-                        icon_fields['icon_path'] = new_icon_path
-                    if new_icon_color is not None:
-                        icon_fields['icon_color'] = new_icon_color
-                    
-                    # 检查显示名称
-                    if new_display_name is not None:
-                        display_name_updated = True
-                    
-                    # 检查页面类型
-                    if new_page_type is not None:
-                        update_params['page_type'] = new_page_type
-                    
-                    # 添加必要的额外字段，确保树形结构不被破坏
-                    update_params['parent_id'] = item_data.get('parent_id')
-                    update_params['order'] = item_data.get('order')
-                    update_params['level'] = item_data.get('level')
-                    update_params['is_folder'] = item_data.get('is_folder')
-                    
-                    logger.info(f"准备保存更新参数: {update_params}")
-                    
-                    # 执行数据库更新
-                    if icon_fields or display_name_updated:
-                        # 如果有图标或显示名称更新，使用专门的更新方法
-                        if icon_fields:
-                            self.markrender_manager.update_icon(
-                                item_data['id'],
-                                icon_type=icon_fields.get('icon_type'),
-                                icon_path=icon_fields.get('icon_path'),
-                                icon_color=icon_fields.get('icon_color')
-                            )
-                        
-                        if display_name_updated:
-                            self.markrender_manager.update_display_name(
-                                item_data['id'],
-                                new_display_name
-                            )
-                        
-                        # 更新其他字段
-                        # 移除图标和显示名称字段，因为它们已经通过专门的方法更新了
-                        other_update_params = {k: v for k, v in update_params.items() 
-                                             if k not in ['icon_type', 'icon_path', 'icon_color', 'display_name']}
-                        if len(other_update_params) > 1:  # 至少包含id和其他字段
-                            self.markrender_manager.save_item(**other_update_params)
-                    else:
-                        # 如果没有图标或显示名称更新，使用常规的save_item方法
-                        self.markrender_manager.save_item(**update_params)
-                    
-                    logger.info("数据库更新完成")
-                    
-                    # 更新树中的节点数据，而不是刷新整个树
-                    self.find_and_update_item_in_tree(item_data['id'], item_data)
+            try:
+                # 防止递归更新
+                if getattr(self, '_updating_item', False):
+                    logger.info("正在更新项目，跳过递归调用")
+                    return
+                self._updating_item = True
+                
+                # 保存到数据库
+                success = self.markrender_manager.save_item(
+                    id=item_data['id'],
+                    title=new_title,
+                    tags=new_tags,
+                    icon_type=new_icon_type,
+                    icon_path=new_icon_path,
+                    display_name=new_display_name,
+                    page_type=new_page_type,
+                    icon_color=new_icon_color
+                )
+                
+                if success:
+                    logger.info("项目属性保存成功")
+                    # 更新树节点显示，但避免递归
+                    self._find_and_update_item_in_tree(item_data['id'], item_data)
                     logger.info("树节点更新完成")
                     
                     # 更新状态栏标签显示
                     if self._parent and hasattr(self._parent, 'status_bar'):
                         self._parent.status_bar.update_tags(new_tags)
                         logger.info("状态栏标签已更新")
-                    
-                except Exception as e:
-                    logger.error(f"保存项目属性失败: {e}")
-                    QMessageBox.warning(self, "保存失败", f"无法保存属性更改: {str(e)}")
+                else:
+                    logger.error("保存项目属性失败")
+                    QMessageBox.warning(self, "保存失败", "无法保存属性更改")
+            except Exception as e:
+                logger.error(f"保存项目属性失败: {e}")
+                QMessageBox.warning(self, "保存失败", f"无法保存属性更改: {str(e)}")
+            finally:
+                # 重置递归标志
+                self._updating_item = False
         logger.info("edit_item方法执行完成")
+
+    def _find_and_update_item_in_tree(self, item_id, updated_data):
+        """在树中查找并更新特定节点，避免递归更新"""
+        logger.info(f"开始在树中查找并更新节点: {item_id}")
+        
+        def update_item_recursive(parent_item):
+            # 如果是顶层节点
+            if parent_item is None:
+                for i in range(self.quickpick_list.topLevelItemCount()):
+                    item = self.quickpick_list.topLevelItem(i)
+                    if item:
+                        data = item.data(0, Qt.ItemDataRole.UserRole)
+                        if data and data.get('id') == item_id:
+                            # 更新节点数据和显示
+                            item.setData(0, Qt.ItemDataRole.UserRole, updated_data)
+                            item.setText(0, updated_data.get('title', ''))
+                            logger.info(f"找到并更新顶层节点: {item_id}")
+                            return True
+                        # 递归搜索子节点
+                        if update_item_recursive(item):
+                            return True
+            else:
+                # 搜索子节点
+                for i in range(parent_item.childCount()):
+                    item = parent_item.child(i)
+                    if item:
+                        data = item.data(0, Qt.ItemDataRole.UserRole)
+                        if data and data.get('id') == item_id:
+                            # 更新节点数据和显示
+                            item.setData(0, Qt.ItemDataRole.UserRole, updated_data)
+                            item.setText(0, updated_data.get('title', ''))
+                            logger.info(f"找到并更新子节点: {item_id}")
+                            return True
+                        # 递归搜索子节点的子节点
+                        if update_item_recursive(item):
+                            return True
+            return False
+        
+        # 执行更新
+        update_item_recursive(None)
+        logger.info(f"节点更新完成: {item_id}")
 
     def on_item_clicked(self, index):
         # 获取点击的项目数据
@@ -430,9 +421,10 @@ class QuickPickPanel(QWidget):
                 main_window = None
                 try:
                     # 1. 先检查self是否有main_window属性
-                    if hasattr(self, 'main_window') and self.main_window:
-                        main_window = self.main_window
-                        logger.info("通过self.main_window找到主窗口")
+                    # 修复：使用hasattr检查属性是否存在
+                    if hasattr(self, '_parent') and self._parent and hasattr(self._parent, 'window'):
+                        main_window = self._parent.window
+                        logger.info("通过self._parent.window找到主窗口")
                     # 2. 否则尝试通过self._parent访问
                     elif hasattr(self, '_parent') and self._parent:
                         logger.info("尝试通过self._parent访问主窗口")
@@ -521,6 +513,37 @@ class QuickPickPanel(QWidget):
                 if not target_data or 'id' not in target_data:
                     logger.warning("目标项数据无效")
                     return False
+                
+                target_id = target_data.get('id')
+                target_is_folder = bool(target_data.get('is_folder', 0))
+                target_title = target_data.get('title')
+                logger.info(f"目标项: {target_title}, ID: {target_id}, 是文件夹: {target_is_folder}")
+                
+                # 使用矩形位置确定插入位置
+                rect = self.quickpick_list.visualRect(index)
+                pos_ratio = (pos.y() - rect.top()) / rect.height() if rect.height() > 0 else 0
+                logger.info(f"位置比例: {pos_ratio:.2f}")
+                
+                if pos_ratio < 0.33:
+                    # 插入到目标项之前
+                    new_parent_id = target_data.get('parent_id')
+                    is_dropping_inside_folder = False
+                    logger.info(f"插入到目标项之前，新父ID: {new_parent_id}")
+                elif pos_ratio > 0.67:
+                    # 插入到目标项之后
+                    new_parent_id = target_data.get('parent_id')
+                    is_dropping_inside_folder = False
+                    logger.info(f"插入到目标项之后，新父ID: {new_parent_id}")
+                else:
+                    # 插入到目标文件夹内部
+                    if target_is_folder:
+                        new_parent_id = target_id
+                        is_dropping_inside_folder = True
+                        target_folder_title = target_title
+                        logger.info(f"插入到目标文件夹内部，新父ID: {new_parent_id}")
+                    else:
+                        logger.warning("目标项不是文件夹，无法插入到内部")
+                        return False
                 
                 target_id = target_data.get('id')
                 target_is_folder = bool(target_data.get('is_folder', 0))
@@ -785,7 +808,7 @@ class QuickPickPanel(QWidget):
             logger.error(f"处理拖放操作时出错: {e}", exc_info=True)
             return False
     
-    def handle_start_drag(self, event):
+    def startDrag(self, supportedActions):
         """处理拖拽开始事件，设置正确的MIME数据"""
         # 获取当前选中的项
         selected_items = self.quickpick_list.selectedItems()
@@ -798,7 +821,9 @@ class QuickPickPanel(QWidget):
             return False
         
         # 创建MIME数据
-        mime_data = QTreeWidget.mimeData(self.quickpick_list, self.quickpick_list.selectedIndexes())
+        # 修复：使用正确的参数类型
+        selected_tree_items = [item]
+        mime_data = self.quickpick_list.mimeData(selected_tree_items)
         # 添加自定义文本数据，包含项ID
         mime_data.setText(str(data['id']))
         
@@ -812,6 +837,9 @@ class QuickPickPanel(QWidget):
         # 处理拖拽结果
         if result == Qt.DropAction.MoveAction:
             logger.debug(f"拖拽移动操作成功: {data.get('title')}")
+        
+        return True
+
         
         return True
     
