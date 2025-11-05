@@ -40,7 +40,7 @@ class HistoryItemWidget(QWidget):
         
         # 变更时间
         change_at = getattr(self.history_record, 'change_at', None)
-        time_text = get_readable_time(change_at) if change_at else "未知时间"
+        time_text = change_at.strftime("%Y-%m-%d %H:%M:%S") if change_at else "未知时间"
         self.time_label = QLabel(time_text)
         self.time_label.hide()  # 隐藏标签，我们手动绘制
         

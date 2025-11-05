@@ -90,8 +90,8 @@ class MainWindow(QMainWindow):
         right_splitter.addWidget(self.quickpick_panel)
         right_splitter.addWidget(self.editor)
         right_splitter.addWidget(self.history_panel)
-        # 设置历史面板占比1/5的初始大小比例（20%）
-        initial_right_sizes = [int(self.width() * 0.2), int(self.width() * 0.6), int(self.width() * 0.2)]
+        # 设置历史面板占比1/4的初始大小比例（25%）
+        initial_right_sizes = [int(self.width() * 0.20), int(self.width() * 0.55), int(self.width() * 0.25)]
         right_splitter.setSizes(initial_right_sizes)
 
         # 将侧边栏和右侧内容添加到主分割器，侧边栏放在左侧
