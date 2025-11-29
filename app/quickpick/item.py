@@ -230,7 +230,7 @@ class QuickPickItemDelegate(QStyledItemDelegate):
             
             # 根据层级调整缩进 - 优化为更紧凑的层级展示
             level = item_data.get('level', 0)
-            indent = 16 + (level * 12)  # 减少基础缩进和层级缩进，使布局更紧凑
+            indent = 8 + (level * 10)  # 调小基础缩进和层级缩进，使布局更紧凑
             
             # 获取文件类型对应的颜色 - 使用TDesign色彩系统
             page_type_str = page_type.lower() if page_type is not None else 'markdown'
@@ -241,7 +241,7 @@ class QuickPickItemDelegate(QStyledItemDelegate):
             icon_size = 14  # 减小图标尺寸
             icon_bg_width = 24  # 减小图标背景尺寸
             icon_bg_height = 24  # 减小图标背景尺寸
-            icon_x = option_rect.x() + SPACING_SM + indent
+            icon_x = option_rect.x() + SPACING_SM/2 + indent
             icon_y = option_rect.y() + (option_rect.height() - icon_bg_height) // 2
             
             # 绘制图标背景 - 优化为更紧凑的设计

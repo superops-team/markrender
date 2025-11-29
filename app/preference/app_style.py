@@ -695,9 +695,13 @@ class AppStyle:
         if hasattr(sys, '_MEIPASS'):
             chevron_right_path = os.path.join(getattr(sys, '_MEIPASS'), 'icons', 'chevron-right.svg').replace('\\', '/')
             chevron_down_path = os.path.join(getattr(sys, '_MEIPASS'), 'icons', 'chevron-down.svg').replace('\\', '/')
+            chevron_right_selected_path = os.path.join(getattr(sys, '_MEIPASS'), 'icons', 'chevron-right-selected.svg').replace('\\', '/')
+            chevron_down_selected_path = os.path.join(getattr(sys, '_MEIPASS'), 'icons', 'chevron-down-selected.svg').replace('\\', '/')
         else:
             chevron_right_path = 'icons/chevron-right.svg'
             chevron_down_path = 'icons/chevron-down.svg'
+            chevron_right_selected_path = 'icons/chevron-right-selected.svg'
+            chevron_down_selected_path = 'icons/chevron-down-selected.svg'
         
         # TDesign风格的树形导航面板样式
         # 复用全局滚动条样式，确保应用内一致性
@@ -713,9 +717,9 @@ class AppStyle:
         }}
         
         QTreeWidget::item {{
-            height: 56px;
-            border-radius: 6px;
-            margin: 2px;
+            height: 48px;
+            border-radius: 4px;
+            margin: 1px 2px;
         }}
         
         /* TDesign选中状态 - 腾讯蓝风格，更轻量的配色 */
@@ -732,14 +736,15 @@ class AppStyle:
         /* TDesign风格的展开/折叠按钮 */
         QTreeWidget::branch {{
             background: transparent;
-            margin-left: 4px;
+            margin-left: 0px;  /* 减小按钮到标题的间距 */
+            margin-right: 4px;  /* 增加右边距以保持整体平衡 */
         }}
         
         QTreeWidget::branch:has-children:!has-siblings:closed,
         QTreeWidget::branch:closed:has-children:has-siblings {{
             border-image: none;
             image: url({chevron_right_path});
-            width: 16px;
+            width: 12px;
             height: 16px;
         }}
         
@@ -747,8 +752,42 @@ class AppStyle:
         QTreeWidget::branch:open:has-children:has-siblings {{
             border-image: none;
             image: url({chevron_down_path});
+            width: 12px;
+            height: 16px;
+        }}
+        
+        /* 优化选中状态下的展开/折叠按钮颜色 */
+        QTreeWidget::branch:selected:has-children:!has-siblings:closed,
+        QTreeWidget::branch:selected:closed:has-children:has-siblings {{
+            border-image: none;
+            image: url({chevron_right_selected_path});
             width: 16px;
             height: 16px;
+        }}
+        
+        QTreeWidget::branch:selected:open:has-children:!has-siblings,
+        QTreeWidget::branch:selected:open:has-children:has-siblings {{
+            border-image: none;
+            image: url({chevron_down_selected_path});
+            width: 16px;
+            height: 16px;
+        }}
+        
+        /* 优化展开/折叠按钮在不同状态下的颜色 */
+        QTreeWidget::branch:!selected {{
+            color: #6B7280;  /* 未选中状态使用中性灰色 */
+        }}
+        
+        QTreeWidget::branch:selected {{
+            color: #0052d9;  /* 选中状态使用腾讯蓝 */
+        }}
+        
+        QTreeWidget::branch:hover:!selected {{
+            color: #4B5563;  /* 悬停但未选中状态使用稍深的灰色 */
+        }}
+        
+        QTreeWidget::branch:hover:selected {{
+            color: #003cab;  /* 悬停且选中状态使用更深的蓝色 */
         }}
         
         /* 确保所有层级的item都能正确响应点击事件 */
