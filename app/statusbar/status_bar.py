@@ -75,10 +75,23 @@ class StatusBar(QStatusBar):
         # 添加历史按钮到右侧布局
         self.right_layout.addWidget(self.history_btn)
         
-        # 添加组件到状态栏
-        self.addWidget(self.sidebar_toggle_btn)  # 左侧侧边栏按钮
-        self.addWidget(self.tags_container)  # 左侧标签列表
-        self.addPermanentWidget(self.right_container)  # 右侧历史按钮
+        # 创建左侧容器，包含侧边栏按钮和标签列表
+        self.left_container = QWidget()
+        self.left_layout = QHBoxLayout(self.left_container)
+        self.left_layout.setContentsMargins(5, 0, 10, 0)  # 添加边距
+        self.left_layout.setSpacing(8)  # 设置间距
+        
+        # 先添加侧边栏按钮到左侧布局的最左侧
+        self.left_layout.addWidget(self.sidebar_toggle_btn)
+        # 然后添加标签容器
+        self.left_layout.addWidget(self.tags_container)
+        # 让标签容器可伸缩，确保侧边栏按钮始终在最左侧
+        self.left_layout.addStretch()
+        
+        # 添加左侧容器到状态栏，使用addWidget确保在左侧
+        self.addWidget(self.left_container)
+        # 添加右侧历史按钮到永久区域，确保在右侧且始终可见
+        self.addPermanentWidget(self.right_container)
         
         # 设置样式表
         self.setStyleSheet(AppStyle().get_status_bar())  # 新增样式表设置
@@ -267,10 +280,13 @@ class StatusBar(QStatusBar):
                 from app.preference.style_constants import SIDEBAR_WIDTH
                 
                 if sidebar:
+                    # 确保按钮的checked状态与传入的checked参数保持一致
+                    self.sidebar_toggle_btn.setChecked(checked)
+                    
                     if checked:
                         # 显示侧边栏
                         sidebar.show()
-                        # 更新按钮图标为选中状态
+                        # 更新按钮图标为展开状态
                         self.sidebar_toggle_btn.setIcon(QIcon(get_icon_path('sidebar', selected=True)))
                         # 调整分割器大小，显示侧边栏
                         if main_splitter:
@@ -282,8 +298,8 @@ class StatusBar(QStatusBar):
                     else:
                         # 隐藏侧边栏
                         sidebar.hide()
-                        # 更新按钮图标为非选中状态
-                        self.sidebar_toggle_btn.setIcon(QIcon(get_icon_path('sidebar', selected=False)))
+                        # 更新按钮图标为折叠状态，使用'list.svg'图标表示侧边栏折叠
+                        self.sidebar_toggle_btn.setIcon(QIcon(get_icon_path('list', selected=False)))
                         # 调整分割器大小，隐藏侧边栏
                         if main_splitter:
                             sizes = main_splitter.sizes()
