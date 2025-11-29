@@ -1,8 +1,9 @@
-from PySide6.QtWidgets import QStatusBar, QLabel, QToolButton, QHBoxLayout, QWidget, QSizePolicy, QPushButton
+from PySide6.QtWidgets import QStatusBar, QLabel, QToolButton, QHBoxLayout, QWidget, QSizePolicy, QPushButton, QSplitter
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import Qt, Signal
 from app.preference import AppStyle  # 新增导入
 from utils.path import get_icon_path
+from utils.logger_utils import logger
 from app.preference.style_constants import (
     NEUTRAL_300, SPACING_XS, PRIMARY_100, PRIMARY_200, PRIMARY_400, PRIMARY_500, PRIMARY_600,
     NEUTRAL_100, NEUTRAL_200, NEUTRAL_700, FONT_SIZE_SM
@@ -19,6 +20,24 @@ class StatusBar(QStatusBar):
         self.current_tags = ""  # 保存当前标签
         self.selected_tag = None  # 保存当前选中的标签
         self.tag_buttons = []  # 保存所有标签按钮的引用
+        
+        # 创建侧边栏切换按钮
+        self.sidebar_toggle_btn = QToolButton()
+        self.sidebar_toggle_btn.setIcon(QIcon(get_icon_path('sidebar', False)))
+        self.sidebar_toggle_btn.setToolTip('显示/隐藏侧边栏')
+        self.sidebar_toggle_btn.setStyleSheet(f'''
+            QToolButton {{
+                border: none;
+                padding: {SPACING_XS}px;
+            }}
+            QToolButton:hover {{
+                background-color: {NEUTRAL_300};
+            }}
+        ''')
+        self.sidebar_toggle_btn.setFixedSize(20, 20)  # 固定按钮大小
+        self.sidebar_toggle_btn.setCheckable(True)
+        self.sidebar_toggle_btn.setChecked(True)  # 初始状态为显示
+        self.sidebar_toggle_btn.clicked.connect(self.toggle_sidebar)
         
         # 创建左侧的标签列表
         self.tags_layout = QHBoxLayout()
@@ -57,6 +76,7 @@ class StatusBar(QStatusBar):
         self.right_layout.addWidget(self.history_btn)
         
         # 添加组件到状态栏
+        self.addWidget(self.sidebar_toggle_btn)  # 左侧侧边栏按钮
         self.addWidget(self.tags_container)  # 左侧标签列表
         self.addPermanentWidget(self.right_container)  # 右侧历史按钮
         
@@ -229,6 +249,51 @@ class StatusBar(QStatusBar):
     def show_message(self, message):
         self.showMessage(message, 3000)  # 显示消息 3 秒
         
+    def toggle_sidebar(self, checked):
+        """切换侧边栏显示状态并调整UI布局"""
+        try:
+            if self.main_window:
+                sidebar = getattr(self.main_window, 'sidebar', None)
+                # 获取主分割器以调整大小
+                main_splitter = None
+                
+                # 查找主分割器（包含sidebar的分割器）
+                for child in self.main_window.findChildren(QSplitter):
+                    if sidebar in child.findChildren(QWidget):
+                        main_splitter = child
+                        break
+                
+                # 从样式常量导入侧边栏宽度
+                from app.preference.style_constants import SIDEBAR_WIDTH
+                
+                if sidebar:
+                    if checked:
+                        # 显示侧边栏
+                        sidebar.show()
+                        # 更新按钮图标为选中状态
+                        self.sidebar_toggle_btn.setIcon(QIcon(get_icon_path('sidebar', selected=True)))
+                        # 调整分割器大小，显示侧边栏
+                        if main_splitter:
+                            sizes = main_splitter.sizes()
+                            if len(sizes) >= 2:
+                                # 保持右侧区域大小不变，增加总宽度以显示侧边栏
+                                total_width = sum(sizes)
+                                main_splitter.setSizes([SIDEBAR_WIDTH, total_width - SIDEBAR_WIDTH])
+                    else:
+                        # 隐藏侧边栏
+                        sidebar.hide()
+                        # 更新按钮图标为非选中状态
+                        self.sidebar_toggle_btn.setIcon(QIcon(get_icon_path('sidebar', selected=False)))
+                        # 调整分割器大小，隐藏侧边栏
+                        if main_splitter:
+                            sizes = main_splitter.sizes()
+                            if len(sizes) >= 2:
+                                # 将侧边栏宽度分配给右侧区域
+                                total_width = sum(sizes)
+                                main_splitter.setSizes([0, total_width])
+        except Exception as e:
+            logger.error(f"切换侧边栏时出错: {e}", exc_info=True)
+    
     def set_main_window(self, main_window):
         """设置主窗口引用"""
         self.main_window = main_window
