@@ -205,17 +205,17 @@ class QuickPickItemDelegate(QStyledItemDelegate):
         # 获取选项矩形区域
         option_rect = option.rect
         
-        # TDesign风格的状态颜色处理 - 优化点击区域和视觉效果
+        # 紧凑风格的状态颜色处理
         if option.state & QStyle.StateFlag.State_Selected:
-            # TDesign选中状态 - 使用更轻量的选中背景色，符合自然、务实的设计原则
-            painter.setBrush(QColor(245, 249, 255, 180))  # 更轻量的腾讯蓝浅色背景，带透明度
+            # 使用更轻量的选中背景色，无边框
+            painter.setBrush(QColor(245, 249, 255, 180))  # 轻量的腾讯蓝浅色背景
             painter.setPen(Qt.PenStyle.NoPen)
-            painter.drawRoundedRect(option_rect, 6, 6)  # TDesign风格圆角优化
+            painter.drawRoundedRect(option_rect, 4, 4)  # 减小圆角半径，更紧凑
         elif option.state & QStyle.StateFlag.State_MouseOver:
-            # TDesign悬停状态 - 使用统一的悬停背景色
-            painter.setBrush(NEUTRAL_100)  # TDesign hover background
+            # 使用更简洁的悬停背景色
+            painter.setBrush(NEUTRAL_100)  # 浅色背景
             painter.setPen(Qt.PenStyle.NoPen)
-            painter.drawRoundedRect(option_rect, 6, 6)
+            painter.drawRoundedRect(option_rect, 4, 4)  # 减小圆角半径，更紧凑
 
         # Get item data
         item_data = index.data(Qt.ItemDataRole.UserRole)
@@ -228,31 +228,24 @@ class QuickPickItemDelegate(QStyledItemDelegate):
             # 判断是否为文件夹
             is_folder = item_data.get('is_folder', False)
             
-            # 根据层级调整缩进 - TDesign风格的层级展示
+            # 根据层级调整缩进 - 优化为更紧凑的层级展示
             level = item_data.get('level', 0)
-            indent = 24 + (level * 16)  # 基础缩进 + 层级缩进
+            indent = 16 + (level * 12)  # 减少基础缩进和层级缩进，使布局更紧凑
             
             # 获取文件类型对应的颜色 - 使用TDesign色彩系统
             page_type_str = page_type.lower() if page_type is not None else 'markdown'
             tag_color = self.tag_color_map.get(page_type_str, self.default_color) \
                        if not is_folder else self.tag_color_map['folder']
             
-            # 图标尺寸和位置 - TDesign规范
-            icon_size = 16
-            icon_bg_width = 32
-            icon_bg_height = 32
+            # 图标尺寸和位置 - 优化为更紧凑的设计
+            icon_size = 14  # 减小图标尺寸
+            icon_bg_width = 24  # 减小图标背景尺寸
+            icon_bg_height = 24  # 减小图标背景尺寸
             icon_x = option_rect.x() + SPACING_SM + indent
             icon_y = option_rect.y() + (option_rect.height() - icon_bg_height) // 2
             
-            # 绘制图标背景 - TDesign风格的圆角矩形，优化颜色对比度和视觉层次
-            # 使用更柔和的颜色处理方式，确保整体协调性
+            # 绘制图标背景 - 优化为更紧凑的设计
             bg_color = QColor(tag_color)
-            
-            # 根据TDesign设计原则优化颜色：
-            # 1. 对比度：确保图标背景与整体背景有足够的对比度
-            # 2. 重复：使用一致的颜色处理方式
-            # 3. 亲密性：相关文件类型使用相近的颜色
-            # 4. 对齐：保持视觉层次的一致性
             
             # 调整颜色饱和度和亮度以获得更好的视觉效果
             h = bg_color.hsvHue()
@@ -260,10 +253,7 @@ class QuickPickItemDelegate(QStyledItemDelegate):
             v = bg_color.value()
             a = bg_color.alpha()
             
-            # TDesign推荐的图标背景色优化策略：
-            # 1. 对于饱和度较高的颜色，适当降低饱和度以获得更柔和的效果
-            # 2. 对于过亮或过暗的颜色，调整亮度以增强可读性
-            # 3. 保持颜色的一致性和和谐性
+            # 优化颜色策略
             if s > 150:  # 对于高饱和度颜色
                 s = int(s * 0.7)  # 适度降低饱和度
             if v < 180:  # 对于较暗的颜色
@@ -275,7 +265,7 @@ class QuickPickItemDelegate(QStyledItemDelegate):
             
             painter.setBrush(bg_color)
             painter.setPen(Qt.PenStyle.NoPen)
-            painter.drawRoundedRect(icon_x, icon_y, icon_bg_width, icon_bg_height, 8, 8)  # TDesign圆角8px
+            painter.drawRoundedRect(icon_x, icon_y, icon_bg_width, icon_bg_height, 6, 6)  # 减小圆角半径，更紧凑
             
             # 获取并绘制图标
             icon_type = item_data.get('icon_type')
@@ -305,14 +295,13 @@ class QuickPickItemDelegate(QStyledItemDelegate):
             else:
                 painter.drawPixmap(icon_draw_x, icon_draw_y, icon.pixmap(icon_size, icon_size))
             
-            # 内容区域 - 调整为TDesign风格
-            content_x = icon_x + icon_bg_width + SPACING_MD
-            content_y = option_rect.y() + SPACING_MD
-            content_width = option_rect.width() - content_x - 90  # 保留操作按钮空间
+            # 内容区域 - 优化为更紧凑的设计
+            content_x = icon_x + icon_bg_width + SPACING_SM  # 使用更小的间距
+            content_width = option_rect.width() - content_x - 20  # 减少右侧保留空间，因为我们移除了操作按钮
             
-            # 绘制标题 - TDesign文本样式
+            # 绘制标题 - 紧凑样式
             title_font = QFont()
-            title_font.setPointSize(FONT_SIZE_MD)
+            title_font.setPointSize(FONT_SIZE_SM)  # 使用稍小的字体
             title_font.setWeight(QFont.Weight.Medium)
             painter.setFont(title_font)
             
@@ -321,42 +310,35 @@ class QuickPickItemDelegate(QStyledItemDelegate):
             else:
                 painter.setPen(NEUTRAL_900)  # TDesign primary text
             
-            # 计算标题可用宽度
+            # 计算标题可用宽度和垂直居中位置
             title_metrics = painter.fontMetrics()
             elided_title = title_metrics.elidedText(title, Qt.TextElideMode.ElideRight, content_width)
             
-            # 绘制标题
-            painter.drawText(content_x, content_y + title_metrics.ascent(), elided_title)
+            # 计算垂直居中的Y坐标
+            # 公式: 控件垂直居中 = 控件顶部 + (控件高度 - 字体高度) / 2 + 字体的基线高度
+            font_height = title_metrics.ascent() + title_metrics.descent()
+            center_y = option_rect.y() + (option_rect.height() - font_height) // 2 + title_metrics.ascent()
             
-            # 绘制次要信息（修改时间）
-            if formatted_time:
-                time_font = QFont()
-                time_font.setPointSize(FONT_SIZE_XS)
-                painter.setFont(time_font)
-                
-                if option.state & QStyle.StateFlag.State_Selected:
-                    painter.setPen(PRIMARY_600)  # TDesign selected secondary text
-                else:
-                    painter.setPen(NEUTRAL_500)  # TDesign secondary text
-                
-                time_y = content_y + title_metrics.height() + SPACING_XS + painter.fontMetrics().ascent()
-                painter.drawText(content_x, time_y, formatted_time)
+            # 绘制标题（居中对齐）
+            painter.drawText(content_x, center_y, elided_title)
+            
+            # 不再显示时间信息，保持界面简洁
             
             # 注释掉标签绘制代码，不再显示标签
             # 标签只在编辑对话框中管理，不在列表项中显示
             
-            # 绘制底部边框分隔线 - TDesign风格
-            painter.setPen(NEUTRAL_200)  # TDesign border color
-            painter.drawLine(option_rect.left() + SPACING_MD + indent, option_rect.bottom() - 1, 
-                           option_rect.right() - SPACING_MD, option_rect.bottom() - 1)
+            # 绘制底部边框分隔线 - 更紧凑的设计
+            painter.setPen(NEUTRAL_200)  # 分隔线颜色
+            painter.drawLine(option_rect.left() + SPACING_SM + indent, option_rect.bottom() - 1, 
+                           option_rect.right() - SPACING_SM, option_rect.bottom() - 1)  # 减少左右边距，更紧凑
             
             # 移除多余的操作按钮绘制
         
         painter.restore()
 
     def sizeHint(self, option: QStyleOptionViewItem, index):
-        # 减小项高度，提升紧凑性
-        return QSize(option.rect.width(), 56)  # 从80px减少到56px，使布局更紧凑  # type: ignore
+        # 进一步减小项高度，优化为更紧凑的树形结构
+        return QSize(option.rect.width(), 40)  # 从56px减少到40px，实现更紧凑的布局  # type: ignore
 
     def editorEvent(self, event, model, option, index):
         # 移除双击和按钮点击事件处理，改为右键菜单触发
