@@ -30,8 +30,8 @@ class SidebarManager(QWidget):
     def init_ui(self):
         # 创建主布局
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)  # 调整内边距为8px，使布局在窄sidebar中更加紧凑
-        layout.setSpacing(6)  # 保持按钮间距为6px符合设计规范
+        layout.setContentsMargins(4, 4, 4, 4)  # 进一步减小内边距使布局更紧凑
+        layout.setSpacing(4)  # 进一步减小间距使按钮布局更密集
         layout.setAlignment(Qt.AlignmentFlag.AlignHCenter)  # 设置水平居中对齐
 
         # 创建展开折叠quickpick的按钮
@@ -92,9 +92,9 @@ class SidebarManager(QWidget):
         """初始化侧边栏按钮并设置图标"""
         # 统一使用普通状态的图标，通过CSS控制颜色
         button.setIcon(QIcon(get_icon_path(icon_name, selected=False)))
-        button.setIconSize(QSize(18, 18))  # 调整图标尺寸为18x18px以适应更窄的sidebar
-        button.setFixedSize(32, 32)  # 调整按钮尺寸为32x32px以适应更窄的sidebar
-        button.setStyleSheet(self.app_style.get_sidebar_button_style())
+        button.setIconSize(QSize(16, 16))  # 减小图标尺寸使布局更紧凑
+        button.setFixedSize(28, 28)  # 减小按钮尺寸使布局更紧凑
+        button.setStyleSheet(self.app_style.get_sidebar_button_style() + "QPushButton { margin-left: 2px; margin-right: 2px; }")  # 进一步减小边距使布局更紧凑
         button.setCheckable(True)
         # 使用lambda包装，确保只传递checked参数给toggle_slot
         button.toggled.connect(lambda checked: self.on_button_toggled(button, checked, icon_name, toggle_slot))

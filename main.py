@@ -98,9 +98,11 @@ class MainWindow(QMainWindow):
         main_splitter.addWidget(self.sidebar)
         main_splitter.addWidget(right_splitter)
 
-        # 设置sidebar宽度为59px
-        main_splitter.setSizes([59, int(self.width() - 59)])
-        self.sidebar.setFixedWidth(59)
+        # 导入样式常量
+        from app.preference.style_constants import SIDEBAR_WIDTH
+        # 使用常量设置sidebar宽度
+        main_splitter.setSizes([SIDEBAR_WIDTH, int(self.width() - SIDEBAR_WIDTH)])
+        self.sidebar.setFixedWidth(SIDEBAR_WIDTH)
 
         # 修改为使用 self.main_layout 添加组件
         self.main_layout.addWidget(main_splitter)

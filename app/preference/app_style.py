@@ -317,6 +317,8 @@ QWidget {{
     background-color: {NEUTRAL_50};
     border-right: 1px solid {NEUTRAL_200};
     width: {SIDEBAR_WIDTH}px;
+    padding: 0px;
+    margin: 0px;
 }}"""
 
 
@@ -855,6 +857,9 @@ class AppStyle:
 QWidget {{
     background-color: {bg_color};
     border-right: 1px solid {LINE_COLOR};  /* 右侧内侧边框 */
+    width: {SIDEBAR_WIDTH}px;
+    padding: 0px;
+    margin: 0px;
 }}
 """
 

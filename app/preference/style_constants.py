@@ -194,7 +194,7 @@ INPUT_HEIGHT_SM = 24        # 小输入框高度 (减小高度使布局更紧凑
 INPUT_HEIGHT_MD = 32        # 中等输入框高度 (减小高度使布局更紧凑)
 INPUT_HEIGHT_LG = 40        # 大输入框高度 (减小高度使布局更紧凑)
 
-SIDEBAR_WIDTH = 48          # 侧边栏宽度 (符合TDesign设计体系的标准宽度，更紧凑现代)
+SIDEBAR_WIDTH = 40          # 侧边栏宽度 (进一步减小宽度使布局更紧凑)
 TITLEBAR_HEIGHT = 32        # 标题栏高度 (增加高度使布局更平衡)
 STATUSBAR_HEIGHT = 20       # 状态栏高度 (减小高度使布局更紧凑)
 
@@ -203,12 +203,12 @@ STATUSBAR_HEIGHT = 20       # 状态栏高度 (减小高度使布局更紧凑)
 # ============================================================================
 
 # Sidebar 按钮精确配置 (数据驱动优化)
-SIDEBAR_BUTTON_SIZE = 32            # 按钮尺寸 (减小尺寸使布局更紧凑)
-SIDEBAR_BUTTON_ICON_SIZE = 16       # 图标尺寸 (减小尺寸使布局更紧凑)
-SIDEBAR_MARGIN_LEFT = 6             # 左边距 (非对称补偿)
-SIDEBAR_MARGIN_RIGHT = 7            # 右边距 (数据驱动优化)
-SIDEBAR_PADDING_NORMAL = 3          # 正常状态内边距
-SIDEBAR_PADDING_CHECKED = 2         # 选中状态内边距
+SIDEBAR_BUTTON_SIZE = 28            # 按钮尺寸 (进一步减小尺寸使布局更紧凑)
+SIDEBAR_BUTTON_ICON_SIZE = 16       # 图标尺寸 (保持16px以确保可读性)
+SIDEBAR_MARGIN_LEFT = 3             # 左边距 (调整为3px与实际实现保持一致)
+SIDEBAR_MARGIN_RIGHT = 3            # 右边距 (调整为3px与实际实现保持一致)
+SIDEBAR_PADDING_NORMAL = 2          # 正常状态内边距 (减小内边距使布局更紧凑)
+SIDEBAR_PADDING_CHECKED = 1         # 选中状态内边距 (减小内边距使布局更紧凑)
 
 # macOS 按钮配置
 MACOS_BUTTON_SIZE = 12              # macOS 按钮尺寸
