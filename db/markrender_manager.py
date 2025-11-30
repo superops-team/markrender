@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import or_
+from sqlalchemy import or_, text
 from .models import Base, MarkRenderData, MarkRenderChangeHistory
 from db.db_manager import SingletonEngine, get_user_data_dir
 from utils.hash_utils import calculate_md5
 from utils.logger_utils import logger  # 添加 logger 导入
 from utils import time_utils
 import json
+import sqlite3
 
 
 class MarkRenderManager:
@@ -16,8 +17,36 @@ class MarkRenderManager:
         else:
             self.db_path = db_path
         self.engine = SingletonEngine.get_instance(self.db_path)
+        # 先创建所有表（如果不存在）
         Base.metadata.create_all(self.engine)
+        # 执行数据库迁移，为现有表添加缺失的字段
+        self._migrate_database()
         self.Session = sessionmaker(bind=self.engine)
+    
+    def _migrate_database(self):
+        """数据库迁移，安全地为现有表添加缺失的字段"""
+        try:
+            # 使用原生SQLite连接来检查和添加字段
+            with sqlite3.connect(self.db_path.replace('sqlite:///', '')) as conn:
+                cursor = conn.cursor()
+                
+                # 检查并添加 deleted_at 字段
+                cursor.execute("PRAGMA table_info(markrender_data)")
+                columns = [col[1] for col in cursor.fetchall()]
+                
+                if 'deleted_at' not in columns:
+                    logger.info("添加缺失的 deleted_at 字段")
+                    cursor.execute("ALTER TABLE markrender_data ADD COLUMN deleted_at DATETIME")
+                
+                if 'is_deleted' not in columns:
+                    logger.info("添加缺失的 is_deleted 字段")
+                    cursor.execute("ALTER TABLE markrender_data ADD COLUMN is_deleted INTEGER DEFAULT 0")
+                
+                conn.commit()
+                logger.info("数据库迁移完成")
+        except Exception as e:
+            logger.error(f"数据库迁移失败: {e}")
+            # 迁移失败不应该阻止程序运行，继续使用现有结构
 
     def add_item(self, new_file):
         try:
@@ -34,16 +63,33 @@ class MarkRenderManager:
             with self.Session() as session:
                 history_item = session.query(MarkRenderData).filter_by(id=item_id).first()
                 if history_item:
-                    session.delete(history_item)
-                    session.commit()
-                    return True
+                    # 安全地执行逻辑删除，处理字段可能不存在的情况
+                    try:
+                        # 检查字段是否存在
+                        if hasattr(history_item, 'is_deleted'):
+                            history_item.is_deleted = 1
+                        if hasattr(history_item, 'deleted_at'):
+                            history_item.deleted_at = time_utils.now()
+                        session.commit()
+                        logger.info(f"项目 {item_id} 逻辑删除成功")
+                        return True
+                    except Exception as update_error:
+                        logger.error(f"更新删除状态时出错: {update_error}")
+                        session.rollback()
+                        return False
                 return False
         except Exception as e:
-            logger.error(f"Error deleting history item: {e}")
+            logger.error(f"删除项目失败: {e}")
             return False
 
-    def load_items(self, limit=20, page_type=''):
-        """加载所有历史记录，按设置中的排序条件排列"""
+    def load_items(self, limit=20, page_type='', include_deleted=False):
+        """加载所有历史记录，按设置中的排序条件排列
+        
+        Args:
+            limit: 返回记录的最大数量
+            page_type: 页面类型过滤
+            include_deleted: 是否包含已删除的记录，默认为False
+        """
         from db.settings_manager import SettingsManager
         
         # 获取搜索排序设置，默认按更新时间排序
@@ -53,6 +99,14 @@ class MarkRenderManager:
         session = self.Session()
         try:
             query = session.query(MarkRenderData)
+            # 安全地过滤已删除项，处理字段可能不存在的情况
+            if not include_deleted:
+                try:
+                    # 检查模型是否有is_deleted字段
+                    if hasattr(MarkRenderData, 'is_deleted'):
+                        query = query.filter_by(is_deleted=0)
+                except Exception as filter_error:
+                    logger.warning(f"过滤已删除项时出错: {filter_error}，将返回所有记录")
             if page_type:
                 query = query.filter_by(page_type=page_type)
             
@@ -648,11 +702,27 @@ class MarkRenderManager:
         finally:
             session.close()
     
-    def get_detail(self, id):
+    def get_detail(self, id, include_deleted=False):
+        """获取详情
+        
+        Args:
+            id: 记录ID
+            include_deleted: 是否包含已删除的记录，默认为False
+        """
         session = self.Session()
         try:
-            record = session.query(MarkRenderData).filter_by(
-                id=id).first()
+            # 安全地查询记录，处理is_deleted字段可能不存在的情况
+            record = session.query(MarkRenderData).filter_by(id=id).first()
+            
+            # 如果记录存在且不包含已删除记录，则检查is_deleted状态
+            if record and not include_deleted:
+                try:
+                    # 只有当is_deleted字段存在且值不为0时才过滤
+                    if hasattr(record, 'is_deleted') and getattr(record, 'is_deleted', 0) != 0:
+                        record = None
+                except Exception as e:
+                    logger.warning(f"检查记录删除状态时出错: {e}")
+                    # 出错时不过滤，返回记录
             return {
                 'title': getattr(record, 'title', ''),
                 'content': getattr(record, 'content', ''),
@@ -665,6 +735,8 @@ class MarkRenderManager:
                 'status': getattr(record, 'status', ''),
                 'render_style': getattr(record, 'render_style', ''),
                 'updated_at': getattr(record, 'updated_at', None),
+                'deleted_at': getattr(record, 'deleted_at', None),
+                'is_deleted': getattr(record, 'is_deleted', 0),
                 'content_md5': getattr(record, 'content_md5', ''),
                 'created_at': getattr(record, 'created_at', None),
                 'page_type': getattr(record, 'page_type', ''),
@@ -949,47 +1021,86 @@ class MarkRenderManager:
         finally:
             session.close()
             
-    def get_children(self, parent_id=None):
-        """获取指定父节点的所有子节点"""
+    def get_children(self, parent_id=None, include_deleted=False):
+        """获取指定父节点的所有子节点
+        
+        Args:
+            parent_id: 父节点ID，为None时获取顶级节点
+            include_deleted: 是否包含已删除的记录，默认为False
+        """
         session = self.Session()
         try:
+            # 构建查询
+            query = session.query(MarkRenderData)
+            # 安全地过滤已删除项，处理字段可能不存在的情况
+            if not include_deleted:
+                try:
+                    if hasattr(MarkRenderData, 'is_deleted'):
+                        query = query.filter_by(is_deleted=0)
+                except Exception as filter_error:
+                    logger.warning(f"过滤已删除项时出错: {filter_error}")
+                
             if parent_id is None:
                 # 获取根节点（parent_id为None或空的记录）
-                records = session.query(MarkRenderData).filter(
+                records = query.filter(
                     or_(MarkRenderData.parent_id == None, MarkRenderData.parent_id == '')
                 ).order_by(MarkRenderData.created_at.desc()).all()  # 按创建时间倒序排列（最新的在前）
             else:
                 # 获取指定父节点的子节点
-                records = session.query(MarkRenderData).filter_by(
+                records = query.filter_by(
                     parent_id=parent_id
                 ).order_by(MarkRenderData.created_at.desc()).all()  # 按创建时间倒序排列（最新的在前）
             
             # 转换为字典列表
-            return [
-                {
-                    'id': getattr(r, 'id', None),
-                    'title': getattr(r, 'title', ''),
-                    'content': getattr(r, 'content', ''),
-                    'tags': getattr(r, 'tags', ''),
-                    'file_path': getattr(r, 'file_path', ''),
-                    'theme_id': getattr(r, 'theme_id', 0),
-                    'render_style': getattr(r, 'render_style', ''),
-                    'page_type': getattr(r, 'page_type', ''),
-                    'page_engine': getattr(r, 'page_engine', ''),
-                    'updated_at': getattr(r, 'updated_at', None),
-                    'created_at': getattr(r, 'created_at', None),
-                    # 树形结构字段
-                    'parent_id': getattr(r, 'parent_id', None),
-                    'order': getattr(r, 'order', 0),
-                    'level': getattr(r, 'level', 0),
-                    'is_folder': getattr(r, 'is_folder', 0),
-                    # 图标和显示字段
-                    'icon_type': getattr(r, 'icon_type', None),
-                    'icon_path': getattr(r, 'icon_path', None),
-                    'icon_color': getattr(r, 'icon_color', None),
-                    'display_name': getattr(r, 'display_name', None),
-                } for r in records
-            ]
+            results = []
+            for r in records:
+                try:
+                    # 安全地构建返回字典
+                    item_dict = {
+                        'id': getattr(r, 'id', None),
+                        'title': getattr(r, 'title', ''),
+                        'content': getattr(r, 'content', ''),
+                        'tags': getattr(r, 'tags', ''),
+                        'file_path': getattr(r, 'file_path', ''),
+                        'theme_id': getattr(r, 'theme_id', 0),
+                        'render_style': getattr(r, 'render_style', ''),
+                        'page_type': getattr(r, 'page_type', ''),
+                        'page_engine': getattr(r, 'page_engine', ''),
+                        'updated_at': getattr(r, 'updated_at', None),
+                        'created_at': getattr(r, 'created_at', None),
+                        # 树形结构字段
+                        'parent_id': getattr(r, 'parent_id', None),
+                        'order': getattr(r, 'order', 0),
+                        'level': getattr(r, 'level', 0),
+                        'is_folder': getattr(r, 'is_folder', 0),
+                        # 图标和显示字段
+                        'icon_type': getattr(r, 'icon_type', None),
+                        'icon_path': getattr(r, 'icon_path', None),
+                        'icon_color': getattr(r, 'icon_color', None),
+                        'display_name': getattr(r, 'display_name', None),
+                    }
+                    
+                    # 安全地添加可能不存在的字段
+                    try:
+                        if hasattr(r, 'deleted_at'):
+                            item_dict['deleted_at'] = getattr(r, 'deleted_at', None)
+                        else:
+                            item_dict['deleted_at'] = None
+                        
+                        if hasattr(r, 'is_deleted'):
+                            item_dict['is_deleted'] = getattr(r, 'is_deleted', 0)
+                        else:
+                            item_dict['is_deleted'] = 0
+                    except Exception as field_error:
+                        logger.warning(f"添加字段时出错: {field_error}")
+                    
+                    results.append(item_dict)
+                except Exception as item_error:
+                    logger.error(f"处理记录时出错: {item_error}")
+                    # 继续处理其他记录
+                    continue
+            
+            return results
         except Exception as e:
             logger.error(f"Error getting children: {e}")
             raise e
@@ -1110,7 +1221,7 @@ class MarkRenderManager:
             raise e
     
     def delete_node(self, item_id, recursive=False):
-        """删除节点
+        """删除节点（逻辑删除）
         
         Args:
             item_id: 要删除的节点ID
@@ -1123,19 +1234,29 @@ class MarkRenderManager:
                 return False
                 
             if recursive:
-                # 递归删除所有子节点
+                # 递归逻辑删除所有子节点
                 children = self.get_children(item_id)
                 for child in children:
                     self.delete_node(child['id'], recursive=True)
             
-            # 删除当前节点
-            session.delete(record)
-            session.commit()
-            return True
+            # 安全地执行逻辑删除，处理字段可能不存在的情况
+            try:
+                if hasattr(record, 'is_deleted'):
+                    record.is_deleted = 1
+                if hasattr(record, 'deleted_at'):
+                    record.deleted_at = time_utils.now()
+                session.commit()
+                logger.info(f"节点 {item_id} 逻辑删除成功")
+                return True
+            except Exception as update_error:
+                logger.error(f"更新节点删除状态时出错: {update_error}")
+                session.rollback()
+                return False
         except Exception as e:
             session.rollback()
-            logger.error(f"Error deleting node: {e}")
-            raise e
+            logger.error(f"删除节点失败: {e}")
+            # 返回False而不是抛出异常，避免中断程序
+            return False
         finally:
             session.close()
     
@@ -1175,25 +1296,40 @@ class MarkRenderManager:
             if not record:
                 return None
                 
-            node = {
-                'title': getattr(record, 'title', ''),
-                'id': getattr(record, 'id', 0),
-                'parent_id': getattr(record, 'parent_id', None),
-                'order': getattr(record, 'order', 0),
-                'level': getattr(record, 'level', 0),
-                'is_folder': getattr(record, 'is_folder', 0),
-                'page_type': getattr(record, 'page_type', ''),
-                'created_at': getattr(record, 'created_at', None),
-                'updated_at': getattr(record, 'updated_at', None),
-            }
+            # 安全地构建节点信息，处理字段可能不存在的情况
+            node = {}
+            try:
+                node = {
+                    'title': getattr(record, 'title', ''),
+                    'id': getattr(record, 'id', 0),
+                    'parent_id': getattr(record, 'parent_id', None),
+                    'order': getattr(record, 'order', 0),
+                    'level': getattr(record, 'level', 0),
+                    'is_folder': getattr(record, 'is_folder', 0),
+                    'page_type': getattr(record, 'page_type', ''),
+                    'created_at': getattr(record, 'created_at', None),
+                    'updated_at': getattr(record, 'updated_at', None),
+                }
+            except Exception as field_error:
+                logger.warning(f"构建节点信息时出错: {field_error}")
+                # 使用基本的安全信息
+                node = {
+                    'title': getattr(record, 'title', 'Unknown Title'),
+                    'id': getattr(record, 'id', 0),
+                }
             
             # 获取子节点（所有节点都可能有子节点，不仅仅是is_folder为1的节点）
-            children = self.get_children(item_id)
-            node['children'] = children
+            try:
+                children = self.get_children(item_id)
+                node['children'] = children
+            except Exception as children_error:
+                logger.error(f"获取子节点时出错: {children_error}")
+                node['children'] = []
             
             return node
         except Exception as e:
-            logger.error(f"Error getting subtree: {e}")
-            raise e
+            logger.error(f"获取子树结构失败: {e}")
+            # 返回None而不是抛出异常，避免中断程序
+            return None
         finally:
             session.close()

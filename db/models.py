@@ -27,6 +27,8 @@ class MarkRenderData(Base):
     content = Column(Text)  # 内容
     created_at = Column(DateTime(timezone=True), server_default=func.now())  # 创建时间
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())  # 更新时间
+    deleted_at = Column(DateTime(timezone=True), nullable=True)  # 删除时间
+    is_deleted = Column(Integer, default=0)  # 是否删除，0表示未删除，1表示已删除
     tags = Column(String)  # 标签
     render_style = Column(String)  # 渲染样式
     content_md5 = Column(String)  # 内容md5
