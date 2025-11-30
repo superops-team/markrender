@@ -146,7 +146,7 @@ declare class SuggesterPanel {
      */
     relocatePanelWithBoundaryCheck(): boolean;
     stopRelate(): void;
-    cursorTo: any;
+    cursorTo: import("codemirror").Position;
     /**
      * 粘贴选择结果
      * @param {number} idx 选择的结果索引

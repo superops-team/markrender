@@ -42,9 +42,9 @@ export default class PreviewerBubble {
     /**
      * 判断是否为代码块
      * @param {HTMLElement} element
-     * @returns {boolean|HTMLElement}
+     * @returns {boolean|Element}
      */
-    isCherryCodeBlock(element: HTMLElement): boolean | HTMLElement;
+    isCherryCodeBlock(element: HTMLElement): boolean | Element;
     /**
      * 是否为由cherry生成的表格，且不是简单表格
      * 现在也支持 HTML 表格语法

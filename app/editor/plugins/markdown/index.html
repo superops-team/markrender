@@ -12,19 +12,19 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
             height: 100vh;
             background: #ffffff;
             overflow: hidden;
         }
-        
+
         #editor {
             width: 100%;
             height: 100%;
         }
-        
+
         .loading {
             display: flex;
             align-items: center;
@@ -45,7 +45,7 @@
 
     <script>
         'use strict';
-        
+
         // 增强的全局错误处理
         window.addEventListener('error', function(event) {
             // 更详细地记录错误信息
@@ -56,32 +56,32 @@
                 colno: event.colno,
                 stack: event.error ? event.error.stack : '无堆栈信息'
             };
-            
+
             console.error('全局错误详情:', JSON.stringify(errorInfo, null, 2));
-            
+
             // 防止错误冒泡
             event.preventDefault();
             return true;
         });
-        
+
         // 处理未捕获的Promise拒绝
         window.addEventListener('unhandledrejection', function(event) {
             console.error('未捕获的Promise拒绝:', {
                 reason: event.reason,
                 promise: event.promise
             });
-            
+
             // 防止错误冒泡
             event.preventDefault();
             return true;
         });
-        
+
         // 编辑器状态
         window.editorState = {
             editor: null,
             currentItemId: null
         };
-        
+
         // 处理消息的核心函数
         function processMessage(action, data, requestId) {
             try {
@@ -91,24 +91,24 @@
                             window.editorState.editor.setValue(data.content || '');
                         }
                         break;
-                        
+
                     case 'getContent':
                         if (window.editorState.editor) {
                             const content = window.editorState.editor.getValue() || '';
                             return content;
                         }
                         break;
-                        
+
                     case 'setCurrentItemId':
                         window.editorState.currentItemId = data.item_id;
                         break;
-                        
+
                     case 'textChanged':
                         if (window.editorState.editor) {
                             console.log('文本变化已处理');
                         }
                         break;
-                        
+
                     case 'registerEditorEvents':
                         // 注册编辑器事件
                         if (window.editorState.editor) {
@@ -120,7 +120,7 @@
                             }
                         }
                         break;
-                        
+
                     case 'setupContentChangeListener':
                         // 设置内容变化监听器
                         if (window.editorState.editor) {
@@ -132,7 +132,7 @@
                             }
                         }
                         break;
-                        
+
                     default:
                         console.warn('未知的action类型:', action);
                         break;
@@ -145,7 +145,7 @@
                 });
             }
         }
-        
+
         // 全局消息处理函数
         window.handleBackendMessage = function(action, data, requestId) {
             console.log('收到后端消息:', action, data);
@@ -161,14 +161,14 @@
                 return null;
             }
         };
-        
+
         // 初始化Cherry编辑器
         function initCherryEditor() {
             if (typeof Cherry === 'undefined') {
                 console.error('❌ Cherry Markdown未加载');
                 return;
             }
-            
+
             try {
                 window.editorState.editor = new Cherry({
                     id: 'editor',
@@ -182,26 +182,26 @@
                             { insert: ['image', 'link', 'code', 'table', 'formula', 'line-table', 'bar-table'] },
                             'graph'
                         ],
-                        toolbarRight: ['undo', 'redo', 'togglePreview', 'codeTheme'],
+                        toolbarRight: ['undo', 'redo', 'changeLocale', 'wordCount'],
                         bubble:  ['bold', 'italic', 'underline', 'strikethrough', 'sub', 'sup', 'quote', '|', 'size', 'color'],
                         float: []
                     },
                     defaultModel: 'edit&preview',
-                    preview: { style: { height: 'auto', width: '100%' } },
+                    //preview: { style: { height: 'auto', width: '100%' } },
                     header: { anchorStyle: 'none' }
                 });
-                
+
                 console.log('✅ Cherry编辑器初始化成功');
-                
+
                 // 设置内容变化监听
                 window.editorState.editor.on('change', function() {
                     console.log('内容已变化');
                 });
-                
+
                 // 隐藏加载，显示编辑器
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('editor').style.display = 'block';
-                
+
             } catch (error) {
                 console.error('❌ Cherry编辑器初始化失败:', {
                     error: error.message,
@@ -209,7 +209,7 @@
                 });
             }
         }
-        
+
         // 启动应用
         document.addEventListener('DOMContentLoaded', function() {
             try {

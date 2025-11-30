@@ -8,7 +8,7 @@ export default class CodeBlock extends ParagraphBase {
     codeCache: {};
     codeCacheList: any[];
     customLang: any[];
-    customParser: any;
+    customParser: {};
     lineNumber: any;
     copyCode: any;
     expandCode: any;

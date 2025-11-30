@@ -1,9 +1,11 @@
 export default class Footnote extends ParagraphBase {
-    constructor({ externals, config }: {
+    constructor({ externals, config, cherry }: {
         externals: any;
         config: any;
+        cherry: any;
     });
     config: any;
+    $cherry: any;
     footnoteCache: {};
     footnoteMap: {};
     footnote: any[];
