@@ -12,7 +12,8 @@ from PySide6.QtWidgets import (
     QAbstractItemView,
     QMenu,
     QWidgetAction,
-    QLabel
+    QLabel,
+    QFileDialog
 )
 from PySide6.QtGui import QDrag
 from PySide6.QtGui import QAction
@@ -23,6 +24,7 @@ from app.quickpick.edit_dialog import DeleteConfirmDialog
 from utils.logger_utils import logger
 from utils.path import get_icon_path
 from app.preference import AppStyle
+from app.preference.style_utils import create_button_style
 from .item import QuickPickItemDelegate
 from .edit_dialog import EditItemDialog
 
@@ -79,12 +81,7 @@ class QuickPickPanel(QWidget):
     def init_ui(self):
         main_layout = QVBoxLayout()
         # TDesign风格的边距
-        main_layout.setContentsMargins(6, 6, 6, 6)
-        # 创建搜索和新建按钮的水平布局
-        search_layout = QHBoxLayout()
-        search_layout.setSpacing(8)  # TDesign间距规范
-        search_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)  # 垂直居中对齐
-
+        main_layout.setContentsMargins(12, 12, 12, 12)
         # 创建TDesign风格的搜索框
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("搜索历史记录...")
@@ -94,45 +91,59 @@ class QuickPickPanel(QWidget):
         self.search_input.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.search_input.textChanged.connect(self.filter_quickpick)
         self.search_input.returnPressed.connect(self.filter_quickpick)
-
-        # 创建新建按钮
-        self.new_btn = QPushButton()
-        # 初始图标改为加号图标
-        self.new_btn.setIcon(QIcon(get_icon_path("plus-square", selected=False)))
-        self.new_btn.setIconSize(QSize(18, 18))  # TDesign标准图标尺寸
-        # 设置固定尺寸，与搜索框对齐
-        self.new_btn.setFixedSize(36, 36)  # TDesign标准按钮尺寸
-        # 应用TDesign风格的按钮样式
-        self.new_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #f5f5f5;
-                border: 1px solid #e0e0e0;
-                border-radius: 6px;
-                padding: 8px;
-            }
-            QPushButton:hover {
-                background-color: #e8f3ff;
-                border-color: #b3d9ff;
-            }
-            QPushButton:pressed {
-                background-color: #d0e1ff;
-                border-color: #80bfff;
+        
+        # 确保搜索框具有良好的对比度
+        self.search_input.setStyleSheet(self.search_input.styleSheet() + """
+            QLineEdit {
+                font-weight: 500;
             }
         """)
-        # 连接点击事件到创建子目录方法
-        self.new_btn.clicked.connect(self.create_new_folder_item)
-        # 添加ToolTip
-        self.new_btn.setToolTip("新建文件夹")
 
-        # 添加到水平布局
+        # 创建新建按钮（扁平的小按钮）
+        self.new_btn = QPushButton("新建文件夹")
+        self.new_btn.setIcon(QIcon(get_icon_path("folder-add", selected=False)))
+        self.new_btn.setIconSize(QSize(16, 16))
+        self.new_btn.setStyleSheet(create_button_style("primary", "sm"))
+        self.new_btn.setToolTip("新建文件夹")
+        self.new_btn.setFixedHeight(36)  # 设置固定高度与搜索框对齐
+        
+        # 创建导入文件按钮（仅图标，更小尺寸）
+        self.import_file_btn = QPushButton()
+        self.import_file_btn.setIcon(QIcon(get_icon_path("upload", selected=False)))
+        self.import_file_btn.setIconSize(QSize(16, 16))
+        self.import_file_btn.setStyleSheet(create_button_style("ghost", "sm"))
+        self.import_file_btn.setToolTip("导入文件")
+        self.import_file_btn.setFixedSize(36, 36)  # 固定尺寸，与搜索框高度对齐
+        
+        # 设置按钮尺寸策略，使它们填满可用空间
+        self.new_btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.import_file_btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        
+        # 连接按钮事件
+        self.new_btn.clicked.connect(self.create_new_folder_item)
+        self.import_file_btn.clicked.connect(self.import_file)
+
+        # 创建搜索框布局
+        search_layout = QHBoxLayout()
+        search_layout.setSpacing(12)  # TDesign间距规范
+        search_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)  # 垂直居中对齐
+        search_layout.setContentsMargins(0, 0, 0, 0)
         search_layout.addWidget(self.search_input)
-        search_layout.addWidget(self.new_btn)
+
+        # 创建按钮布局（水平排列，与搜索框对齐）
+        button_layout = QHBoxLayout()
+        button_layout.setSpacing(8)  # 按钮间距
+        button_layout.setContentsMargins(0, 0, 0, 0)  # 无边距
+        button_layout.addWidget(self.new_btn)
+        button_layout.addWidget(self.import_file_btn)
+        button_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)  # 垂直居中对齐
 
         # 添加到主布局
         main_layout.addLayout(search_layout)
+        main_layout.addLayout(button_layout)
 
         # 设置搜索框和历史列表之间的间距
-        main_layout.setSpacing(8)
+        main_layout.setSpacing(12)
 
         # 应用TDesign风格的树形导航面板样式
         self.quickpick_list.viewport().setMouseTracking(True)
@@ -429,14 +440,10 @@ class QuickPickPanel(QWidget):
             def safe_save_editor_content():
                 main_window = None
                 try:
-                    # 1. 先检查self是否有main_window属性
-                    if hasattr(self, 'main_window') and self.main_window:
-                        main_window = self.main_window
-                        logger.info("通过self.main_window找到主窗口")
-                    # 2. 否则尝试通过self._parent访问
-                    elif hasattr(self, '_parent') and self._parent:
-                        logger.info("尝试通过self._parent访问主窗口")
-                        # 如果_parent已经是main_window
+                    # 直接通过self._parent访问
+                    if hasattr(self, '_parent') and self._parent:
+                        logger.info("通过self._parent访问主窗口")
+                        # 如果_parent已经有editor
                         if hasattr(self._parent, 'editor'):
                             main_window = self._parent
                             logger.info("self._parent是主窗口")
@@ -798,9 +805,13 @@ class QuickPickPanel(QWidget):
             return False
         
         # 创建MIME数据
-        mime_data = QTreeWidget.mimeData(self.quickpick_list, self.quickpick_list.selectedIndexes())
-        # 添加自定义文本数据，包含项ID
-        mime_data.setText(str(data['id']))
+        selected_items = self.quickpick_list.selectedItems()
+        if selected_items:
+            mime_data = QTreeWidget.mimeData(self.quickpick_list, selected_items)
+            # 添加自定义文本数据，包含项ID
+            mime_data.setText(str(data['id']))
+        else:
+            return False
         
         # 创建拖拽对象
         drag = QDrag(self.quickpick_list)
@@ -1508,6 +1519,30 @@ class QuickPickPanel(QWidget):
         # 刷新快速选择列表
         self.load_quickpick_items()
 
+    def import_file(self):
+        """导入文件"""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "导入文件", "", 
+            "所有支持的文件 (*.md *.txt *.pdf *.png *.jpg *.jpeg *.csv *.doc *.docx *.xls *.xlsx *.ppt *.pptx *.epub);;"
+            "Markdown文件 (*.md);;"
+            "文本文件 (*.txt);;"
+            "PDF文件 (*.pdf);;"
+            "图片文件 (*.png *.jpg *.jpeg);;"
+            "表格文件 (*.csv *.xls *.xlsx);;"
+            "文档文件 (*.doc *.docx *.ppt *.pptx);;"
+            "电子书 (*.epub);;"
+            "所有文件 (*)"
+        )
+        
+        if file_path:
+            # TODO: 实现文件导入逻辑
+            QMessageBox.information(self, "导入文件", f"选择了文件: {file_path}\n\n文件导入功能将在后续版本中实现。")
+    
+    def import_url(self):
+        """导入URL"""
+        # TODO: 实现URL导入逻辑
+        QMessageBox.information(self, "导入URL", "URL导入功能将在后续版本中实现。")
+    
     def create_new_folder_item(self):
         """创建新的根目录文件夹"""
         from utils import time_utils
