@@ -52,6 +52,9 @@ class QuickPickPanel(QWidget):
         self.quickpick_list.setItemDelegate(QuickPickItemDelegate(self.quickpick_list))
         # 禁用双击编辑
         self.quickpick_list.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self._filter_timer = QTimer(self)
+        self._filter_timer.setSingleShot(True)
+        self._filter_timer.timeout.connect(self.filter_quickpick)
         # 配置树形控件
         self.quickpick_list.setHeaderHidden(True)  # 隐藏表头
         self.quickpick_list.setIndentation(16)  # TDesign风格的缩进
@@ -92,7 +95,7 @@ class QuickPickPanel(QWidget):
         self.search_input.setStyleSheet(self.app_style.get_line_edit())
         self.search_input.setMinimumHeight(36)  # TDesign标准高度
         self.search_input.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.search_input.textChanged.connect(self.filter_quickpick)
+        self.search_input.textChanged.connect(self.request_filter_quickpick)
         self.search_input.returnPressed.connect(self.filter_quickpick)
 
         # 创建新建按钮
@@ -102,27 +105,12 @@ class QuickPickPanel(QWidget):
         self.new_btn.setIconSize(QSize(18, 18))  # TDesign标准图标尺寸
         # 设置固定尺寸，与搜索框对齐
         self.new_btn.setFixedSize(36, 36)  # TDesign标准按钮尺寸
-        # 应用TDesign风格的按钮样式
-        self.new_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #f5f5f5;
-                border: 1px solid #e0e0e0;
-                border-radius: 6px;
-                padding: 8px;
-            }
-            QPushButton:hover {
-                background-color: #e8f3ff;
-                border-color: #b3d9ff;
-            }
-            QPushButton:pressed {
-                background-color: #d0e1ff;
-                border-color: #80bfff;
-            }
-        """)
-        # 连接点击事件到创建子目录方法
-        self.new_btn.clicked.connect(self.create_new_folder_item)
+        # 应用统一 token 化按钮样式
+        self.new_btn.setStyleSheet(self.app_style.get_quickpick_create_button())
+        # 主入口打开完整新建菜单，避免单击直接创建文件夹造成语义偏差
+        self.new_btn.clicked.connect(self.show_create_menu)
         # 添加ToolTip
-        self.new_btn.setToolTip("新建文件夹")
+        self.new_btn.setToolTip("新建")
 
         # 添加到水平布局
         search_layout.addWidget(self.search_input)
@@ -364,6 +352,9 @@ class QuickPickPanel(QWidget):
     
     def _setup_drag_drop_support(self):
         """设置拖拽和放置支持"""
+        if getattr(self, '_drag_drop_setup', False):
+            return
+
         logger.info("设置拖拽和放置支持")
         
         # 确保基本的拖拽属性已设置
@@ -375,12 +366,10 @@ class QuickPickPanel(QWidget):
         # 设置为内部移动模式
         self.quickpick_list.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
         
-        # 安装事件过滤器，确保它只被安装一次
-        if not hasattr(self, '_drag_drop_setup'):
-            # 只需要为视口安装事件过滤器，用于处理拖放事件
-            self.quickpick_list.viewport().installEventFilter(self)
-            self._drag_drop_setup = True
-            logger.info("事件过滤器已安装")
+        # 只需要为视口安装事件过滤器，用于处理拖放事件
+        self.quickpick_list.viewport().installEventFilter(self)
+        self._drag_drop_setup = True
+        logger.info("事件过滤器已安装")
         
         # 连接展开和折叠事件
         self.quickpick_list.itemExpanded.connect(self.on_item_expanded)
@@ -967,7 +956,7 @@ class QuickPickPanel(QWidget):
         """加载所有历史记录"""
         try:
             # 获取完整的树形结构数据
-            self.all_quickpick_items = self.markrender_manager.get_full_tree()
+            self.all_quickpick_items = self.markrender_manager.get_lightweight_tree()
             if self.all_quickpick_items:
                 logger.info(f"成功加载 {len(self.all_quickpick_items)} 条记录")
             else:
@@ -975,6 +964,10 @@ class QuickPickPanel(QWidget):
             self.filter_quickpick()
         except Exception as e:
             logger.error(f"加载记录失败: {e}", exc_info=True)
+
+    def request_filter_quickpick(self):
+        """延迟过滤快速选择列表，合并连续输入事件。"""
+        self._filter_timer.start(200)
 
     def filter_quickpick(self):
         """根据搜索框和标签过滤记录"""
@@ -987,9 +980,6 @@ class QuickPickPanel(QWidget):
             search_text = self.search_input.text().strip().lower()
             logger.debug(f"搜索关键字: {search_text}")
             logger.debug(f"标签过滤: {self.current_tag_filter}")
-            
-            # 确保拖拽支持已设置
-            self._setup_drag_drop_support()
             
             def add_tree_items(parent_item, items):
                 """递归添加树节点"""
@@ -1075,9 +1065,6 @@ class QuickPickPanel(QWidget):
             # 添加树形结构数据
             add_tree_items(None, self.all_quickpick_items)
             
-            # 设置拖拽事件过滤器
-            self._setup_drag_drop_support()
-            
             logger.debug(f"过滤后匹配项数量: {self.quickpick_list.topLevelItemCount()}")
             logger.debug("快速选择记录过滤完成。")
         except Exception as e:
@@ -1121,7 +1108,8 @@ class QuickPickPanel(QWidget):
                         if hasattr(self._parent, 'editor'):
                             editor = getattr(self._parent, 'editor', None)
                             if editor and hasattr(editor, 'item'):
-                                editor_item_id = getattr(editor, 'item', '')
+                                editor_item = getattr(editor, 'item', None)
+                                editor_item_id = getattr(editor_item, 'item_id', '')
                         
                         current_item_id = current_item.get('id', '')
                         
@@ -1138,11 +1126,21 @@ class QuickPickPanel(QWidget):
                         can_save = bool(editor_item_id)
                         
                         if can_save:
-                            logger.info(msg=f"切换页面触发保存动作，文件->{current_item.get('title')}")
-                            
-                            # 使用回调方式保存，确保获取到内容后再切换页面
-                            self._save_with_callback()
-                            return  # 等待回调完成后再执行页面切换
+                            logger.info(msg=f"切换页面触发非阻塞延迟保存，文件->{current_item.get('title')}")
+                            editor = getattr(self._parent, 'editor', None) if self._parent is not None else None
+                            if editor and hasattr(editor, 'request_deferred_save'):
+                                def handle_deferred_save_done(save_success):
+                                    if save_success:
+                                        self._execute_switch()
+                                    else:
+                                        logger.error("保存当前文件失败，取消页面切换")
+                                        QMessageBox.warning(self, "保存失败", "当前文档保存失败，已取消页面切换以避免数据丢失。")
+                                        self.switch_pending = None
+
+                                editor.request_deferred_save(force=True, callback=handle_deferred_save_done)
+                            else:
+                                self._execute_switch()
+                            return
                         else:
                             logger.info(f"当前文档未关联文件ID，跳过保存: {current_item.get('title')}")
                     else:
@@ -1453,9 +1451,32 @@ class QuickPickPanel(QWidget):
         board_layout.addWidget(board_btn, 0, Qt.AlignmentFlag.AlignCenter)
         board_layout.addWidget(board_label, 0, Qt.AlignmentFlag.AlignCenter)
 
+        # 创建 文件夹 按钮组合（紧凑设计）
+        folder_container = QWidget()
+        folder_container.setFixedSize(32, 40)
+        folder_layout = QVBoxLayout(folder_container)
+        folder_layout.setSpacing(2)
+        folder_layout.setContentsMargins(0, 0, 0, 0)
+
+        folder_btn = QPushButton()
+        folder_btn.setIcon(QIcon(get_icon_path("folder")))
+        folder_btn.setIconSize(QSize(16, 16))
+        folder_btn.setFixedSize(28, 28)
+        folder_btn.setToolTip("创建文件夹")
+        folder_btn.clicked.connect(self.create_new_folder_item)
+
+        folder_label = QLabel("文件夹")
+        folder_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        folder_label.setFixedHeight(10)
+        folder_label.setStyleSheet("color: #6B7280; font-size: 10px;")
+
+        folder_layout.addWidget(folder_btn, 0, Qt.AlignmentFlag.AlignCenter)
+        folder_layout.addWidget(folder_label, 0, Qt.AlignmentFlag.AlignCenter)
+
         # 将按钮组合添加到水平布局
         h_layout.addWidget(content_container)
         h_layout.addWidget(board_container)
+        h_layout.addWidget(folder_container)
 
         # 将容器添加到菜单中
         menu_action = QWidgetAction(menu)

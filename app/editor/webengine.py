@@ -299,8 +299,7 @@ class WebPageManager(QStackedWidget):
                         # 设置通信管理器的页面引用
                         backend_interface.set_page(page)
                 
-                # 重置页面状态，确保数据隔离
-                self._reset_page_state(preloaded_view, page_type)
+                # 同 page_type 页面复用时不重置前端状态；由调用方 setValue 覆盖目标内容。
                 return preloaded_view
             
             # 创建新页面

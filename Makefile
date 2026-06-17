@@ -15,9 +15,11 @@ onefile:
 		--icon "./icons/app.icns" \
 		--add-data "icons/app.icns:." \
 		--add-data "icons:icons" \
+		--add-data "app/editor/js_templates:app/editor/js_templates" \
 		--add-data "app/editor/plugins:app/editor/plugins" \
 		--noconfirm \
 		--hidden-import "numpy" \
+		--collect-submodules "numpy" \
 		--hidden-import "diff_match_patch" \
 		--exclude-module "PyQt5" \
 		--exclude-module "test" \
@@ -75,18 +77,15 @@ onefile:
 dmg: onefile
 	mkdir -p dist/dmg
 	mv dist/markrender.app dist/dmg
+	rm -f dist/dmg/Applications
+	ln -s /Applications dist/dmg/Applications
 
-	create-dmg \
-	  --volname "markrender" \
-	  --volicon "icons/app.icns" \
-	  --window-pos 200 120 \
-	  --window-size 600 300 \
-	  --icon-size 90 \
-	  --icon "markrender.app" 175 120 \
-	  --hide-extension "markrender.app" \
-	  --app-drop-link 425 120 \
-	  "dist/markrender.dmg" \
-	  "dist/dmg/"
+	hdiutil create \
+	  -volname "markrender" \
+	  -srcfolder "dist/dmg" \
+	  -ov \
+	  -format UDZO \
+	  "dist/markrender.dmg"
 
 # format all python files
 fmt:

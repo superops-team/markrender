@@ -7,6 +7,7 @@ MarkRender 应用样式管理器
 from PySide6.QtGui import QColor
 from db.settings_manager import SettingsManager
 # 导入统一的样式常量
+from . import style_constants as style_tokens
 from .style_constants import *
 
 # ========== 向后兼容性设置 ==========
@@ -321,22 +322,6 @@ QWidget {{
 
 
 
-MAXIMIZE_BUTTON = """
-QPushButton {
-    background-color: #34c84a;
-    border-radius: 10px;
-    min-width: 12px;
-    min-height: 12px;
-    max-width: 12px;
-    max-height: 12px;
-    border: 1px solid #2da03f;
-    margin-right: 6px;
-}
-QPushButton:hover {
-    background-color: #2da03f;
-}
-"""
-
 CLOSE_BUTTON = """
 QPushButton {
     background-color: #0d6efd;
@@ -568,6 +553,48 @@ QTabWidget::tab-bar {
 }
 """
 
+# 编辑器主路径样式以 style_constants 的语义 token 为准。上方保留的 legacy
+# 常量仅用于兼容旧调用，不作为新的样式真相来源。
+LINE_EDIT = style_tokens.LINE_EDIT
+SIDEBAR_BUTTON = f"""
+QPushButton {{
+    color: {TEXT_SECONDARY};
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: {RADIUS_SM}px;
+    padding: {SPACING_XS}px;
+    font-size: {FONT_SIZE_SM}px;
+    font-weight: 500;
+    min-width: 32px;
+    min-height: 32px;
+    max-width: 36px;
+    max-height: 36px;
+}}
+QPushButton:hover {{
+    background-color: {SURFACE_HOVER};
+    border-color: {BORDER_ACCENT};
+    color: {ACCENT_HOVER};
+}}
+QPushButton:pressed {{
+    background-color: {ACCENT_SOFT};
+    border-color: {FOCUS_BORDER};
+    color: {ACCENT_ACTIVE};
+}}
+QPushButton:checked {{
+    background-color: {SURFACE_SELECTED};
+    border: 1px solid {BORDER_ACCENT};
+    color: {ACCENT};
+    font-weight: 600;
+}}
+QPushButton:checked:hover {{
+    background-color: {SURFACE_HOVER};
+    border: 1px solid {BORDER_ACCENT};
+    color: {ACCENT_HOVER};
+}}
+"""
+SCROLLBAR_STYLE = style_tokens.SCROLLBAR_STYLE
+TAB_STYLE = style_tokens.TAB_STYLE
+
 import os
 import sys
 
@@ -601,36 +628,7 @@ class AppStyle:
         return CLOSE_BUTTON if not self.dark_mode else CLOSE_BUTTON.replace('#0d6efd', '#005A9E')
 
     def get_sidebar_button_style(self):
-        # TDesign风格的侧边栏按钮
-        return """
-        QPushButton {
-            background-color: transparent;
-            color: #374151;
-            border: 1px solid transparent;
-            border-radius: 6px;
-            padding: 8px;
-            margin: 2px;
-            font-size: 14px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        }
-        
-        QPushButton:hover {
-            background-color: #f2f3ff;
-            color: #0052d9;
-            border-color: #d9e1ff;
-        }
-        
-        QPushButton:pressed {
-            background-color: #d9e1ff;
-            color: #003cab;
-        }
-        
-        QPushButton:checked {
-            background-color: #d9e1ff;
-            color: #0052d9;
-            border-color: #8eabff;
-        }
-        """
+        return SIDEBAR_BUTTON
 
     def get_dialog_border_radius(self):
         return DIALOG_BORDER_RADIUS
@@ -697,98 +695,20 @@ class AppStyle:
             chevron_right_path = 'icons/chevron-right.svg'
             chevron_down_path = 'icons/chevron-down.svg'
         
-        # TDesign风格的树形导航面板样式
-        # 复用全局滚动条样式，确保应用内一致性
-        return f"""
-        QTreeWidget {{
-            background-color: #ffffff;
-            border: 1px solid #e8e8e8;
-            border-radius: 8px;
-            padding: 4px;
-            font-size: 14px;
-            color: #111827;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        }}
-        
-        QTreeWidget::item {{
-            height: 56px;
-            border-radius: 6px;
-            margin: 2px;
-        }}
-        
-        /* TDesign选中状态 - 腾讯蓝风格，更轻量的配色 */
-        QTreeWidget::item:selected {{
-            background-color: rgba(245, 249, 255, 180);
-            color: #0052d9;
-        }}
-        
-        /* TDesign悬停状态 */
-        QTreeWidget::item:hover {{
-            background-color: #fafafa;
-        }}
-        
-        /* TDesign风格的展开/折叠按钮 */
-        QTreeWidget::branch {{
-            background: transparent;
-            margin-left: 4px;
-        }}
-        
-        QTreeWidget::branch:has-children:!has-siblings:closed,
-        QTreeWidget::branch:closed:has-children:has-siblings {{
-            border-image: none;
-            image: url({chevron_right_path});
-            width: 16px;
-            height: 16px;
-        }}
-        
-        QTreeWidget::branch:open:has-children:!has-siblings,
-        QTreeWidget::branch:open:has-children:has-siblings {{
-            border-image: none;
-            image: url({chevron_down_path});
-            width: 16px;
-            height: 16px;
-        }}
-        
-        /* 确保所有层级的item都能正确响应点击事件 */
-        QTreeWidget::item {{
-            padding-top: 4px;
-            padding-bottom: 4px;
-        }}
-        
-        /* 优化树形结构的视觉层次，遵循TDesign设计原则 */
-        QTreeWidget::branch {{
-            width: 16px;
-            height: 16px;
-            background-color: transparent;
-        }}
-        
-        /* 确保选中状态的一致性，移除可能导致冲突的分支样式 */
-        QTreeWidget::branch:selected {{
-            background-color: transparent;
-        }}
-        
-        QTreeWidget::branch:hover {{
-            background-color: transparent;
-        }}
-        
-        /* 确保选中状态覆盖整个item区域 */
-        QTreeWidget::item:selected:active {{
-            background-color: rgba(245, 249, 255, 180);  /* 更轻量的选中背景色 */
-        }}
-        
-        QTreeWidget::item:selected:!active {{
-            background-color: rgba(245, 249, 255, 180);  /* 更轻量的选中背景色 */
-        }}
-        
-        /* 移除折叠区域缩进的特殊颜色渲染 */
-        QTreeWidget::branch:has-children {{
-            background-color: transparent;
-            border: none;
-        }}
-        
-        /* 复用全局滚动条样式 */
-        {SCROLLBAR_STYLE}
-        """
+        panel_style = style_tokens.QUICKPICK_PANEL_BASE.format(
+            border_subtle=BORDER_SUBTLE,
+            radius_md=RADIUS_MD,
+            surface_base=SURFACE_BASE,
+            spacing_xs=SPACING_XS,
+            text_primary=TEXT_PRIMARY,
+            item_height=QUICKPICK_ITEM_HEIGHT,
+            chevron_right_path=chevron_right_path,
+            chevron_down_path=chevron_down_path,
+        )
+        return panel_style + SCROLLBAR_STYLE
+
+    def get_quickpick_create_button(self):
+        return style_tokens.QUICKPICK_CREATE_BUTTON
 
     def get_format_label(self):
         return FORMAT_LABEL
@@ -821,33 +741,7 @@ class AppStyle:
         return TITLE_BAR
 
     def get_line_edit(self):
-        # TDesign风格的输入框
-        return """
-        QLineEdit {
-            background-color: #ffffff;
-            border: 1px solid #e8e8e8;
-            border-radius: 6px;
-            padding: 0 12px;
-            color: #111827;
-            font-size: 14px;
-            height: 36px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        }
-        
-        QLineEdit:focus {
-            border-color: #0052d9;
-            border: 1px solid rgba(0, 82, 217, 0.3); /* 替代box-shadow，Qt不支持 */
-            outline: none;
-        }
-        
-        QLineEdit:hover {
-            border-color: #c6c6c6;
-        }
-        
-        QLineEdit::placeholder {
-            color: #8b8b8b;
-        }
-        """
+        return LINE_EDIT
 
     def get_sidebar(self):
         bg_color = COLOR_BACKGROUND_LIGHT if not self.dark_mode else COLOR_BACKGROUND_DARK

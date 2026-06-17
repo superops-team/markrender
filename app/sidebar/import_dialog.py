@@ -1,7 +1,6 @@
 import time
 import os
 
-from markitdown import MarkItDown
 from PySide6.QtWidgets import (
     QVBoxLayout,
     QPushButton,
@@ -564,6 +563,8 @@ class ImportThread(QThread):
         """
         use markitdown to parse pdf or img
         """
+        from markitdown import MarkItDown
+
         self.converter = 'markitdown'
         md = MarkItDown()
         result = md.convert(self.file_path)

@@ -1,8 +1,8 @@
 import json  # 添加json导入
 import time
 
-from PySide6.QtWidgets import QWidget, QVBoxLayout
-from PySide6.QtCore import QObject, Signal, Property, QTimer
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QMessageBox
+from PySide6.QtCore import QObject, Signal, Property, QTimer, QEventLoop
 from app.preference import AppStyle
 from app.editor.backend_interface import BackendInterface
 from app.editor.webengine import WebPageManager  # 导入页面管理器
@@ -51,6 +51,7 @@ class MarkRenderEditor(QWidget):
         
         # 初始化文档
         self.item = MarkRenderItem(item_id="", page_type="")
+        self._loading_content = False
         # 建立信号连接
         self.item.text_changed.connect(self.on_item_text_changed)
 
@@ -65,6 +66,15 @@ class MarkRenderEditor(QWidget):
         self.content_change_timer.setSingleShot(True)
         self.content_change_timer.timeout.connect(self._auto_save_history)
         self.content_changed = False  # 标记内容是否发生变化
+        self._content_change_generation = 0
+        self._pending_deferred_save_item_id = None
+        self._pending_deferred_save_callback = None
+        self._deferred_save_in_progress = False
+        self._deferred_save_wait_callbacks = []
+        self._content_timeout_timers = []
+        self._deferred_save_timer = QTimer()
+        self._deferred_save_timer.setSingleShot(True)
+        self._deferred_save_timer.timeout.connect(self._flush_deferred_save)
         logger.debug("编辑器初始化完成，自动保存历史记录功能已启用")
 
     def get_page_type(self):
@@ -134,9 +144,15 @@ class MarkRenderEditor(QWidget):
         logger.debug(f"文档变更: {text}")
         # 通知前端文档变更
         self.set_text_content(text)
+
+        if self._loading_content:
+            logger.debug("程序性加载内容，不标记 dirty，不启动自动保存")
+            self.content_changed = False
+            return
         
         # 标记内容已变更，并启动自动保存定时器
         self.content_changed = True
+        self._content_change_generation += 1
         logger.debug(f"内容变更标记已设置: {self.content_changed}")
         # 重启自动保存定时器（防抖处理）
         logger.debug("重启自动保存定时器")
@@ -149,6 +165,8 @@ class MarkRenderEditor(QWidget):
         logger.debug(f"自动保存历史记录开始，content_changed: {self.content_changed}, item_id: {self.item.item_id}")
         if self.content_changed and self.item.item_id:
             logger.info("检测到内容变更，自动保存历史记录")
+            target_item_id = self.item.item_id
+            target_generation = self._content_change_generation
             
             # 使用闭包来处理异步获取的内容
             def handle_content_response(parsed_data):
@@ -157,12 +175,18 @@ class MarkRenderEditor(QWidget):
                     from PySide6.QtWidgets import QApplication
                     QApplication.processEvents()
                     
-                    if parsed_data.get('success', False) and 'content' in parsed_data:
+                    if self._is_content_response_ready(parsed_data):
+                        frontend_item_id = parsed_data.get('item_id', target_item_id)
+                        if frontend_item_id != target_item_id:
+                            logger.warning(f"自动保存响应 item_id 不匹配，预期: {target_item_id}, 实际: {frontend_item_id}")
+                            self.content_changed = True
+                            return
+
                         content = parsed_data.get('content', '')
                         logger.info(f"成功获取内容用于自动保存，长度: {len(content)}")
                         
                         # 获取当前记录的详细信息
-                        current_record = self.markrender_manager.get_detail(self.item.item_id)
+                        current_record = self.markrender_manager.get_detail(target_item_id)
                         if current_record:
                             try:
                                 # 检查内容是否真正发生变化
@@ -178,55 +202,61 @@ class MarkRenderEditor(QWidget):
                                     
                                     # 简化保存逻辑，只保存必要的字段
                                     try:
-                                        save_result = self.markrender_manager.save_item(
-                                            id=self.item.item_id,
-                                            content=content
+                                        save_result = self.markrender_manager.save_content(
+                                            target_item_id,
+                                            content
                                         )
                                         if save_result:
-                                            logger.info(f"新的历史记录已保存: {self.item.item_id}")
+                                            logger.info(f"新的历史记录已保存: {target_item_id}")
+                                            self._mark_auto_save_clean(target_generation)
                                         else:
                                             logger.error("保存历史记录失败，但继续执行")
+                                            self.content_changed = True
                                     except Exception as save_error:
                                         logger.error(f"保存历史记录时出错: {save_error}")
+                                        self.content_changed = True
                                 else:
                                     logger.info("内容未发生变化，跳过保存历史记录")
+                                    self._mark_auto_save_clean(target_generation)
                             except Exception as compare_error:
                                 logger.error(f"处理内容比较时出错: {compare_error}")
+                                self.content_changed = True
                         else:
-                            logger.warning(f"未找到ID为 {self.item.item_id} 的记录，跳过保存")
+                            logger.warning(f"未找到ID为 {target_item_id} 的记录，跳过保存")
+                            self.content_changed = True
                     else:
                         logger.warning("获取内容失败，跳过自动保存历史记录")
+                        self.content_changed = True
                 except Exception as e:
                     logger.error(f"处理自动保存内容时出错: {e}")
-                finally:
-                    # 无论成功还是失败，都重置变更标记
-                    self.content_changed = False
-                    logger.debug(f"自动保存完成，内容变更标记已重置: {self.content_changed}")
+                    self.content_changed = True
             
             try:
                 # 使用get_content方法替代send_message_sync，避免unhashable type错误
                 # get_content使用异步回调方式，不会阻塞UI线程
                 logger.info("使用get_content方法异步获取编辑器内容")
-                self.get_content(handle_content_response)
+                self.get_content(handle_content_response, item_id=target_item_id)
                 
                 # 不等待回调完成，让它在后台执行
                 logger.debug("异步获取内容请求已发送")
-                
-                # 立即重置变更标记，因为我们已经开始处理保存
-                # 实际的重置会在回调中再次执行，确保安全
-                self.content_changed = False
-                logger.debug("自动保存历史记录请求已发送，重置变更标记")
-                
             except Exception as e:
                 logger.error(f"启动自动保存历史记录时出错: {e}")
                 import traceback
                 logger.error(f"自动保存启动错误详细信息: {traceback.format_exc()}")
-                # 确保重置变更标记，避免死锁
-                self.content_changed = False
+                self.content_changed = True
         else:
             # 即使没有内容变更或item_id不存在，也重置标记
             self.content_changed = False
             logger.debug(f"内容变更标记已重置（无内容变更或item_id不存在）: {self.content_changed}")
+
+    def _mark_auto_save_clean(self, target_generation):
+        """仅当自动保存期间没有新编辑时清理 dirty 标记。"""
+        if self._content_change_generation == target_generation:
+            self.content_changed = False
+            logger.debug(f"自动保存完成，内容变更标记已重置: {self.content_changed}")
+        else:
+            self.content_changed = True
+            logger.debug("自动保存期间发生了新的编辑，保留 dirty 状态")
 
     def init_auto_save(self):
         """初始化自动保存功能"""
@@ -272,9 +302,134 @@ class MarkRenderEditor(QWidget):
     
     def set_current_item(self, item_id, page_type, content):
         """设置当前编辑的文档项"""
-        self.item.item_id = item_id
-        self.item.page_type = page_type
-        self.item.set_text(content)
+        self._loading_content = True
+        try:
+            self.item.item_id = item_id
+            self.item.page_type = page_type
+            self.item.set_text(content)
+            self.content_changed = False
+            if hasattr(self, 'content_change_timer'):
+                self.content_change_timer.stop()
+        finally:
+            self._loading_content = False
+
+    def request_deferred_save(self, force=False, callback=None):
+        """为页面切换发起非阻塞保存请求。"""
+        self._pending_deferred_save_callback = callback
+        if not force and not (self.content_changed and self.item.item_id):
+            self._notify_deferred_save_complete(True)
+            return True
+        if not self.page_loaded:
+            logger.warning("页面未加载完成，延迟保存请求跳过")
+            self._notify_deferred_save_complete(False)
+            return True
+
+        self._pending_deferred_save_item_id = self.item.item_id
+        if force:
+            self._flush_deferred_save(callback=callback)
+            return True
+
+        self._deferred_save_timer.stop()
+        self._deferred_save_timer.start(0)
+        logger.debug(f"延迟保存请求已合并: {self._pending_deferred_save_item_id}")
+        return True
+
+    def _notify_deferred_save_complete(self, save_success):
+        callback = self._pending_deferred_save_callback
+        self._pending_deferred_save_callback = None
+        wait_callbacks = self._deferred_save_wait_callbacks
+        self._deferred_save_wait_callbacks = []
+        self._deferred_save_in_progress = False
+        if callback:
+            callback(save_success)
+        for wait_callback in wait_callbacks:
+            wait_callback(save_success)
+
+    def _flush_deferred_save(self, callback=None):
+        """执行被 QTimer 合并后的非阻塞保存。"""
+        if callback is not None:
+            self._pending_deferred_save_callback = callback
+        item_id = self._pending_deferred_save_item_id
+        if not item_id:
+            self._notify_deferred_save_complete(True)
+            return
+
+        self._deferred_save_in_progress = True
+
+        def handle_content_response(parsed_data):
+            try:
+                if not self._is_content_response_ready(parsed_data):
+                    logger.warning("延迟保存时前端内容未就绪，保留 dirty 状态")
+                    self.content_changed = True
+                    self._notify_deferred_save_complete(False)
+                    return
+
+                frontend_item_id = parsed_data.get('item_id', item_id)
+                if frontend_item_id != item_id:
+                    logger.warning(f"延迟保存响应 item_id 不匹配，预期: {item_id}, 实际: {frontend_item_id}")
+                    self.content_changed = True
+                    self._notify_deferred_save_complete(False)
+                    return
+
+                content = parsed_data.get('content', '')
+                current_record = self.markrender_manager.get_detail(item_id)
+                old_content = current_record.get('content', '') if current_record else ''
+                if content != old_content or self.content_changed:
+                    save_result = self.markrender_manager.save_content(item_id, content)
+                    self.content_changed = not bool(save_result)
+                    if save_result:
+                        logger.info(f"延迟保存成功: {item_id}")
+                        self._notify_deferred_save_complete(True)
+                    else:
+                        logger.error(f"延迟保存失败: {item_id}")
+                        self._notify_deferred_save_complete(False)
+                else:
+                    self.content_changed = False
+                    logger.debug(f"延迟保存发现内容未变化，跳过: {item_id}")
+                    self._notify_deferred_save_complete(True)
+            except Exception as e:
+                self.content_changed = True
+                logger.error(f"延迟保存处理失败: {e}")
+                self._notify_deferred_save_complete(False)
+            finally:
+                self._pending_deferred_save_item_id = None
+
+        self.get_content(handle_content_response, item_id=item_id)
+        logger.debug(f"延迟保存请求已发送: {item_id}")
+
+    def flush_pending_deferred_save(self, timeout_ms=3000):
+        """关闭前等待待处理的延迟保存完成。"""
+        if self._deferred_save_timer.isActive():
+            self._deferred_save_timer.stop()
+
+        if not self._pending_deferred_save_item_id and not self._deferred_save_in_progress:
+            return True
+
+        loop = QEventLoop()
+        timeout_timer = QTimer()
+        timeout_timer.setSingleShot(True)
+        result = {'done': False, 'success': False}
+
+        def handle_completion(save_success):
+            result['done'] = True
+            result['success'] = bool(save_success)
+            timeout_timer.stop()
+            loop.quit()
+
+        self._deferred_save_wait_callbacks.append(handle_completion)
+
+        if self._pending_deferred_save_item_id and not self._deferred_save_in_progress:
+            self._flush_deferred_save()
+
+        timeout_timer.timeout.connect(loop.quit)
+        timeout_timer.start(timeout_ms)
+        loop.exec()
+
+        if not result['done']:
+            logger.warning("等待延迟保存完成超时")
+            self._deferred_save_wait_callbacks = [cb for cb in self._deferred_save_wait_callbacks if cb is not handle_completion]
+            return False
+        return result['success']
 
     def save_current_item(self):
         """保存当前文档内容 - 增强版，确保获取到最新内容"""        
@@ -292,13 +447,10 @@ class MarkRenderEditor(QWidget):
                 return False
             # 解析JavaScript返回的数据
             parsed_data = self._parse_js_response(result)
-            if not parsed_data.get('success', False):
-                # 只有当success为False时才认为获取内容失败
+            if not self._is_content_response_ready(parsed_data):
                 error_msg = parsed_data.get('error', '未知错误') if parsed_data else '获取内容失败'
                 logger.error(f"获取编辑器内容失败: {error_msg}")
-                # 即使获取内容失败，也要尝试保存（可能是空内容）
-                content = ""
-                frontend_item_id = self.item.item_id
+                return False
             else:
                 content = parsed_data.get("content", "")
                 frontend_item_id = parsed_data.get("item_id", "")
@@ -320,10 +472,7 @@ class MarkRenderEditor(QWidget):
             
             # 只有当内容真正发生变化时才保存
             if content != old_content:
-                success = self.markrender_manager.save_item(
-                    id=item_id, 
-                    content=content
-                )
+                success = self.markrender_manager.save_content(item_id, content)
                 
                 if success:
                     logger.info(f"手动保存成功: {item_id}，内容长度: {len(content)}")
@@ -358,7 +507,7 @@ class MarkRenderEditor(QWidget):
                 try:
                     # 解析JavaScript返回的数据
                     parsed_data = self._parse_js_response(data) if data is not None else {'success': False, 'error': '无响应数据'}
-                    if parsed_data.get('success', False):
+                    if self._is_content_response_ready(parsed_data):
                         content = parsed_data.get("content", "")
                         item_id = self.item.item_id          
                         
@@ -368,10 +517,7 @@ class MarkRenderEditor(QWidget):
                         
                         # 只有当内容真正发生变化时才保存
                         if content != old_content:
-                            success = self.markrender_manager.save_item(
-                                id=item_id, 
-                                content=content
-                            )
+                            success = self.markrender_manager.save_content(item_id, content)
                             if success:
                                 logger.info(f"手动保存成功: {item_id}，内容长度: {len(content)}")
                                 save_result = True
@@ -382,10 +528,8 @@ class MarkRenderEditor(QWidget):
                             logger.info(f"内容未发生变化，跳过保存: {item_id}")
                             save_result = True
                     else:
-                        # 只有当success为False时才认为获取内容失败
                         error_msg = parsed_data.get('error', '未知错误') if parsed_data else '获取内容失败'
                         logger.error(f"获取编辑器内容失败: {error_msg}")
-                        # 在切换时，即使获取内容失败也返回True，避免阻塞用户操作
                         save_result = True
                 except Exception as e:
                     logger.error(f"处理保存内容时出错: {e}")
@@ -434,27 +578,46 @@ class MarkRenderEditor(QWidget):
         else:
             logger.warning("backend_interface未初始化，无法通知前端当前文件ID变更")
 
-    def get_content(self, callback):
+    def get_content(self, callback, item_id=None):
         """获取markdown内容"""
+        target_item_id = item_id or self.item.item_id
+        completed = {'done': False}
+
+        def complete(parsed_data):
+            if completed['done']:
+                return
+            completed['done'] = True
+            timeout_timer.stop()
+            if timeout_timer in self._content_timeout_timers:
+                self._content_timeout_timers.remove(timeout_timer)
+            timeout_timer.deleteLater()
+            callback(parsed_data)
+
         # 设置5秒超时
-        timeout_timer = QTimer()
+        timeout_timer = QTimer(self)
         timeout_timer.setSingleShot(True)
-        timeout_timer.timeout.connect(lambda: callback({
+        self._content_timeout_timers.append(timeout_timer)
+        timeout_timer.timeout.connect(lambda: complete({
             'success': False,
-            'error': '获取内容超时'
+            'ready': False,
+            'error': '获取内容超时',
+            'item_id': target_item_id
         }))
         timeout_timer.start(5000)
 
         # 发送获取请求
-        self.backend_interface.send_message(
+        sent = self.backend_interface.send_message(
             'getContent',
-            callback=lambda response: (
-                timeout_timer.stop(),
-                # 解析响应数据
-                callback(self._parse_js_response(response))
-            ),
-            item_id=self.item.item_id
+            callback=lambda response: complete(self._parse_js_response(response)),
+            item_id=target_item_id
         )
+        if not sent:
+            complete({
+                'success': False,
+                'ready': False,
+                'error': '发送获取内容请求失败',
+                'item_id': target_item_id
+            })
     
     def get_content_with_retry(self, callback, retry_count=5):
         """增强版获取内容方法，支持重试机制"""
@@ -464,7 +627,7 @@ class MarkRenderEditor(QWidget):
             logger.debug(f"解析后的数据: {parsed_data}")
             
             # 检查是否成功获取内容
-            if parsed_data.get('success', False) and 'content' in parsed_data:
+            if self._is_content_response_ready(parsed_data):
                 logger.info(f"成功获取内容，内容长度: {len(parsed_data.get('content', ''))}")
                 callback(parsed_data)
             else:
@@ -518,6 +681,16 @@ class MarkRenderEditor(QWidget):
         else:
             # 其他情况，返回None或默认值
             return {'success': response is not None, 'content': response if response is not None else ''}
+
+    def _is_content_response_ready(self, parsed_data):
+        """判断前端 getContent 响应是否可安全保存。"""
+        if not parsed_data:
+            return False
+        if not parsed_data.get('success', False):
+            return False
+        if not parsed_data.get('ready', False):
+            return False
+        return 'content' in parsed_data
     
     def set_text_content(self, text_content):
         # 检查item_id是否已初始化
@@ -590,11 +763,15 @@ class MarkRenderEditor(QWidget):
         try:
             # 退出前同步拉取数据并保存
             result = self.backend_interface.send_message_sync("getContent", {}, item_id=self.item.item_id, timeout=10000)
-            if result and result.get('success', False): 
-                content = result.get('content', '') if result else ''
-                if self.item.item_id == result.get('item_id', ''):
-                    self.markrender_manager.save_item(id=self.item.item_id, content=content)
+            parsed_data = self._parse_js_response(result)
+            if self._is_content_response_ready(parsed_data):
+                content = parsed_data.get('content', '')
+                if self.item.item_id == parsed_data.get('item_id', ''):
+                    self.markrender_manager.save_content(self.item.item_id, content)
                     logger.debug(f"文档已保存: {self.item.item_id}")
+            else:
+                logger.warning("关闭保存时前端内容未就绪，跳过保存，避免误写空内容")
+                QMessageBox.warning(self, "保存提醒", "编辑器内容未就绪，已跳过关闭保存以避免误写空内容。")
             self._close_ready = True
         except Exception as e:
             logger.error(f"发送getContent消息时出错: {e}")
