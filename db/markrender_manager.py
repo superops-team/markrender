@@ -9,6 +9,9 @@ from utils import time_utils
 import json
 
 
+_UNSET = object()
+
+
 class MarkRenderManager:
     def __init__(self, db_path=None):
         if db_path is None:
@@ -108,14 +111,14 @@ class MarkRenderManager:
     def save_item(
             self,
             id=None,
-            title='',
-            content='',
-            tags='',
+            title=_UNSET,
+            content=_UNSET,
+            tags=_UNSET,
             render_style=None,
-            file_path='',
-            converter='',
+            file_path=_UNSET,
+            converter=_UNSET,
             theme_id=None,
-            status='',
+            status=_UNSET,
             converter_start=None,
             converter_end=None,
             page_type=None,
@@ -138,8 +141,12 @@ class MarkRenderManager:
         try:
             import json
             
+            has_content = content is not _UNSET
+
             # 确保content是字符串类型
-            if isinstance(content, dict):
+            if content is _UNSET:
+                content_str = ''
+            elif isinstance(content, dict):
                 content_str = json.dumps(content, ensure_ascii=False)
             elif not isinstance(content, str):
                 content_str = str(content)
@@ -148,38 +155,40 @@ class MarkRenderManager:
                 
             content_md5 = calculate_md5(content_str)
             now = time_utils.now()  # 获取当前北京时间
-            logger.info(f"准备保存项目，ID: {id}, 标题: {title}")
+            title_for_log = '<unchanged>' if title is _UNSET else title
+            logger.info(f"准备保存项目，ID: {id}, 标题: {title_for_log}")
             if id:
                 # 更新现有记录
                 history = session.query(MarkRenderData).filter_by(id=id).first()
                 if history:
                     logger.info(f"找到现有记录，开始更新字段")
                     
-                    # 更新字段
-                    setattr(history, 'content', content_str)
-                    setattr(history, 'content_md5', content_md5)
+                    # 更新字段。更新现有记录时，省略 content 表示不更新正文。
+                    if has_content:
+                        setattr(history, 'content', content_str)
+                        setattr(history, 'content_md5', content_md5)
                     setattr(history, 'updated_at', now)
                     
                     # 更新其他可选字段
-                    if title is not None and title != '':
+                    if title is not _UNSET and title is not None and title != '':
                         logger.info(f"更新标题: '{title}'")
                         setattr(history, 'title', title)
                     elif title is None:
                         logger.info("标题参数为None，保持原有标题不变")
-                    if tags is not None and tags != '':
+                    if tags is not _UNSET and tags is not None:
                         logger.info(f"更新标签: {tags}")
                         setattr(history, 'tags', tags)
                     elif tags is None:
                         logger.info("标签参数为None，保持原有标签不变")
                     if render_style is not None:
                         setattr(history, 'render_style', render_style)
-                    if file_path is not None:
+                    if file_path is not _UNSET and file_path is not None:
                         setattr(history, 'file_path', file_path)
-                    if converter is not None:
+                    if converter is not _UNSET and converter is not None:
                         setattr(history, 'converter', converter)
                     if theme_id is not None:
                         setattr(history, 'theme_id', theme_id)
-                    if status is not None:
+                    if status is not _UNSET and status is not None:
                         setattr(history, 'status', status)
                     if converter_start is not None:
                         setattr(history, 'converter_start', converter_start)
@@ -217,15 +226,15 @@ class MarkRenderManager:
                     # 记录不存在，创建新记录
                     logger.info(f"记录不存在，创建新记录")
                     new_history = MarkRenderData(
-                        title=title or '',
+                        title='' if title is _UNSET else (title or ''),
                         content=content_str,
                         content_md5=content_md5,
-                        tags=tags or '',
+                        tags='' if tags is _UNSET else (tags or ''),
                         render_style=render_style or '',
-                        file_path=file_path or '',
-                        converter=converter or '',
+                        file_path='' if file_path is _UNSET else (file_path or ''),
+                        converter='' if converter is _UNSET else (converter or ''),
                         theme_id=theme_id or 0,
-                        status=status or 'processed',
+                        status='processed' if status is _UNSET else (status or 'processed'),
                         converter_start=converter_start,
                         converter_end=converter_end,
                         page_type=page_type or 'markdown',
@@ -253,15 +262,15 @@ class MarkRenderManager:
                 # 创建新记录
                 logger.info(f"创建新记录")
                 new_history = MarkRenderData(
-                    title=title or '',
+                    title='' if title is _UNSET else (title or ''),
                     content=content_str,
                     content_md5=content_md5,
-                    tags=tags or '',
+                    tags='' if tags is _UNSET else (tags or ''),
                     render_style=render_style or '',
-                    file_path=file_path or '',
-                    converter=converter or '',
+                    file_path='' if file_path is _UNSET else (file_path or ''),
+                    converter='' if converter is _UNSET else (converter or ''),
                     theme_id=theme_id or 0,
-                    status=status or 'processed',
+                    status='processed' if status is _UNSET else (status or 'processed'),
                     converter_start=converter_start,
                     converter_end=converter_end,
                     page_type=page_type or 'markdown',
@@ -291,10 +300,54 @@ class MarkRenderManager:
             raise e
         finally:
             session.close()
-            if id and content_str and changed:
+            if id and has_content and changed:
                 self.sync_write_localdisk(id, content_str, page_type, page_engine)
         logger.info(f"保存项目完成，返回ID: {id}")
         return id
+
+    def save_content(self, item_id, content, *, page_type=None, page_engine=None):
+        """只保存正文、content_md5、updated_at，不更新任何元数据字段。"""
+        if not item_id:
+            return False
+
+        if isinstance(content, dict):
+            content_str = json.dumps(content, ensure_ascii=False)
+        elif not isinstance(content, str):
+            content_str = str(content)
+        else:
+            content_str = content
+
+        session = self.Session()
+        changed = False
+        disk_synced = True
+        try:
+            record = session.query(MarkRenderData).filter_by(id=item_id).first()
+            if not record:
+                return False
+
+            setattr(record, 'content', content_str)
+            setattr(record, 'content_md5', calculate_md5(content_str))
+            setattr(record, 'updated_at', time_utils.now())
+            if page_type is not None:
+                setattr(record, 'page_type', page_type)
+            if page_engine is not None:
+                setattr(record, 'page_engine', page_engine)
+
+            session.commit()
+            changed = True
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error saving content: {e}")
+            raise e
+        finally:
+            session.close()
+            if changed:
+                disk_synced = self.sync_write_localdisk(item_id, content_str, page_type, page_engine)
+
+        if not disk_synced:
+            logger.error(f"Content saved to database but failed to sync local disk: {item_id}")
+            return False
+        return item_id
 
     def _save_change_history(self, session, file_id, old_content, new_content, change_type, 
                            change_reason, change_by, change_ip, change_file_path, 
@@ -455,10 +508,12 @@ class MarkRenderManager:
             suffix = 'md'  # 默认后缀
             if page_engine == 'excalidraw':
                 suffix = 'excalidraw'
-            with open(f'{get_user_data_dir()}/output/{id}.{suffix}', 'w') as f:
+            with open(f'{get_user_data_dir()}/output/{id}.{suffix}', 'w', encoding='utf-8') as f:
                 f.write(content_str)
+            return True
         except Exception as e:
             logger.error(f"Error writing to local disk: {e}")
+            return False
 
     def search_item(self, keyword=None, page_type=None):
         session = self.Session()
@@ -1108,6 +1163,87 @@ class MarkRenderManager:
         except Exception as e:
             logger.error(f"Error getting full tree: {e}")
             raise e
+
+    def get_lightweight_tree(self, parent_id=None):
+        """一次查询获取轻量树形结构，不加载正文内容。"""
+        session = self.Session()
+        try:
+            records = session.query(
+                MarkRenderData.id,
+                MarkRenderData.title,
+                MarkRenderData.tags,
+                MarkRenderData.file_path,
+                MarkRenderData.theme_id,
+                MarkRenderData.converter,
+                MarkRenderData.converter_start,
+                MarkRenderData.converter_end,
+                MarkRenderData.status,
+                MarkRenderData.render_style,
+                MarkRenderData.updated_at,
+                MarkRenderData.content_md5,
+                MarkRenderData.created_at,
+                MarkRenderData.page_type,
+                MarkRenderData.page_engine,
+                MarkRenderData.parent_id,
+                MarkRenderData.order,
+                MarkRenderData.level,
+                MarkRenderData.is_folder,
+                MarkRenderData.icon_type,
+                MarkRenderData.icon_path,
+                MarkRenderData.icon_color,
+                MarkRenderData.display_name,
+            ).order_by(
+                MarkRenderData.parent_id.asc(),
+                MarkRenderData.order.asc(),
+                MarkRenderData.created_at.desc(),
+            ).all()
+
+            children_by_parent = {}
+            for record in records:
+                node = {
+                    'id': record.id,
+                    'title': record.title or '',
+                    'tags': record.tags or '',
+                    'file_path': record.file_path or '',
+                    'theme_id': record.theme_id or 0,
+                    'converter': record.converter or '',
+                    'converter_start': record.converter_start,
+                    'converter_end': record.converter_end,
+                    'status': record.status or '',
+                    'render_style': record.render_style or '',
+                    'updated_at': record.updated_at,
+                    'content_md5': record.content_md5 or '',
+                    'created_at': record.created_at,
+                    'page_type': record.page_type or '',
+                    'page_engine': record.page_engine or '',
+                    'parent_id': record.parent_id,
+                    'order': record.order or 0,
+                    'level': record.level or 0,
+                    'is_folder': record.is_folder or 0,
+                    'icon_type': record.icon_type,
+                    'icon_path': record.icon_path,
+                    'icon_color': record.icon_color,
+                    'display_name': record.display_name,
+                    'children': [],
+                }
+                children_by_parent.setdefault(record.parent_id, []).append(node)
+
+            def attach_children(node):
+                node['children'] = children_by_parent.get(node['id'], [])
+                for child in node['children']:
+                    attach_children(child)
+
+            root_nodes = children_by_parent.get(parent_id, [])
+            if parent_id is None:
+                root_nodes = children_by_parent.get(None, []) + children_by_parent.get('', [])
+            for root_node in root_nodes:
+                attach_children(root_node)
+            return root_nodes
+        except Exception as e:
+            logger.error(f"Error getting lightweight tree: {e}")
+            raise e
+        finally:
+            session.close()
     
     def delete_node(self, item_id, recursive=False):
         """删除节点

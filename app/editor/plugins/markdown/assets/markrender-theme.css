@@ -1,0 +1,134 @@
+/* MarkRender runtime theme bridge for Cherry Markdown.
+   This file is loaded after cherry-markdown.min.css by index.html. */
+
+:root {
+  --mr-surface-base: #ffffff;
+  --mr-surface-subtle: #f9fafb;
+  --mr-surface-muted: #f3f4f6;
+  --mr-surface-hover: #eff6ff;
+  --mr-border-subtle: #e5e7eb;
+  --mr-border-default: #d1d5db;
+  --mr-text-primary: #111827;
+  --mr-text-secondary: #4b5563;
+  --mr-text-muted: #6b7280;
+  --mr-accent: #3b82f6;
+  --mr-accent-hover: #2563eb;
+  --mr-accent-active: #1d4ed8;
+  --mr-accent-soft: #eff6ff;
+  --mr-code-bg: #f3f4f6;
+  --mr-table-header-bg: #f9fafb;
+}
+
+.cherry {
+  --primary-color: var(--mr-accent);
+  --base-font-color: var(--mr-text-primary);
+  --base-sub-font-color: var(--mr-text-secondary);
+  --base-border-color: var(--mr-border-subtle);
+  --base-editor-bg: var(--mr-surface-base);
+  --base-previewer-bg: var(--mr-surface-base);
+  --toolbar-bg: var(--mr-surface-base);
+  --toolbar-btn-hover-bg: var(--mr-accent-soft);
+  --toolbar-btn-hover-color: var(--mr-accent-hover);
+}
+
+body,
+.cherry,
+.cherry-editor,
+.cherry-previewer,
+.cherry-previewer .cherry-markdown {
+  background: var(--mr-surface-base);
+  color: var(--mr-text-primary);
+}
+
+.cherry-markdown {
+  word-break: normal;
+  overflow-wrap: break-word;
+  line-height: 1.68;
+  color: var(--mr-text-primary);
+}
+
+.cherry-markdown h1,
+.cherry-markdown h2,
+.cherry-markdown h3,
+.cherry-markdown h4 {
+  color: var(--mr-text-primary);
+  line-height: 1.25;
+  margin: 1.4em 0 0.65em;
+}
+
+.cherry-markdown p,
+.cherry-markdown ul,
+.cherry-markdown ol {
+  margin: 0.75em 0;
+}
+
+.cherry-markdown a {
+  color: var(--mr-accent);
+  overflow-wrap: anywhere;
+}
+
+.cherry-markdown blockquote {
+  border-left: 4px solid var(--mr-border-default);
+  background: var(--mr-surface-subtle);
+  color: var(--mr-text-secondary);
+  padding: 10px 14px;
+  margin: 1em 0;
+}
+
+.cherry-markdown code:not(pre code) {
+  background: var(--mr-code-bg);
+  color: var(--mr-text-primary);
+  border-radius: 4px;
+  padding: 0.12em 0.35em;
+}
+
+.cherry-markdown pre,
+.cherry-markdown pre code {
+  background: var(--mr-code-bg);
+  color: var(--mr-text-primary);
+  border-radius: 6px;
+  font-size: 0.92em;
+}
+
+.cherry-markdown table,
+.cherry-table {
+  border-color: var(--mr-border-subtle);
+}
+
+.cherry-markdown th,
+.cherry-table th {
+  background: var(--mr-table-header-bg);
+  color: var(--mr-text-primary);
+  border-color: var(--mr-border-subtle);
+  padding: 8px 10px;
+}
+
+.cherry-markdown td,
+.cherry-table td {
+  border-color: var(--mr-border-subtle);
+  padding: 8px 10px;
+}
+
+.cherry-toolbar {
+  background: var(--toolbar-bg);
+  border-bottom: 1px solid var(--mr-border-subtle);
+  box-shadow: none;
+}
+
+.cherry-toolbar button,
+.cherry-toolbar .cherry-toolbar-button {
+  border-radius: 4px;
+  min-height: 28px;
+}
+
+.cherry-toolbar button:hover,
+.cherry-toolbar .cherry-toolbar-button:hover {
+  background: var(--toolbar-btn-hover-bg);
+  color: var(--toolbar-btn-hover-color);
+}
+
+.cherry-toolbar button.active,
+.cherry-toolbar .active {
+  background: var(--mr-accent-soft);
+  color: var(--mr-accent-active);
+}

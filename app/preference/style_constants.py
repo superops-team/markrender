@@ -60,6 +60,30 @@ CYAN_500 = '#06B6D4'       # 青色 - 用于信息和提示
 BACKGROUND_LIGHT = NEUTRAL_50   # 浅色主题背景
 BACKGROUND_DARK = '#1f1f1f'     # 深色主题背景
 
+# 编辑器语义 Token (Semantic Tokens)
+SURFACE_BASE = NEUTRAL_0
+SURFACE_SUBTLE = NEUTRAL_50
+SURFACE_MUTED = NEUTRAL_100
+SURFACE_HOVER = PRIMARY_50
+SURFACE_SELECTED = PRIMARY_50
+
+BORDER_SUBTLE = NEUTRAL_200
+BORDER_DEFAULT = NEUTRAL_300
+BORDER_ACCENT = PRIMARY_300
+
+TEXT_PRIMARY = NEUTRAL_900
+TEXT_SECONDARY = NEUTRAL_600
+TEXT_MUTED = NEUTRAL_500
+TEXT_DISABLED = NEUTRAL_400
+
+ACCENT = PRIMARY_500
+ACCENT_HOVER = PRIMARY_600
+ACCENT_ACTIVE = PRIMARY_700
+ACCENT_SOFT = PRIMARY_50
+
+FOCUS_BORDER = PRIMARY_400
+FOCUS_SHADOW = PRIMARY_100
+
 # macOS 系统色 (macOS System Colors)
 MACOS_RED = '#ff5f56'           # macOS 红色 - 关闭按钮
 MACOS_RED_HOVER = '#e2443a'     # macOS 红色悬停
@@ -219,6 +243,10 @@ EDITOR_BORDER_WIDTH = 1             # 编辑器边框宽度 (减小边框宽度�
 EDITOR_PADDING = 0                  # 编辑器内边距
 EDITOR_RADIUS = RADIUS_MD           # 编辑器圆角半径 (保持与整体设计一致)
 
+QUICKPICK_ITEM_HEIGHT = 52
+QUICKPICK_ICON_BG_SIZE = 28
+CURRENT_MARKER_WIDTH = 2
+
 # 进度条配置
 PROGRESS_BAR_HEIGHT = 6             # 进度条高度 (减小高度使布局更紧凑)
 PROGRESS_BAR_RADIUS = 3             # 进度条圆角
@@ -241,6 +269,179 @@ PRIMARY_BUTTON_HOVER = PRIMARY_600
 HOVER_COLOR = PRIMARY_50
 SIDEBAR_ICON_SELECTED = PRIMARY_500
 LINE_COLOR = NEUTRAL_200
+
+# 基础输入框样式 - 编辑器主路径统一复用
+LINE_EDIT = f"""
+QLineEdit {{
+    border: 1px solid {BORDER_DEFAULT};
+    border-radius: {RADIUS_SM}px;
+    padding: 0 {SPACING_MD}px;
+    font-size: {FONT_SIZE_MD}px;
+    color: {TEXT_PRIMARY};
+    background-color: {SURFACE_BASE};
+    min-height: {INPUT_HEIGHT_MD}px;
+}}
+QLineEdit:hover {{
+    border-color: {BORDER_ACCENT};
+    background-color: {SURFACE_SUBTLE};
+}}
+QLineEdit:focus {{
+    border: 2px solid {FOCUS_BORDER};
+    padding: 0 {max(SPACING_MD - 1, 0)}px;
+    background-color: {SURFACE_BASE};
+    color: {TEXT_PRIMARY};
+}}
+QLineEdit:disabled {{
+    background-color: {SURFACE_MUTED};
+    color: {TEXT_DISABLED};
+    border-color: {BORDER_SUBTLE};
+}}
+QLineEdit::placeholder {{
+    color: {TEXT_MUTED};
+}}
+"""
+
+QUICKPICK_PANEL_BASE = """
+QTreeWidget {{
+    border: 1px solid {border_subtle};
+    border-radius: {radius_md}px;
+    background-color: {surface_base};
+    padding: {spacing_xs}px;
+    margin-top: 0px;
+    color: {text_primary};
+}}
+QTreeWidget::item {{
+    border: none;
+    padding: {spacing_xs}px 0;
+    margin: 0;
+    min-height: {item_height}px;
+}}
+QTreeWidget::branch:has-children:!has-siblings:closed,
+QTreeWidget::branch:closed:has-children:has-siblings {{
+    border-image: none;
+    image: url({chevron_right_path});
+}}
+QTreeWidget::branch:open:has-children:!has-siblings,
+QTreeWidget::branch:open:has-children:has-siblings {{
+    border-image: none;
+    image: url({chevron_down_path});
+}}
+QTreeWidget::branch {{
+    width: 16px;
+    height: 16px;
+    background-color: transparent;
+}}
+QTreeWidget::branch:selected,
+QTreeWidget::branch:hover,
+QTreeWidget::branch:has-children {{
+    background-color: transparent;
+    border: none;
+}}
+"""
+
+QUICKPICK_CREATE_BUTTON = f"""
+QPushButton {{
+    background-color: {SURFACE_BASE};
+    border: 1px solid {BORDER_DEFAULT};
+    border-radius: {RADIUS_SM}px;
+    padding: {SPACING_SM}px;
+    color: {TEXT_PRIMARY};
+}}
+QPushButton:hover {{
+    background-color: {SURFACE_HOVER};
+    border-color: {BORDER_ACCENT};
+}}
+QPushButton:pressed {{
+    background-color: {ACCENT_SOFT};
+    border-color: {FOCUS_BORDER};
+}}
+QPushButton:focus {{
+    border: 2px solid {FOCUS_BORDER};
+    padding: {max(SPACING_SM - 1, 0)}px;
+}}
+QPushButton:disabled {{
+    background-color: {SURFACE_MUTED};
+    border-color: {BORDER_SUBTLE};
+    color: {TEXT_DISABLED};
+}}
+"""
+
+SCROLLBAR_STYLE = f"""
+QScrollBar:vertical {{
+    background: transparent;
+    width: 4px;
+    margin: 0px;
+    border-radius: 2px;
+}}
+
+QScrollBar::handle:vertical {{
+    background: {BORDER_DEFAULT};
+    min-height: 20px;
+    border-radius: 2px;
+}}
+
+QScrollBar::handle:vertical:hover {{
+    background: {ACCENT};
+}}
+
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical,
+QScrollBar::add-page:vertical,
+QScrollBar::sub-page:vertical {{
+    background: transparent;
+}}
+
+QScrollBar:horizontal {{
+    background: transparent;
+    height: 4px;
+    margin: 0px;
+    border-radius: 2px;
+}}
+
+QScrollBar::handle:horizontal {{
+    background: {BORDER_DEFAULT};
+    min-width: 20px;
+    border-radius: 2px;
+}}
+
+QScrollBar::handle:horizontal:hover {{
+    background: {ACCENT};
+}}
+
+QScrollBar::add-line:horizontal,
+QScrollBar::sub-line:horizontal,
+QScrollBar::add-page:horizontal,
+QScrollBar::sub-page:horizontal {{
+    background: transparent;
+}}
+"""
+
+TAB_STYLE = f"""
+QTabWidget::pane {{
+    border: none;
+}}
+QTabBar::tab {{
+    border: none;
+    padding: 6px 12px;
+    margin: 0px 1px;
+    color: {TEXT_SECONDARY};
+    background-color: transparent;
+    border-radius: {RADIUS_SM}px;
+}}
+QTabBar::tab:selected {{
+    color: {SURFACE_BASE};
+    background-color: {ACCENT};
+    border-radius: {RADIUS_SM}px;
+}}
+QTabBar::tab:hover:!selected {{
+    background-color: {SURFACE_HOVER};
+    color: {ACCENT_HOVER};
+}}
+QTabWidget::tab-bar {{
+    background: transparent;
+    border: none;
+}}
+"""
 
 # ============================================================================
 # 🎨 CSS/HTML 样式常量 (CSS/HTML Style Constants)

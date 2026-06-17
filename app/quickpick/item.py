@@ -21,7 +21,9 @@ from app.preference.style_constants import (
     SPACING_XS, SPACING_SM, SPACING_MD, SPACING_LG, SPACING_XL,
     RADIUS_SM, RADIUS_MD, RADIUS_LG, RADIUS_PILL,
     FONT_SIZE_XS, FONT_SIZE_SM, FONT_SIZE_MD, FONT_SIZE_LG,
-    LINE_HEIGHT_NORMAL
+    LINE_HEIGHT_NORMAL,
+    SURFACE_SELECTED, SURFACE_HOVER, ACCENT, TEXT_PRIMARY, TEXT_SECONDARY,
+    CURRENT_MARKER_WIDTH, QUICKPICK_ICON_BG_SIZE
 )
 
 
@@ -207,15 +209,23 @@ class QuickPickItemDelegate(QStyledItemDelegate):
         
         # TDesign风格的状态颜色处理 - 优化点击区域和视觉效果
         if option.state & QStyle.StateFlag.State_Selected:
-            # TDesign选中状态 - 使用更轻量的选中背景色，符合自然、务实的设计原则
-            painter.setBrush(QColor(245, 249, 255, 180))  # 更轻量的腾讯蓝浅色背景，带透明度
+            # 当前项由 delegate 统一绘制，使用轻背景 + 明确 2px accent marker
+            painter.setBrush(QColor(SURFACE_SELECTED))
             painter.setPen(Qt.PenStyle.NoPen)
-            painter.drawRoundedRect(option_rect, 6, 6)  # TDesign风格圆角优化
+            painter.drawRoundedRect(option_rect.adjusted(0, 1, 0, -1), 6, 6)
+            painter.setBrush(QColor(ACCENT))
+            marker_rect = QRect(
+                option_rect.left(),
+                option_rect.top() + 8,
+                CURRENT_MARKER_WIDTH,
+                max(option_rect.height() - 16, 8),
+            )
+            painter.drawRect(marker_rect)
         elif option.state & QStyle.StateFlag.State_MouseOver:
-            # TDesign悬停状态 - 使用统一的悬停背景色
-            painter.setBrush(NEUTRAL_100)  # TDesign hover background
+            # 悬停状态也由 delegate 负责，避免 QSS 与 delegate 双重渲染
+            painter.setBrush(QColor(SURFACE_HOVER))
             painter.setPen(Qt.PenStyle.NoPen)
-            painter.drawRoundedRect(option_rect, 6, 6)
+            painter.drawRoundedRect(option_rect.adjusted(0, 1, 0, -1), 6, 6)
 
         # Get item data
         item_data = index.data(Qt.ItemDataRole.UserRole)
@@ -239,8 +249,8 @@ class QuickPickItemDelegate(QStyledItemDelegate):
             
             # 图标尺寸和位置 - TDesign规范
             icon_size = 16
-            icon_bg_width = 32
-            icon_bg_height = 32
+            icon_bg_width = 28
+            icon_bg_height = 28
             icon_x = option_rect.x() + SPACING_SM + indent
             icon_y = option_rect.y() + (option_rect.height() - icon_bg_height) // 2
             
@@ -275,7 +285,7 @@ class QuickPickItemDelegate(QStyledItemDelegate):
             
             painter.setBrush(bg_color)
             painter.setPen(Qt.PenStyle.NoPen)
-            painter.drawRoundedRect(icon_x, icon_y, icon_bg_width, icon_bg_height, 8, 8)  # TDesign圆角8px
+            painter.drawRoundedRect(icon_x, icon_y, icon_bg_width, icon_bg_height, 7, 7)
             
             # 获取并绘制图标
             icon_type = item_data.get('icon_type')
@@ -317,9 +327,9 @@ class QuickPickItemDelegate(QStyledItemDelegate):
             painter.setFont(title_font)
             
             if option.state & QStyle.StateFlag.State_Selected:
-                painter.setPen(PRIMARY_700)  # TDesign selected text color
+                painter.setPen(QColor(ACCENT))
             else:
-                painter.setPen(NEUTRAL_900)  # TDesign primary text
+                painter.setPen(QColor(TEXT_PRIMARY))
             
             # 计算标题可用宽度
             title_metrics = painter.fontMetrics()
@@ -335,9 +345,9 @@ class QuickPickItemDelegate(QStyledItemDelegate):
                 painter.setFont(time_font)
                 
                 if option.state & QStyle.StateFlag.State_Selected:
-                    painter.setPen(PRIMARY_600)  # TDesign selected secondary text
+                    painter.setPen(QColor(TEXT_SECONDARY))
                 else:
-                    painter.setPen(NEUTRAL_500)  # TDesign secondary text
+                    painter.setPen(QColor(TEXT_SECONDARY))
                 
                 time_y = content_y + title_metrics.height() + SPACING_XS + painter.fontMetrics().ascent()
                 painter.drawText(content_x, time_y, formatted_time)
@@ -345,18 +355,13 @@ class QuickPickItemDelegate(QStyledItemDelegate):
             # 注释掉标签绘制代码，不再显示标签
             # 标签只在编辑对话框中管理，不在列表项中显示
             
-            # 绘制底部边框分隔线 - TDesign风格
-            painter.setPen(NEUTRAL_200)  # TDesign border color
-            painter.drawLine(option_rect.left() + SPACING_MD + indent, option_rect.bottom() - 1, 
-                           option_rect.right() - SPACING_MD, option_rect.bottom() - 1)
-            
             # 移除多余的操作按钮绘制
         
         painter.restore()
 
     def sizeHint(self, option: QStyleOptionViewItem, index):
         # 减小项高度，提升紧凑性
-        return QSize(option.rect.width(), 56)  # 从80px减少到56px，使布局更紧凑  # type: ignore
+        return QSize(option.rect.width(), 52)  # type: ignore
 
     def editorEvent(self, event, model, option, index):
         # 移除双击和按钮点击事件处理，改为右键菜单触发

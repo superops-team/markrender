@@ -23,7 +23,7 @@ class AutoSaveWorker(QRunnable):
         if self.canceled:
             return
         try:
-            save_id = self.markrender_manager.save_item(id=self.item_id, content=self.content)
+            save_id = self.markrender_manager.save_content(self.item_id, self.content)
             if save_id:
                 logger.info(f"自动保存成功: {save_id}")
             else:

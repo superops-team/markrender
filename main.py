@@ -31,6 +31,8 @@ class MainWindow(QMainWindow):
         self.resize(1200, 800)
         self.setup_ui()
         self.current_item = None
+        self._navigation_token = 0
+        self._pending_navigation_item_id = None
         self.backend_interface = None
         # 设置基础样式表
         self.setStyleSheet(AppStyle().get_main_style())
@@ -235,6 +237,8 @@ class MainWindow(QMainWindow):
         try:
             # 使用Markdown页面类型
             page_type = quickpick_item.get('page_type', 'markdown')
+            item_id = quickpick_item.get('id')
+            navigation_token = self._next_navigation_token(item_id)
             page_manager = self.editor.page_manager
             # 获取或创建markdown页面
             markdown_view = page_manager.get_or_create_page(
@@ -248,7 +252,6 @@ class MainWindow(QMainWindow):
                 # 切换到Markdown页面， Switch后需要重新设置页面内容，否则页面会被reset后显示空
                 page_manager.switch_to_page(page_type)
                 # 获取内容 - 对于不同的item，必须从对应的item获取内容
-                item_id = quickpick_item.get('id')
                 content = ''
                 try:
                     item_detail = self.markrender_manager.get_detail(item_id)
@@ -259,14 +262,15 @@ class MainWindow(QMainWindow):
                         logger.info(f"数据库中未找到内容，使用空内容初始化")
                 except Exception as e:
                     logger.error(f"从数据库获取内容失败: {e}")
-                # 更新Markdown编辑器内容（但不重新创建页面）
-                self.editor.set_current_item(item_id, page_type, content)                
                 # 确保Markdown编辑器可见
                 self.editor.show()
                 
-                # 确保内容被正确设置到编辑器中
-                # 在页面切换后延迟设置内容，确保页面已完全加载
-                QTimer.singleShot(100, lambda: self.editor.set_text_content(content))
+                # 使用 token 保护内容应用，避免旧导航的延迟回调覆盖新文档
+                QTimer.singleShot(
+                    0,
+                    lambda token=navigation_token, target_item_id=item_id, target_page_type=page_type, target_content=content:
+                        self._apply_content_for_navigation(token, target_item_id, target_page_type, target_content)
+                )
                 
                 logger.debug(f"页面内容更新完成: {quickpick_item.get('title')}")
                 
@@ -280,6 +284,28 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "页面处理失败", f"处理{page_type}页面时发生错误: {str(e)}")
         
         logger.debug(f"页面处理完成")
+
+    def _next_navigation_token(self, item_id):
+        """生成新的页面导航 token。"""
+        self._navigation_token += 1
+        self._pending_navigation_item_id = item_id
+        return self._navigation_token
+
+    def _is_active_navigation(self, navigation_token, item_id):
+        """检查延迟回调是否仍属于当前导航。"""
+        return (
+            navigation_token == self._navigation_token
+            and item_id == self._pending_navigation_item_id
+        )
+
+    def _apply_content_for_navigation(self, navigation_token, item_id, page_type, content):
+        """仅为当前有效导航应用内容。"""
+        if not self._is_active_navigation(navigation_token, item_id):
+            logger.info(f"忽略过期导航回调: token={navigation_token}, item_id={item_id}")
+            return False
+
+        self.editor.set_current_item(item_id, page_type, content)
+        return True
     
     def on_history_selected(self, history_record):
         """当用户选择历史记录时的处理"""
@@ -521,7 +547,11 @@ class MainWindow(QMainWindow):
             # 保存当前操作的item数据
             if self.editor and hasattr(self.editor, 'item') and self.editor.item:
                 logger.debug("主窗口关闭: 保存当前编辑器内容")
-                self._perform_save_on_close()
+                save_completed = self._perform_save_on_close()
+                if not save_completed:
+                    logger.warning("关闭前保存未完成，取消关闭事件")
+                    event.ignore()
+                    return
             
             logger.debug("主窗口正常关闭")
             # 所有准备工作完成，接受关闭事件
@@ -539,11 +569,18 @@ class MainWindow(QMainWindow):
     def _perform_save_on_close(self):
         """在关闭时执行保存操作，不涉及事件处理"""
         try:
+            if hasattr(self.editor, 'flush_pending_deferred_save'):
+                if not self.editor.flush_pending_deferred_save(timeout_ms=3000):
+                    QMessageBox.warning(self, "保存提醒", "仍有文档保存未完成，已取消关闭以避免数据丢失。")
+                    self.editor._close_ready = False
+                    return False
+
             # 退出前同步拉取数据并保存
             if hasattr(self, 'editor') and self.editor and hasattr(self.editor, 'item') and self.editor.item.item_id:
                 result = self.editor.backend_interface.send_message_sync("getContent", {}, item_id=self.editor.item.item_id, timeout=10000)
-                if result and result.get('success', False): 
-                    content = result.get('content', '') if result else ''
+                parsed_data = self.editor._parse_js_response(result)
+                if self.editor._is_content_response_ready(parsed_data):
+                    content = parsed_data.get('content', '')
                     item_id = self.editor.item.item_id
                     
                     # 在保存前检查内容是否发生变化
@@ -551,30 +588,26 @@ class MainWindow(QMainWindow):
                     old_content = old_record.get('content', '') if old_record else ''
                     
                     # 只有当内容真正发生变化时才保存
-                    if content != old_content:
-                        self.markrender_manager.save_item(id=item_id, content=content)
+                    if content != old_content or self.editor.content_changed:
+                        save_result = self.markrender_manager.save_content(item_id, content)
+                        if not save_result:
+                            QMessageBox.warning(self, "保存提醒", "关闭前保存失败，已取消关闭以避免数据丢失。")
+                            self.editor._close_ready = False
+                            return False
                         logger.debug(f"文档已保存: {item_id}")
                     else:
                         logger.debug(f"内容未发生变化，跳过保存: {item_id}")
                 else:
-                    # 即使获取内容失败，也要尝试保存（可能是空内容）
-                    item_id = self.editor.item.item_id
-                    content = ""
-                    
-                    # 在保存前检查内容是否发生变化
-                    old_record = self.markrender_manager.get_detail(item_id)
-                    old_content = old_record.get('content', '') if old_record else ''
-                    
-                    # 只有当内容真正发生变化时才保存
-                    if content != old_content:
-                        self.markrender_manager.save_item(id=item_id, content=content)
-                        logger.debug(f"文档已保存（空内容）: {item_id}")
-                    else:
-                        logger.debug(f"内容未发生变化，跳过保存: {item_id}")
+                    logger.warning("关闭保存时前端内容未就绪，跳过保存，避免误写空内容")
+                    QMessageBox.warning(self, "保存提醒", "编辑器内容未就绪，已取消关闭以避免数据丢失，请稍后重试。")
+                    self.editor._close_ready = False
+                    return False
             self.editor._close_ready = True
+            return True
         except Exception as e:
             logger.error(f"发送getContent消息时出错: {e}")
-            self.editor._close_ready = True
+            self.editor._close_ready = False
+            return False
 
     # 移除自定义的窗口拖动功能，使用系统原生的窗口管理
     # 移除双击事件处理，使用系统原生的最大化/还原功能
